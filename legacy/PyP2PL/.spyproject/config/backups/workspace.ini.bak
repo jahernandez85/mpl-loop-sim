@@ -1,0 +1,12 @@
+[workspace]
+restore_data_on_startup = True
+save_data_on_exit = True
+save_history = True
+save_non_project_files = False
+project_type = 'empty-project-type'
+recent_files = ['examples\\01_baseline_kokate.py', 'examples\\02_validation_kokate.py', 'examples\\03_parametric_sweeps.py', 'examples\\04_fluid_comparison.py']
+
+[main]
+version = 0.2.0
+recent_files = []
+
