@@ -28,6 +28,10 @@ or in FlowState?
 Current decision:
 Port carries mdot.
 
+Decision 002
+Status:
+Superseded by Decision 004
+
 # Decision 003
 
 # Decision — Property backend architecture
@@ -43,6 +47,10 @@ Some candidate fluids or mixtures may not be fully available in CoolProp, while 
 
 Status:
 Accepted for architecture review.
+
+Decision 003
+Status:
+Superseded / reconciled by Decision 006
 
 ---
 
@@ -234,3 +242,60 @@ Consequences:
 
 Status:
 Accepted
+
+---
+
+# Decision 010
+
+Date: 2026-06-11
+
+Topic:
+Reconciled interface-era refinements into the frozen architecture
+
+Decision:
+The following interface-era refinements are accepted and recorded as part of the frozen architecture:
+
+1. HeatExchangerModel is a distinct concept from Correlation.
+   ε-NTU, LMTD, SegmentedMarch, and MovingBoundary are HeatExchangerModel strategies, not correlations. HeatExchangerModel has its own registry and consumes HTC/DP correlations through documented slots. This prevents heat-exchanger solution methods from being treated as local closure correlations.
+
+2. PipePath / trajectory is part of PipeGeometry.
+   PipeGeometry carries trajectory information through PipePath. StraightSegment is the V1 implementation. MultiSegmentPath, BendSegment, and FittingSegment remain future seams.
+
+3. AccumulatorGeometry is containment-only.
+   Accumulator pressure behavior is represented by a VolumePressureLaw / accumulator law selection. Law parameters such as charge volume, spring rate, bellows area, gas-charge pressure, and polytropic index do not live in AccumulatorGeometry.
+
+4. Scenario is decomposed into five parts:
+
+   * BoundaryCondition
+   * Command
+   * Disturbance
+   * Environment
+   * OperatingPoint
+
+5. ReproducibilityTuple explicitly includes:
+
+   * hx_model_selections
+   * accumulator_law_selections
+
+Rationale:
+These refinements were introduced during the interface-specification stage and have already been reconciled consistently across ARCHITECTURE_MASTER.md, INTERFACE_SPEC.md, CORRELATION_CONTRACT.md, SCHEMA_SPEC.md, TEST_PLAN_V1.md, and IMPLEMENTATION_PLAN.md. They clarify ownership boundaries and prevent common implementation mistakes: treating heat-exchanger methods as correlations, putting accumulator law parameters into geometry, encoding gravity/trajectory inconsistently, or hiding model selections outside the tuple.
+
+Relationship to previous decisions:
+
+* Refines Decision 005 by clarifying that HeatExchangerModel is not part of the Correlation role set.
+* Refines Decision 007 by formalizing PipePath / trajectory as the geometry-side representation of orientation and elevation.
+* Refines Decision 008 by separating AccumulatorGeometry from the accumulator pressure law.
+* Refines the Scenario and ReproducibilityTuple structure used by the frozen architecture and schema.
+* Does not reopen Decisions 001–009.
+
+Consequences:
+
+* HeatExchangerModel, PropertyBackend, Correlation, and Solver remain separate concepts with separate responsibilities.
+* AccumulatorGeometry remains containment-only.
+* VolumePressureLaw / accumulator law selection owns pressure-law parameters.
+* Scenario is the primary operating-point and DOE axis.
+* ReproducibilityTuple records every swappable model selection explicitly.
+* Implementation agents must follow these reconciled refinements as frozen architecture.
+
+Status:
+Accepted / Reconciled
