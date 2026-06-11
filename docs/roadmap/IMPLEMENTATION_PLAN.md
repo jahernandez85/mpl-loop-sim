@@ -131,6 +131,46 @@ Fifteen phases, Phase 0–14. Phases 0–9 build and prove the V1 vertical slice
 
 The phase order **is** the harvest order of `ARCHITECTURE_REVIEW_LEGACY.md` §8 and the test order of `TEST_PLAN_V1.md` §2.2. The acceptance gate of each phase is the precondition of the next; a phase may not begin until its predecessor's gate is green.
 
+## 4.1 Two phase-numbering systems — do not confuse them
+
+There are **two distinct phase-numbering systems** in the documentation, and they must never be conflated:
+
+- **V1 Build Phases (this document):** the fine-grained build sequence **numbered 0–14** in §4 above. This is the **authoritative implementation sequence**. For all actual coding work, "Phase N" means the V1 Build Phase N of `IMPLEMENTATION_PLAN.md`.
+- **Long-Term Roadmap Milestones (coarser references elsewhere):** older, coarse milestone labels used in the architecture, correlation, schema, and test documents (`ARCHITECTURE_MASTER.md`, `CORRELATION_CONTRACT.md`, `SCHEMA_SPEC.md`, `TEST_PLAN_V1.md`), where **"Phase 5" means the DOE/surrogate research milestone** and **"Phase 6" means the dynamic-solver / MovingBoundary / dynamics milestone**.
+
+The same token (e.g. "Phase 5", "Phase 6") therefore denotes **different work** in the two systems. **When `IMPLEMENTATION_PLAN.md` says "Phase 5" it means "V1 Build Phase 5 — Calibration", *not* the long-term DOE/surrogate milestone.** An implementation agent that cross-references documents must resolve every "Phase N" reference through the Rosetta table below before acting on it.
+
+### Phase Rosetta table
+
+The authoritative V1 Build Phases (0–14), and how the older/coarser Long-Term Roadmap references map onto them:
+
+| V1 Build Phase | Title |
+|---|---|
+| **0** | Repository preparation and tooling |
+| **1** | Core data model |
+| **2** | PropertyBackend |
+| **3** | Correlation contract and registry |
+| **4** | Geometry and discretization |
+| **5** | **Calibration** |
+| **6** | Pipe component |
+| **7** | Network and assembly |
+| **8** | First steady solver |
+| **9** | Result and schema serialization |
+| **10** | Pump and Accumulator |
+| **11** | HeatExchangerModel, Evaporator and Condenser |
+| **12** | Validation harness and literature cases |
+| **13** | DOE/surrogate readiness |
+| **14** | Documentation and release |
+
+Relationship to the older/coarser **Long-Term Roadmap** references used elsewhere:
+
+| Long-Term Roadmap Milestone | Meaning | Realized in V1 Build Phase(s) |
+|---|---|---|
+| **Long-Term Roadmap Phase 5** | DOE / surrogate research milestone | V1 Build Phase 13 (DOE/surrogate readiness); schema/admissibility only in V1 |
+| **Long-Term Roadmap Phase 6** | Dynamic solver / MovingBoundary / dynamics milestone | Post-V1; seams declared across the V1 Build Phases (named-but-frozen internal states, declarable `MovingBoundary`) |
+
+> **Note.** Wherever this document writes "Phase N", it means **V1 Build Phase N** (the 0–14 column above). The Long-Term Roadmap "Phase 5 = DOE/surrogate" and "Phase 6 = dynamics" labels are *not* the same numbers and appear only in the coarser architecture/test/schema/correlation references. In particular, **`IMPLEMENTATION_PLAN.md` "Phase 5" = Calibration**, never DOE/surrogate.
+
 ---
 
 # 5. Phase 0 — Repository Preparation and Tooling

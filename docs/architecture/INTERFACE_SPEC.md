@@ -971,7 +971,9 @@ Each ties to the guard that forbids it (MASTER §19, extended for this spec).
 
 # 17. Required Architecture Master Amendments
 
-The following amendments to `ARCHITECTURE_MASTER.md` are **required to keep the master consistent with this interface review.** They are listed for later application; **this task does not edit the master.** Each is a clarification or correction implied by the four refinement notes — none reopens a frozen decision; they refine how a frozen decision is expressed.
+> **Status: APPLIED — reconciled into `ARCHITECTURE_MASTER.md`.** Amendments A1–A6 below have been applied to the master (§2, §8, §10, §12, §15, §18) and recorded in `DECISION_LOG.md` Decision 010. They are retained here as the traceability record of what changed; **do not re-apply them.** "§17 amendment" cross-references in `CORRELATION_CONTRACT.md` and `SCHEMA_SPEC.md` should be read as "reconciled in the master."
+
+The following amendments to `ARCHITECTURE_MASTER.md` were **required to keep the master consistent with this interface review.** Each is a clarification or correction implied by the four refinement notes — none reopens a frozen decision; they refine how a frozen decision is expressed.
 
 **A1 — Pipe geometry / trajectory (Refinement note 1).**
 - §8 (`PipeGeometry {L, D_h, A, roughness, Δz}`) and §2 concept table: amend so the elevation descriptor is a **`PipePath`/trajectory field** of which a single straight `Δz` segment is the v1 default, not the only representable form. Add a sentence that horizontal/vertical/inclined/curved/multi-segment runs, bends, and fittings are additive `PipePath` families, and that **collectors and manifolds are Network topologies of pipe segments at Junctions, not a geometry field.** No change to "Geometry computes no physics."
@@ -996,4 +998,4 @@ The following amendments to `ARCHITECTURE_MASTER.md` are **required to keep the 
 
 ---
 
-*End of INTERFACE_SPEC.md — the interface and contract reference for the MPL simulation framework. Subordinate to ARCHITECTURE_MASTER.md; frozen contracts are tagged `<<FROZEN>>`, future seams `<<SEAM>>`. The amendments in §17 are to be applied to the master in a separate task. Next companions: SCHEMA_SPEC.md, CORRELATION_CONTRACT.md, TEST_PLAN_V1.md.*
+*End of INTERFACE_SPEC.md — the interface and contract reference for the MPL simulation framework. Subordinate to ARCHITECTURE_MASTER.md; frozen contracts are tagged `<<FROZEN>>`, future seams `<<SEAM>>`. The amendments in §17 have been applied to the master and recorded in `DECISION_LOG.md` Decision 010. Next companions: SCHEMA_SPEC.md, CORRELATION_CONTRACT.md, TEST_PLAN_V1.md.*

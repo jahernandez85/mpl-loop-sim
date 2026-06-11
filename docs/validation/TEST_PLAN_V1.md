@@ -802,9 +802,11 @@ mpl-loop-sim/
 
 ---
 
-# 18. Acceptance Gates Before Implementation Phases
+# 18. Acceptance Gates Mapped to IMPLEMENTATION_PLAN.md V1 Build Phases
 
 Each gate lists **required tests**, **pass criteria**, and **blockers**. A phase does not begin until the prior gate is green. Phases map to the harvest order (`ARCHITECTURE_MASTER.md` §17).
+
+> **Phase-numbering note (read before using the gate labels).** The gates below are **grouped acceptance gates**: each Gate corresponds to **one or more V1 Build Phases of `IMPLEMENTATION_PLAN.md`** (the authoritative 0–14 build sequence; see `IMPLEMENTATION_PLAN.md` §4.1 and its Rosetta table), not to a 1:1 phase mapping. The "(Phase N)" labels on the gate headings are these **grouped gate numbers**, and they are **not** the older Long-Term Roadmap "Phase 5 = DOE/surrogate" / "Phase 6 = dynamics" terminology. For example, Gate 3 (Pipe + Pump + Accumulator) spans V1 Build Phases 6 and 10, and Gate 4 (Evaporator + Condenser + loop solver) spans V1 Build Phases 7–11. To resolve any "Phase N" reference to the authoritative build step, use the `IMPLEMENTATION_PLAN.md` §4.1 Rosetta table.
 
 ## 18.1 Gate 1 — Core data + property + schema (Phase 1)
 
