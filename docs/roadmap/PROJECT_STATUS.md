@@ -262,5 +262,9 @@ Layer prefixes: `core:`, `properties:`, `correlations:`, `geometry:`, `discretiz
 Phase 1 code audit completed. Verdict: APPROVED FOR PHASE 2.
 Current active phase: Phase 2A — PropertyBackend interface.
 
+Phase 2A/2B property-layer audit completed.
+Verdict: APPROVED FOR PHASE 2C.
+Current active phase: Phase 2C — PropertyBackend registry and backend selection.
+Minor follow-ups: add P/h shape-mismatch test; document CoolPropBackend.valid_range() as coarse; import-linter before Phase 3.
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture — for that, always go to `ARCHITECTURE_MASTER.md`.*
