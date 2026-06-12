@@ -1,0 +1,75 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mpl-sim"
+version = "0.1.0.dev0"
+description = "Multi-phase loop thermal simulator"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "CoolProp>=6.4",
+    "PyYAML>=6.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "black>=24.0",
+    "mypy>=1.8",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
+
+[tool.ruff]
+src = ["src"]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP"]
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+
+# ---------------------------------------------------------------------------
+# Import-direction guard (Phase 0.1 / Phase 1 compliance task)
+# ---------------------------------------------------------------------------
+# The DAG layer rules below are NOT yet enforced by tooling. They must be
+# enforced by import-linter (or equivalent) before Phase 3 work begins.
+#
+# Layer ordering (lower number = lower layer, higher = depends on lower):
+#   0  core/          — FluidIdentity, FluidState, Port, SystemState
+#   1  properties/    — PropertyBackend, CoolPropBackend  [ONLY CoolProp importer]
+#   2  geometry/      — PipeGeometry, PlateGeometry, ...
+#   3  discretization/— Lumped, Segmented, MovingBoundary
+#   4  correlations/  — Correlation contract, roles, registry
+#   5  calibration/   — CalibrationMode, CalibrationFactor, CalibrationReport
+#   6  components/    — Component contract, Pipe, Pump, Valve, HX, Accumulator
+#   7  hx_models/     — HeatExchangerModel strategies
+#   8  network/       — Topology, validation, assembly
+#   9  solvers/       — FixedPoint, Newton, FD-Jacobian
+#  10  schema/        — Serialization, versioning
+#  11  results/       — Result object, ValidationInvariants
+#  12  validation/    — Literature cases, comparison metrics
+#
+# Forbidden import directions (must be blocked by import-linter):
+#   correlations  → components, network, solvers   (DAG violation)
+#   components    → network, solvers               (DAG violation)
+#   network       → solvers                        (DAG violation)
+#   anything      → solvers  (except solvers itself and orchestration scripts)
+#   anything      → CoolProp (except properties/)
+#
+# To enforce: add `import-linter` to dev dependencies and create
+# a [tool.importlinter] section with contracts for each forbidden direction.
+# ---------------------------------------------------------------------------

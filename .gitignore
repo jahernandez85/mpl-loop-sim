@@ -1,13 +1,29 @@
 __pycache__/
 *.pyc
+*.pyo
 
-.vscode/
-.idea/
+# Build / packaging artifacts
+*.egg-info/
+dist/
+build/
+.eggs/
 
+# Virtual environments
 .env
 .venv/
 
-*.log
+# Editor
+.vscode/
+.idea/
 
+# OS
 .DS_Store
 Thumbs.db
+
+# Test / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Logs
+*.log
