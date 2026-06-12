@@ -1,64 +1,42 @@
 # Roadmap
 
-## Current Stage
+This file is a short roadmap pointer.
 
-Architecture definition and literature consolidation.
+The previous coarse roadmap has been superseded. The authoritative implementation sequence is `docs/roadmap/IMPLEMENTATION_PLAN.md`. The current project state is tracked in `docs/roadmap/PROJECT_STATUS.md`.
 
-## Phase 0 — Project Setup
+## Authoritative Roadmap
 
-- Create repository structure.
-- Add literature-derived Markdown documents.
-- Add legacy simulation references.
-- Define modelling decisions.
-- Define validation strategy.
+For coding work, always follow `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 
-## Phase 1 — Core Architecture
+`IMPLEMENTATION_PLAN.md` defines the V1 Build Phases 0-14 and is the source of truth for implementation order. Do not use this file to decide what to build next.
 
-- Define `FluidState`.
-- Define `Port`.
-- Define base `Component` interface.
-- Define geometry and mesh objects.
-- Define correlation strategy interfaces.
+## Current Status
 
-## Phase 2 — Steady-State Components
+- Phase 0 is complete.
+- Phase 1 is complete and audited.
+- Phase 2 property layer is complete and audited.
+- Phase 3 is next, starting with correlation contract primitives.
+- Components are not skipped; they are scheduled later in the V1 build sequence.
 
-- Implement `Pipe1D`.
-- Implement `Pump`.
-- Implement `AccumulatorSS`.
-- Implement `Evaporator1D`.
-- Implement `PlateCondenser1D`.
-- Implement `Splitter` and `Mixer`.
+## Component Implementation Timing
 
-## Phase 3 — Steady-State Loop Solver
+- Pipe component: V1 Build Phase 6.
+- Pump and Accumulator: V1 Build Phase 10.
+- `HeatExchangerModel`, Evaporator, and Condenser: V1 Build Phase 11.
 
-- Assemble single-loop architecture.
-- Solve pressure and mass-flow closure.
-- Add pressure-drop calibration mode: `none` / `target`.
-- Generate profiles for pressure, enthalpy, quality and temperature.
+Therefore, the absence of components in `src/mpl_sim/components/` at the end of Phase 2 is expected and correct.
 
-## Phase 4 — Validation
+## Legacy Coarse Roadmap
 
-- Validate pipe pressure drop.
-- Validate evaporator energy balance and outlet quality.
-- Validate condenser heat rejection.
-- Validate full loop against literature or experimental data.
+Older references to coarse phases such as "Phase 2 - Steady-State Components" are historical and superseded.
 
-## Phase 5 — Surrogate Model Generation
+They should not be used by AI agents or contributors for implementation sequencing. If phase-numbering ambiguity appears, use the Rosetta table in `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 
-- Define input parameters.
-- Generate DOE datasets.
-- Run batch simulations.
-- Train and test surrogate models.
+## Instructions for AI Agents
 
-## Phase 6 — Dynamic Extension
-
-- Add dynamic accumulator.
-- Add wall thermal capacitance.
-- Add moving-boundary evaporator/condenser models.
-- Add dynamic solver.
-
-## Phase 7 — Control-Oriented Models
-
-- Add linearization tools.
-- Add reduced-order models.
-- Prepare MPC-compatible state-space models.
+- Read `docs/roadmap/PROJECT_STATUS.md` first.
+- Read `docs/roadmap/IMPLEMENTATION_PLAN.md` second.
+- Work only on the current active phase.
+- Do not infer missing implementation tasks from this file.
+- Do not implement components until the V1 Build Phase that schedules them.
+- Do not modify architecture or decision documents unless explicitly requested.
