@@ -12,242 +12,238 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
 | **Branch** | `main` |
-| **Stage** | Active implementation — Phase 1 complete, Phase 2 next |
-| **Completed phase** | Phase 1 — Core Data Model |
-| **Current active phase** | **Phase 2 — PropertyBackend** |
-| **Next phase after 2** | Phase 3 — Correlations |
-| **Last commit** | `132d42a core: add solver-owned system state primitives` |
-| **Working tree** | Clean |
-| **Test status** | 179 passed (Phase 1A + 1B + 1C) |
+| **Stage** | Phase 2 closeout complete; Phase 3 pending closeout review/commit |
+| **Completed phase** | Phase 2 - PropertyBackend |
+| **Current active phase** | **Phase 3 - Correlation contract and registry** |
+| **Immediate Phase 3 slice** | **Phase 3A - Correlation contract primitives** |
+| **Working tree before this docs task** | Phase 2C reported committed |
+| **Test status** | 316 passed, verified 2026-06-12 with `python -B -m pytest -p no:cacheprovider` |
+| **Lint status** | `ruff check src tests` clean, verified 2026-06-12 |
+| **Format status** | `black --check src tests` clean, verified 2026-06-12 |
+
+Phase 3 should not start until the Phase 2 complete audit and closeout summary have been reviewed and committed.
+
+Claude is not being used further in the current session due to high session usage. Future implementation should resume with a fresh Claude session or another coding agent.
 
 ---
 
 ## 2. Authoritative Documents
 
-All eight binding documents are frozen. Do not modify them during implementation.
+All binding architecture and roadmap documents remain frozen unless a future task explicitly authorizes changes through the decision process.
 
 | Document | Purpose | Authority level |
 |---|---|---|
-| `docs/architecture/ARCHITECTURE_MASTER.md` | Single source of architectural truth; frozen decisions [F1]–[F18] | **Highest — overrides everything** |
-| `docs/architecture/INTERFACE_SPEC.md` | Frozen contracts and signatures for every DAG layer | Binding; `<<FROZEN>>` signatures may not change without a DECISION_LOG entry |
+| `docs/architecture/ARCHITECTURE_MASTER.md` | Single source of architectural truth; frozen decisions [F1]-[F18] | Highest |
+| `docs/architecture/INTERFACE_SPEC.md` | Frozen contracts and signatures for every DAG layer | Binding |
 | `docs/architecture/CORRELATION_CONTRACT.md` | Closure contract, per-role input manifests, validity-envelope format | Binding |
 | `docs/architecture/SCHEMA_SPEC.md` | Serialization schemas for tuple, Result, dataset, validation case | Binding |
-| `docs/validation/TEST_PLAN_V1.md` | Eleven test levels, acceptance gates, anti-pattern compliance tests | Binding test order and gate criteria |
-| `docs/roadmap/IMPLEMENTATION_PLAN.md` | **Authoritative phase order (0–14) for all coding work** | Binding build sequence |
-| `docs/architecture/ARCHITECTURE_FINAL_AUDIT.md` | Pre-implementation coherence audit; all findings resolved | Reference |
-| `docs/decisions/DECISION_LOG.md` | Decisions 001–010; frozen for V1 | Binding governance record |
+| `docs/validation/TEST_PLAN_V1.md` | Test levels, acceptance gates, anti-pattern compliance tests | Binding |
+| `docs/roadmap/IMPLEMENTATION_PLAN.md` | Authoritative phase order for all coding work | Binding |
+| `docs/architecture/ARCHITECTURE_FINAL_AUDIT.md` | Pre-implementation coherence audit | Reference |
+| `docs/decisions/DECISION_LOG.md` | Frozen governance record | Binding |
 
-**Key authority statements:**
-- `ARCHITECTURE_MASTER.md` is the single source of architectural truth. Where any other document conflicts with it, the master wins.
-- `IMPLEMENTATION_PLAN.md` is the authority for phase order and build sequence. When any document says "Phase N," resolve it through the Rosetta table in `IMPLEMENTATION_PLAN.md §4.1`.
-- `TEST_PLAN_V1.md` defines acceptance gates. A phase does not begin until the prior gate is green.
-- `DECISION_LOG.md` is the governance record. Any change to a `<<FROZEN>>` signature requires a new entry here, not an inline edit.
+Key authority statements:
+
+- `ARCHITECTURE_MASTER.md` remains the single source of architectural truth.
+- `IMPLEMENTATION_PLAN.md` is the authority for phase order and build sequence.
+- `TEST_PLAN_V1.md` defines acceptance gates.
+- `DECISION_LOG.md` is required for any future frozen-contract change.
 
 ---
 
 ## 3. Completed Milestones
 
-| Milestone | Status | Commit |
-|---|---|---|
-| Architecture master (`ARCHITECTURE_MASTER.md`) | Done | `bacb323` |
-| Interface specification (`INTERFACE_SPEC.md`) | Done | `bacb323` |
-| Correlation contract (`CORRELATION_CONTRACT.md`) | Done | `bacb323` |
-| Schema specification (`SCHEMA_SPEC.md`) | Done | `bacb323` |
-| Implementation roadmap (`IMPLEMENTATION_PLAN.md`) | Done | `6318346` |
-| Test plan (`TEST_PLAN_V1.md`) | Done | `6318346` |
-| Final architecture audit (`ARCHITECTURE_FINAL_AUDIT.md`) | Done | `47acf01` |
-| MAJOR-1 fix: phase-numbering Rosetta table in IMPLEMENTATION_PLAN | Done | `48024f1` |
-| MAJOR-2 fix: Decision 010 recorded in DECISION_LOG | Done | `6f611d1` |
-| GitHub repository initialized | Done | `dfa214d` |
-| **Phase 0 — Repository Preparation and Tooling** | **Done** | `bc9c78d` |
-| Phase 1A — FluidIdentity, FluidState | Done | `d68080b` |
-| Phase 1B — PortRole, PortId, Port | Done | `582a2be` |
-| **Phase 1C — VariableKind, StateVariableId, PortVariableHandle, InternalStateHandle, StateLayout, SystemState** | **Done** | `132d42a` |
-| **Phase 1 — Core Data Model (all sub-phases)** | **Done** | `132d42a` |
+| Milestone | Status |
+|---|---|
+| Architecture master, interface spec, schema spec, correlation contract, test plan, implementation roadmap, final architecture audit | Complete |
+| GitHub repository initialized | Complete |
+| **Phase 0 - Repository Preparation and Tooling** | **Complete** |
+| **Phase 1A - FluidIdentity and FluidState** | **Complete** |
+| **Phase 1B - Port primitives** | **Complete** |
+| **Phase 1C - SystemState and StateLayout** | **Complete** |
+| **Phase 1 audit** | **Complete; approved for Phase 2** |
+| **Phase 2A - PropertyBackend interface contract** | **Complete** |
+| **Phase 2B - CoolPropBackend** | **Complete** |
+| **Phase 2C - PropertyBackend registry and backend selection binding** | **Complete** |
+| **Phase 2 property layer foundation** | **Complete** |
+
+Phase 2 closeout artifacts:
+
+- `docs/validation/audits/PHASE_2_CLOSEOUT_SUMMARY.md`
+- `docs/validation/audits/PHASE_2_COMPLETE_AUDIT.md`
+- Existing supporting audit: `docs/validation/audits/PHASE_2_PROPERTY_LAYER_AUDIT.md`
 
 ---
 
 ## 4. Current Repository Structure
 
-```
+```text
 mpl-loop-sim/
-├── docs/
-│   ├── architecture/       # ARCHITECTURE_MASTER, INTERFACE_SPEC, CORRELATION_CONTRACT,
-│   │                       # SCHEMA_SPEC, ARCHITECTURE_FINAL_AUDIT, ARCHITECTURE_REVIEW_LEGACY
-│   ├── decisions/          # DECISION_LOG.md (Decisions 001–010)
-│   ├── roadmap/            # IMPLEMENTATION_PLAN.md, PROJECT_STATUS.md (this file)
-│   └── validation/         # TEST_PLAN_V1.md, VALIDATION_PLAN.md
-├── legacy/                 # A0_SS_v3_Stable, PyP2PL, MPL_Simulator — read-only reference
-├── papers/                 # Literature references
-├── src/
-│   └── mpl_sim/            # <<< ALL implementation code lives here
-│       ├── __init__.py     # version = 0.1.0.dev0
-│       ├── core/           # Phase 1: FluidIdentity, FluidState, Port, SystemState
-│       ├── properties/     # Phase 2: PropertyBackend, CoolPropBackend — ONLY CoolProp importer
-│       ├── geometry/       # Phase 4: PipeGeometry, PlateGeometry, ...
-│       ├── discretization/ # Phase 4: Lumped, Segmented, MovingBoundary
-│       ├── correlations/   # Phase 3: Correlation contract, roles, registry
-│       ├── calibration/    # Phase 5: CalibrationMode, CalibrationFactor, CalibrationReport
-│       ├── components/     # Phase 6+: Pipe, Pump, Accumulator, Evaporator, Condenser
-│       ├── hx_models/      # Phase 11: HeatExchangerModel strategies
-│       ├── network/        # Phase 7: Topology, validation, assembly
-│       ├── solvers/        # Phase 8: FixedPoint, Newton, FD-Jacobian
-│       ├── schema/         # Phase 9: ReproducibilityTuple, Result serialization
-│       ├── results/        # Phase 9: Result object, ValidationInvariants
-│       └── validation/     # Phase 12: Literature harness, comparison metrics
-├── tests/
-│   ├── unit/               # test_smoke.py (2 passing)
-│   ├── property/           # Phase 2 tests (.gitkeep)
-│   ├── correlation/        # Phase 3 tests (.gitkeep)
-│   ├── geometry/           # Phase 4 tests (.gitkeep)
-│   ├── calibration/        # Phase 5 tests (.gitkeep)
-│   ├── component/          # Phase 6+ tests (.gitkeep)
-│   ├── network/            # Phase 7 tests (.gitkeep)
-│   ├── solver/             # Phase 8 tests (.gitkeep)
-│   ├── result/             # Phase 9 tests (.gitkeep)
-│   ├── schema/             # Phase 9 tests (.gitkeep)
-│   ├── literature/         # Phase 12 tests (.gitkeep)
-│   ├── regression/         # regression goldens (.gitkeep)
-│   └── compliance/         # anti-pattern guard tests (.gitkeep)
-├── examples/               # README.md placeholder; examples added Phase 12+
-├── data/
-│   ├── property_tables/    # README.md; PENDING-DATA — 29 CSVs missing
-│   ├── validation/         # README.md; data to be lifted from legacy/ per phase
-│   └── surrogates/         # README.md; Phase 13+
-├── pyproject.toml          # mpl-sim, Python >=3.10, src layout, all deps
-├── .gitignore
-└── README.md
+|-- docs/
+|   |-- architecture/
+|   |-- decisions/
+|   |-- roadmap/
+|   `-- validation/
+|       `-- audits/
+|-- src/
+|   `-- mpl_sim/
+|       |-- core/
+|       |-- properties/
+|       |-- correlations/
+|       |-- geometry/
+|       |-- discretization/
+|       |-- calibration/
+|       |-- components/
+|       |-- hx_models/
+|       |-- network/
+|       |-- solvers/
+|       |-- schema/
+|       |-- results/
+|       `-- validation/
+|-- tests/
+|   |-- unit/
+|   |-- property/
+|   |-- correlation/
+|   |-- geometry/
+|   |-- calibration/
+|   |-- component/
+|   |-- network/
+|   |-- solver/
+|   |-- result/
+|   |-- schema/
+|   |-- literature/
+|   |-- regression/
+|   `-- compliance/
+|-- pyproject.toml
+`-- README.md
 ```
 
 ---
 
-## 5. Current Active Phase
+## 5. Phase 2 Closeout
 
-**Phase 1 — Core Data Model** (`src/mpl_sim/core/`) — **COMPLETE**
+**Phase 2 - PropertyBackend** (`src/mpl_sim/properties/`) is complete.
 
-All seven Phase 1 objects are implemented, tested, and committed.
+Scope completed:
 
-| Object | File | Tests | Status |
-|---|---|---|---|
-| `FluidIdentity` (PureFluid, Mixture, CustomFluid) | `core/fluid_identity.py` | `test_fluid_identity.py` | Done |
-| `FluidState` | `core/fluid_state.py` | `test_fluid_state.py` | Done |
-| `PortRole`, `PortId`, `Port` | `core/port.py` | `test_port.py` | Done |
-| `VariableKind`, `StateVariableId` | `core/state.py` | `test_state.py` | Done |
-| `PortVariableHandle`, `InternalStateHandle` | `core/state.py` | `test_state.py` | Done |
-| `StateLayout`, `SystemState` | `core/state.py` | `test_state.py` | Done |
+- Phase 2A - `PropertyBackend` interface contract.
+- Phase 2B - `CoolPropBackend`.
+- Phase 2C - `PropertyBackendRegistry`, `BackendSelection`, and default backend-name binding.
 
-Phase 1 acceptance gate (`TEST_PLAN_V1.md §18.1` Gate 1): **GREEN** — 179/179 tests passing.
+Architectural guarantees preserved:
 
-**Phase 2 — PropertyBackend** (`src/mpl_sim/properties/`) is the next active phase.
+- `FluidState` remains pure P/h/identity.
+- `FluidState` stores no derived properties.
+- `FluidState` holds no `PropertyBackend` reference.
+- CoolProp is confined to `properties/`.
+- `core/` does not import `properties/` or CoolProp.
+- P-h remains the canonical property input pair.
+- `PropertyBackend` remains vector-first.
+- Unsupported mixtures/custom fluids are explicit, not silently guessed.
+- The property backend registry is separate from the future correlation registry.
 
-Objective: implement the `PropertyBackend` ABC + `CoolPropBackend` concrete implementation.  
-CoolProp is imported **only** inside `src/mpl_sim/properties/` — nowhere else in the codebase.
+Known deferred items:
 
----
-
-## 6. Next Immediate Actions
-
-Phase 1 is complete and committed. Proceed with Phase 2:
-
-1. **Verify environment is clean** before starting:
-   ```
-   git status              # should be clean
-   pytest tests/           # should pass 179 tests
-   ruff check src/ tests/
-   black --check src/ tests/
-   ```
-
-2. **Start Phase 2 — PropertyBackend** (read INTERFACE_SPEC §5 and IMPLEMENTATION_PLAN §6.2 first):
-   - Create `tests/property/test_property_backend.py` (tests first).
-   - Implement `src/mpl_sim/properties/backend.py` (abstract base class).
-   - Implement `src/mpl_sim/properties/coolprop_backend.py` (CoolProp wrapper).
-   - CoolProp must only be imported inside `src/mpl_sim/properties/`.
-   - Tests that lack CoolProp in the environment must be marked `pytest.mark.skipif`.
-
-3. **Do not implement correlations, geometry, or components** until Phase 2 is green.
-
-4. **Do not store derived properties** (T, x, ρ, μ, k) anywhere — computed on demand only.
+- `TabulatedPropertyBackend`.
+- REFPROP backend.
+- Empirical backend.
+- Mixture backend support.
+- Full `ReproducibilityTuple` serialization.
+- Import-linter or equivalent import-boundary enforcement before higher layers expand.
+- `CoolPropBackend.valid_range()` remains a coarse envelope, not a precision domain certificate.
 
 ---
 
-## 7. Non-Negotiable Implementation Rules
+## 6. Current Active Phase
+
+**Phase 3 - Correlation contract and registry** is the next implementation phase according to `IMPLEMENTATION_PLAN.md`.
+
+Start with a narrow **Phase 3A - Correlation contract primitives** prompt only after Phase 2 closeout docs are reviewed and committed.
+
+Phase 3A should focus on:
+
+- Correlation roles.
+- Input value objects.
+- `ValidityVerdict`.
+- Correlation result object.
+- Registry skeleton only if aligned with `IMPLEMENTATION_PLAN.md`.
+
+Do not implement actual correlations in the first Phase 3 prompt.
+
+---
+
+## 7. Next Immediate Actions
+
+1. Review and commit Phase 2 closeout docs.
+2. Begin Phase 3A with a narrow prompt focused only on correlation contract primitives.
+3. Do not implement actual correlations yet.
+4. Do not implement components, geometry, network, solvers, or calibration yet.
+5. Add import-linter or equivalent before Phase 3 expands into correlations/components/network/solvers, or keep this as a tracked follow-up until it is implemented.
+
+Recommended commit message:
+
+```text
+docs: close out phase 2 property layer
+```
+
+---
+
+## 8. Non-Negotiable Implementation Rules
 
 These rules are operational forms of the frozen decisions. Violating any is a review failure.
 
 | Rule | Source |
 |---|---|
-| Do not modify frozen architecture docs during coding | IMPLEMENTATION_PLAN §21-2 |
-| Do not introduce new architecture concepts | ARCHITECTURE_MASTER §2, Principle 6 |
-| Do not copy legacy code directly into `src/` | IMPLEMENTATION_PLAN §21-4 |
-| Do not call CoolProp outside `properties/` | [F6]; anti-pattern MASTER §19-9 |
-| Do not store derived properties (T, x, ρ, …) anywhere | [F3]; anti-pattern MASTER §19-4 |
-| Do not put values on Port | [F10]; anti-pattern MASTER §19-13 |
-| Do not make Solver depend on physics | [F1]; anti-pattern MASTER §19-5 |
-| Do not put mesh (segment count) in Geometry | [F16]; anti-pattern MASTER §19-7 |
-| Do not put accumulator law parameters in AccumulatorGeometry | [F9]; anti-pattern MASTER §19-8 |
-| Do not weaken a test to make code pass | IMPLEMENTATION_PLAN §21-11 |
-| Calibration must not be inside a correlation | [F5]; anti-pattern MASTER §19-3 |
-| A correlation must not receive a Component or Geometry object | [F4]; anti-pattern MASTER §19-6 |
+| Do not modify frozen architecture docs during coding | `IMPLEMENTATION_PLAN.md` |
+| Do not introduce new architecture concepts | `ARCHITECTURE_MASTER.md` |
+| Do not copy legacy code directly into `src/` | `IMPLEMENTATION_PLAN.md` |
+| Do not call CoolProp outside `properties/` | [F6] |
+| Do not store derived properties anywhere | [F3] |
+| Do not put values on Port | [F10] |
+| Do not make Solver depend on physics | [F1] |
+| Do not put mesh/segment count in Geometry | [F16] |
+| Do not put accumulator law parameters in AccumulatorGeometry | [F9] |
+| Do not weaken a test to make code pass | `IMPLEMENTATION_PLAN.md` |
+| Calibration must not be inside a correlation | [F5] |
+| A correlation must not receive a Component or Geometry object | [F4] |
 | Network must never know the Solver | [F1] |
-| Components must never know their Network or neighbours | [F7]; anti-pattern MASTER §19-2 |
-| `P_sys` must not be stored on the Accumulator | [F15], Decision 008 |
-| ε-NTU/LMTD are HeatExchangerModel strategies, not Correlation roles | Decision 010 |
+| Components must never know their Network or neighbours | [F7] |
 
 ---
 
-## 8. Current Known Blockers
+## 9. Current Known Blockers and Deferred Work
 
-None of these block Phase 1.
+None block Phase 3A after Phase 2 closeout review and commit.
 
-| Blocker | What it blocks | Resolution path |
+| Item | What it affects | Resolution path |
 |---|---|---|
-| **29 property CSV files missing** from `legacy/` | `TabulatedPropertyBackend` numerical tests; `σ_e`/`ε_r` | Data recovery task; mark tests `PENDING-DATA`; does not block V1 CoolProp path |
-| **Literature validation data must be lifted and pinned** | Literature test pass/fail (`tests/literature/`) | Transcription from `legacy/` into `data/validation/`; data exists, just needs lifting |
-| **Per-correlation ValidityEnvelope bounds** | Each correlation's admissibility into the registry | Literature task per correlation; done when each correlation is authored in Phase 3+ |
-| **Content-hash canonicalization rule** | Schema serialization determinism | Fixed at first serializer authoring in Phase 9; tests assert determinism, not algorithm |
-
----
-
-## 9. Legacy Assets — Harvest Summary
-
-Read from `legacy/` only. Never paste code directly into `src/`. Port equations one at a time behind the approved interface.
-
-| Legacy project | What to harvest | Verdict | When |
-|---|---|---|---|
-| `A0_SS_v3_Stable` | HEM closures, mixture friction, `alpha_boiling`, `alpha_condensation`, `R*` concept, Fujii (2004) data | Adapt equations / Reuse data / Discard structure | Phase 5, 11, 12 |
-| `PyP2PL` | Five boiling HTCs, MSH/Churchill ΔP, Kokate (2024) digitized data, sweep fixtures | Adapt correlations / Reuse data | Phase 3, 11, 12 |
-| `MPL_Simulator` | `fluid_properties.py` (P,h FluidState + fallback chain), `A1_TwoPhProp.py` (table loader), `correlations.py`, `accumulator.py`, `condenser.py`, Newton residual shape | Adapt (primary harvest target) / Rewrite ownership leaks | Phase 1–2, 3, 10, 11, 8 |
+| Import-direction rules are not enforced by import-linter tooling | Future cross-layer expansion | Add import-linter or equivalent before Phase 3 expands beyond primitives |
+| 29 property CSV files missing | Future `TabulatedPropertyBackend`; `sigma_e`/`eps_r` | Data recovery task; does not block CoolProp-backed V1 path |
+| Literature validation data must be lifted and pinned | Literature tests | Phase 12 validation-data task |
+| Per-correlation validity envelopes | Correlation admissibility | Author per correlation in Phase 3+ |
+| Content-hash canonicalization rule | Schema serialization determinism | Establish when serializers are implemented in Phase 9 |
 
 ---
 
 ## 10. Instructions for Future AI Agents
 
-**Before any coding task, read in order:**
+Before any coding task, read in order:
 
-1. `docs/roadmap/PROJECT_STATUS.md` — this file (current state)
-2. `docs/roadmap/IMPLEMENTATION_PLAN.md §5–§6` (or the section for the target phase)
-3. `docs/validation/TEST_PLAN_V1.md` — tests and gates for the target phase
-4. The relevant `INTERFACE_SPEC.md` section(s) for the layer being implemented
+1. `docs/roadmap/PROJECT_STATUS.md`
+2. `docs/roadmap/IMPLEMENTATION_PLAN.md`
+3. `docs/validation/TEST_PLAN_V1.md`
+4. Relevant sections of `docs/architecture/INTERFACE_SPEC.md`
+5. Relevant audit/closeout documents in `docs/validation/audits/`
 
-**Rules for every coding session:**
+Rules for the next implementation session:
 
-- Work only on the current phase. Do not implement layers above the current one.
-- Read the frozen interface signatures from `INTERFACE_SPEC.md`. Implement them exactly — do not invent or simplify.
-- Write tests first (test-driven). The layer below must be green before the layer above is built.
-- Keep each commit to one coherent increment on one approved seam (IMPLEMENTATION_PLAN §21-5).
-- Run `pytest`, `ruff check`, and `black --check` before reporting a task complete.
-- Report: which files were created or modified; which commands were run; what the test results were.
-- Never silently skip a failing test. A failing test means fixing the code, not loosening the assertion.
-- If a required change would alter a `<<FROZEN>>` contract: stop, report the conflict, do not proceed without a `DECISION_LOG.md` entry.
-- If uncertain whether a concept belongs in the architecture: check `ARCHITECTURE_MASTER.md §2` (the closed inventory). If the concept is not there, it does not exist in V1.
-
-**Commit message convention** (from IMPLEMENTATION_PLAN §22):
-```
-<layer-prefix>: <short description>
-
-Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
-```
-Layer prefixes: `core:`, `properties:`, `correlations:`, `geometry:`, `discretization:`, `calibration:`, `components:`, `hx_models:`, `network:`, `solvers:`, `schema:`, `results:`, `validation:`, `chore:`, `docs:`.
+- Do not start Phase 3 until Phase 2 closeout docs are reviewed and committed.
+- Work only on Phase 3A correlation contract primitives.
+- Do not implement HTC, pressure-drop, void-fraction, or heat-exchanger correlations yet.
+- Do not implement geometry, components, calibration, network, solvers, schema, results, or validation harness work yet.
+- Preserve the separation between `PropertyBackendRegistry` and the future correlation registry.
+- Run `pytest`, `ruff check`, and `black --check` before reporting any implementation task complete.
+- Do not include `Co-Authored-By` lines unless explicitly requested by the user.
 
 ---
 
@@ -256,15 +252,7 @@ Layer prefixes: `core:`, `properties:`, `correlations:`, `geometry:`, `discretiz
 | Field | Value |
 |---|---|
 | **Date** | 2026-06-12 |
-| **Commit at time of writing** | `132d42a` (Phase 1 complete) |
-| **Updated by** | AI assistant (Claude Sonnet 4.6) |
+| **Updated by** | Codex |
+| **Status note** | Phase 2 property layer foundation complete; approved for Phase 3 pending closeout review/commit |
 
-Phase 1 code audit completed. Verdict: APPROVED FOR PHASE 2.
-Current active phase: Phase 2A — PropertyBackend interface.
-
-Phase 2A/2B property-layer audit completed.
-Verdict: APPROVED FOR PHASE 2C.
-Current active phase: Phase 2C — PropertyBackend registry and backend selection.
-Minor follow-ups: add P/h shape-mismatch test; document CoolPropBackend.valid_range() as coarse; import-linter before Phase 3.
-
-*This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture — for that, always go to `ARCHITECTURE_MASTER.md`.*
+*This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
