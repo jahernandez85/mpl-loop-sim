@@ -88,6 +88,7 @@ class CoolPropBackend(PropertyBackend):
     # ------------------------------------------------------------------
 
     def valid_range(self, identity: FluidIdentity) -> ValidRange:
+        # Coarse CoolProp-derived envelope; not a precision thermodynamic domain certificate.
         if not isinstance(identity, PureFluid):
             return ValidRange()
         try:
@@ -117,6 +118,10 @@ class CoolPropBackend(PropertyBackend):
         h: npt.NDArray[np.float64],
         identity: FluidIdentity,
     ) -> PropertyResult:
+        if len(P) != len(h):
+            raise ValueError(
+                f"P and h must have the same length; got len(P)={len(P)}, len(h)={len(h)}"
+            )
         n = len(P)
 
         if not isinstance(identity, PureFluid):

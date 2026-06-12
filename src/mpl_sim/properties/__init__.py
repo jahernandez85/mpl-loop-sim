@@ -2,6 +2,7 @@
 
 Phase 2A: abstract interface only.
 Phase 2B: CoolPropBackend (the only place CoolProp may be imported).
+Phase 2C: PropertyBackendRegistry, BackendSelection, and default factory.
 
 NOTE: This subpackage is the ONLY place in mpl_sim that may import CoolProp.
 CoolPropBackend is loaded lazily so that a bare ``import mpl_sim.properties``
@@ -17,16 +18,26 @@ from mpl_sim.properties.backend import (
     QueryStatus,
     ValidRange,
 )
+from mpl_sim.properties.registry import (
+    BackendSelection,
+    PropertyBackendRegistry,
+    create_default_property_backend_registry,
+    default_backend_name_for,
+)
 
 __all__ = [
     "BackendCapability",
+    "BackendSelection",
     "CoolPropBackend",
     "PhaseLabel",
     "PropertyBackend",
+    "PropertyBackendRegistry",
     "PropertyName",
     "PropertyResult",
     "QueryStatus",
     "ValidRange",
+    "create_default_property_backend_registry",
+    "default_backend_name_for",
 ]
 
 
