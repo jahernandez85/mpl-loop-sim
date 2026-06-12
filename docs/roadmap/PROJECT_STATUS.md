@@ -12,13 +12,13 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
 | **Branch** | `main` |
-| **Stage** | Active implementation — Phase 0 complete, Phase 1 next |
-| **Completed phase** | Phase 0 — Repository Preparation and Tooling |
-| **Current active phase** | **Phase 1 — Core Data Model** |
-| **Next phase after 1** | Phase 2 — PropertyBackend |
-| **Last commit** | `bc9c78d chore: initialize python package and test tooling` |
+| **Stage** | Active implementation — Phase 1 complete, Phase 2 next |
+| **Completed phase** | Phase 1 — Core Data Model |
+| **Current active phase** | **Phase 2 — PropertyBackend** |
+| **Next phase after 2** | Phase 3 — Correlations |
+| **Last commit** | `132d42a core: add solver-owned system state primitives` |
 | **Working tree** | Clean |
-| **Test status** | 2 passed (smoke tests) |
+| **Test status** | 179 passed (Phase 1A + 1B + 1C) |
 
 ---
 
@@ -60,6 +60,10 @@ All eight binding documents are frozen. Do not modify them during implementation
 | MAJOR-2 fix: Decision 010 recorded in DECISION_LOG | Done | `6f611d1` |
 | GitHub repository initialized | Done | `dfa214d` |
 | **Phase 0 — Repository Preparation and Tooling** | **Done** | `bc9c78d` |
+| Phase 1A — FluidIdentity, FluidState | Done | `d68080b` |
+| Phase 1B — PortRole, PortId, Port | Done | `582a2be` |
+| **Phase 1C — VariableKind, StateVariableId, PortVariableHandle, InternalStateHandle, StateLayout, SystemState** | **Done** | `132d42a` |
+| **Phase 1 — Core Data Model (all sub-phases)** | **Done** | `132d42a` |
 
 ---
 
@@ -119,59 +123,50 @@ mpl-loop-sim/
 
 ## 5. Current Active Phase
 
-**Phase 1 — Core Data Model** (`src/mpl_sim/core/`)
+**Phase 1 — Core Data Model** (`src/mpl_sim/core/`) — **COMPLETE**
 
-Objective: implement the stored-vs-derived boundary as code. All seven objects below must be implemented and tested before Phase 2 begins. No physics, no backends, no correlations.
+All seven Phase 1 objects are implemented, tested, and committed.
 
-Objects to implement (all signatures in `INTERFACE_SPEC.md §3–§4`):
+| Object | File | Tests | Status |
+|---|---|---|---|
+| `FluidIdentity` (PureFluid, Mixture, CustomFluid) | `core/fluid_identity.py` | `test_fluid_identity.py` | Done |
+| `FluidState` | `core/fluid_state.py` | `test_fluid_state.py` | Done |
+| `PortRole`, `PortId`, `Port` | `core/port.py` | `test_port.py` | Done |
+| `VariableKind`, `StateVariableId` | `core/state.py` | `test_state.py` | Done |
+| `PortVariableHandle`, `InternalStateHandle` | `core/state.py` | `test_state.py` | Done |
+| `StateLayout`, `SystemState` | `core/state.py` | `test_state.py` | Done |
 
-| Object | Contract location | Key invariant |
-|---|---|---|
-| `FluidIdentity` | INTERFACE_SPEC §3.1 | Discriminated union `PureFluid \| Mixture \| CustomFluid`; structural equality |
-| `FluidState` | INTERFACE_SPEC §3.2 | Exactly `{P, h, identity}` — three fields, nothing else, ever |
-| `Port` | INTERFACE_SPEC §4.1 | `{id, owner, role, peer}` — no values, immutable after assembly |
-| `PortHandle` | INTERFACE_SPEC §4.2 | `{port, slot_P, slot_h, slot_mdot}` — maps port → SystemState indices |
-| `SystemState` | INTERFACE_SPEC §4.3 | `{values: float[], layout: StateLayout}` — solver-owned, mutable only by solver |
-| `StateLayout` | INTERFACE_SPEC §4.3 | `port_handle()`, `internal_handle()`, `names()` — ordered, introspectable |
-| `InternalStateHandle` | INTERFACE_SPEC §4.4 | `{component, name, slot, slots?}` — fixed-count for Lumped/Segmented |
+Phase 1 acceptance gate (`TEST_PLAN_V1.md §18.1` Gate 1): **GREEN** — 179/179 tests passing.
 
-Phase 1 acceptance gate (`TEST_PLAN_V1.md §18.1` Gate 1 partial):
-- `FluidState` holds exactly three fields; no derived attribute cacheable on it.
-- `FluidIdentity` structural equality works.
-- `Port` carries no value; is immutable after construction.
-- `PortHandle` maps a port to three `SystemState` slots.
-- `SystemState` round-trips index ↔ name.
-- `StateLayout.names()` is ordered and enumerable.
+**Phase 2 — PropertyBackend** (`src/mpl_sim/properties/`) is the next active phase.
+
+Objective: implement the `PropertyBackend` ABC + `CoolPropBackend` concrete implementation.  
+CoolProp is imported **only** inside `src/mpl_sim/properties/` — nowhere else in the codebase.
 
 ---
 
 ## 6. Next Immediate Actions
 
-Phase 0 is complete and committed. Proceed in this order:
+Phase 1 is complete and committed. Proceed with Phase 2:
 
 1. **Verify environment is clean** before starting:
    ```
-   git status          # should be clean
-   pytest tests/       # should pass 2 tests
+   git status              # should be clean
+   pytest tests/           # should pass 179 tests
    ruff check src/ tests/
    black --check src/ tests/
    ```
 
-2. **Start Phase 1 — FluidIdentity and FluidState** (write tests first):
-   - Create `tests/unit/test_fluid_identity.py` and `tests/unit/test_fluid_state.py`.
-   - Implement `src/mpl_sim/core/fluid_identity.py` and `src/mpl_sim/core/fluid_state.py`.
-   - Assert `FluidState` has exactly three fields; no derived attribute; no `mdot`.
+2. **Start Phase 2 — PropertyBackend** (read INTERFACE_SPEC §5 and IMPLEMENTATION_PLAN §6.2 first):
+   - Create `tests/property/test_property_backend.py` (tests first).
+   - Implement `src/mpl_sim/properties/backend.py` (abstract base class).
+   - Implement `src/mpl_sim/properties/coolprop_backend.py` (CoolProp wrapper).
+   - CoolProp must only be imported inside `src/mpl_sim/properties/`.
+   - Tests that lack CoolProp in the environment must be marked `pytest.mark.skipif`.
 
-3. **Continue Phase 1 — Port, PortHandle, SystemState, StateLayout, InternalStateHandle**:
-   - Implement in `src/mpl_sim/core/`.
-   - Tests in `tests/unit/`.
-   - Recommended split into two commits per IMPLEMENTATION_PLAN §22:
-     - `core: add fluid identity, fluid state, and port primitives`
-     - `core: add system state vector and handles`
+3. **Do not implement correlations, geometry, or components** until Phase 2 is green.
 
-4. **Do not implement PropertyBackend** until Phase 1 core primitives are complete and green.
-
-5. **Do not implement any physics** — Phase 1 is value objects only.
+4. **Do not store derived properties** (T, x, ρ, μ, k) anywhere — computed on demand only.
 
 ---
 
@@ -261,7 +256,7 @@ Layer prefixes: `core:`, `properties:`, `correlations:`, `geometry:`, `discretiz
 | Field | Value |
 |---|---|
 | **Date** | 2026-06-12 |
-| **Commit at time of writing** | `bc9c78d` (Phase 0 complete) |
+| **Commit at time of writing** | `132d42a` (Phase 1 complete) |
 | **Updated by** | AI assistant (Claude Sonnet 4.6) |
 
 ---
