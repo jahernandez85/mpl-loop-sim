@@ -30,8 +30,14 @@ from mpl_sim.correlations.contract import (
     VoidFractionInput,
     VolumePressureLawInput,
 )
+from mpl_sim.correlations.registry import (
+    CorrelationRegistry,
+    create_empty_correlation_registry,
+)
 
 __all__ = [
+    "CorrelationRegistry",
+    "create_empty_correlation_registry",
     "AnyFluid",
     "Bound",
     "BoundedQuantity",
