@@ -34,9 +34,11 @@ from mpl_sim.correlations.registry import (
     CorrelationRegistry,
     create_empty_correlation_registry,
 )
+from mpl_sim.correlations.single_phase_dp import ChurchillFrictionGradient
 
 __all__ = [
     "CorrelationRegistry",
+    "ChurchillFrictionGradient",
     "create_empty_correlation_registry",
     "AnyFluid",
     "Bound",
