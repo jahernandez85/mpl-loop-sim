@@ -689,6 +689,103 @@ class TestVolumePressureLawInput:
 
 
 # ---------------------------------------------------------------------------
+# Nested-payload immutability — MappingProxyType wrapping
+# ---------------------------------------------------------------------------
+
+
+class TestNestedPayloadImmutability:
+    """Verify that dict-like fields are immutable after construction."""
+
+    # --- HTCInput.geom_scalars ---
+
+    def test_htc_geom_scalars_cannot_be_mutated(self):
+        inp = HTCInput(
+            state=(_state(),),
+            G=300.0,
+            x=(0.5,),
+            D_h=0.002,
+            geom_scalars={"chevron_angle": 60.0},
+        )
+        with pytest.raises(TypeError):
+            inp.geom_scalars["chevron_angle"] = 45.0  # type: ignore[index]
+
+    def test_htc_geom_scalars_source_dict_mutation_does_not_propagate(self):
+        source = {"chevron_angle": 60.0}
+        inp = HTCInput(state=(_state(),), G=300.0, x=(0.5,), D_h=0.002, geom_scalars=source)
+        source["new_key"] = 99.0
+        assert "new_key" not in inp.geom_scalars
+
+    def test_htc_geom_scalars_read_access_still_works(self):
+        inp = HTCInput(
+            state=(_state(),),
+            G=300.0,
+            x=(0.5,),
+            D_h=0.002,
+            geom_scalars={"angle": 45.0},
+        )
+        assert inp.geom_scalars["angle"] == pytest.approx(45.0)
+
+    # --- VolumePressureLawInput.law_params ---
+
+    def test_vpl_law_params_cannot_be_mutated(self):
+        inp = VolumePressureLawInput(V_g=0.001, V_total=0.01, law_params={"k_poly": 1.4})
+        with pytest.raises(TypeError):
+            inp.law_params["k_poly"] = 1.6  # type: ignore[index]
+
+    def test_vpl_law_params_source_dict_mutation_does_not_propagate(self):
+        source = {"k_poly": 1.4}
+        inp = VolumePressureLawInput(V_g=0.001, V_total=0.01, law_params=source)
+        source["k_poly"] = 9.9
+        assert inp.law_params["k_poly"] == pytest.approx(1.4)
+
+    def test_vpl_law_params_read_access_still_works(self):
+        inp = VolumePressureLawInput(
+            V_g=0.001, V_total=0.01, law_params={"V_charge": 0.003, "k_poly": 1.4}
+        )
+        assert inp.law_params["V_charge"] == pytest.approx(0.003)
+
+    def test_vpl_empty_law_params_accepted(self):
+        inp = VolumePressureLawInput(V_g=0.001, V_total=0.01, law_params={})
+        assert len(inp.law_params) == 0
+
+    # --- FlowRegimeVerdict.transition_coords ---
+
+    def test_flow_regime_verdict_transition_coords_cannot_be_mutated(self):
+        frv = FlowRegimeVerdict(
+            regime=FlowRegimeLabel.SLUG,
+            verdict=_in_envelope_verdict(),
+            transition_coords={"x_an": 0.8},
+        )
+        with pytest.raises(TypeError):
+            frv.transition_coords["x_an"] = 0.5  # type: ignore[index]
+
+    def test_flow_regime_verdict_transition_coords_source_dict_mutation_does_not_propagate(self):
+        source = {"x_an": 0.8, "x_sl": 0.2}
+        frv = FlowRegimeVerdict(
+            regime=FlowRegimeLabel.SLUG,
+            verdict=_in_envelope_verdict(),
+            transition_coords=source,
+        )
+        source["x_an"] = 0.0
+        assert frv.transition_coords["x_an"] == pytest.approx(0.8)
+
+    def test_flow_regime_verdict_none_transition_coords_unchanged(self):
+        frv = FlowRegimeVerdict(
+            regime=FlowRegimeLabel.ANNULAR,
+            verdict=_in_envelope_verdict(),
+        )
+        assert frv.transition_coords is None
+
+    def test_flow_regime_verdict_transition_coords_read_access_still_works(self):
+        frv = FlowRegimeVerdict(
+            regime=FlowRegimeLabel.SLUG,
+            verdict=_in_envelope_verdict(),
+            transition_coords={"x_an": 0.8, "x_sl": 0.2},
+        )
+        assert frv.transition_coords["x_sl"] == pytest.approx(0.2)
+
+
+# ---------------------------------------------------------------------------
 # Correlation ABC
 # ---------------------------------------------------------------------------
 

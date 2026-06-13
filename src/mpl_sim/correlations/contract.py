@@ -15,8 +15,10 @@ Architectural rules enforced here:
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum, auto
+from types import MappingProxyType
 
 from mpl_sim.core.fluid_state import FluidState
 
@@ -276,7 +278,13 @@ class FlowRegimeVerdict:
 
     regime: FlowRegimeLabel
     verdict: ValidityVerdict
-    transition_coords: dict[str, float] | None = None
+    transition_coords: Mapping[str, float] | None = None
+
+    def __post_init__(self) -> None:
+        if self.transition_coords is not None:
+            object.__setattr__(
+                self, "transition_coords", MappingProxyType(dict(self.transition_coords))
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -348,10 +356,13 @@ class HTCInput:
     G: float
     x: tuple[float, ...]
     D_h: float
-    geom_scalars: dict[str, float]
+    geom_scalars: Mapping[str, float]
     q_flux: float | None = None
     T_wall: float | None = None
     regime: FlowRegimeVerdict | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "geom_scalars", MappingProxyType(dict(self.geom_scalars)))
 
 
 @dataclass(frozen=True)
@@ -404,10 +415,13 @@ class VolumePressureLawInput:
 
     V_g: float
     V_total: float
-    law_params: dict[str, float]
+    law_params: Mapping[str, float]
     state: FluidState | None = None
     thermal: ThermalSpec | None = None
     P_set: float | None = None
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "law_params", MappingProxyType(dict(self.law_params)))
 
 
 # Union over all role-typed inputs.
