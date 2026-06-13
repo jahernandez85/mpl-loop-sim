@@ -12,19 +12,22 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
 | **Branch** | `main` |
-| **Stage** | Phase 3 closeout complete; approved for Phase 4 |
-| **Completed phase** | Phase 3 - Correlation contract and registry |
+| **Stage** | Phase 4 closeout complete; approved for Phase 5 |
+| **Completed phase** | Phase 4 - Geometry and discretization |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
-| **Current active phase** | **Phase 4 - Geometry and discretization** |
-| **Immediate Phase 4 slice** | Immutable geometry primitives: `PipeGeometry`, `PipePath`, `StraightSegment`; containment-only `AccumulatorGeometry`; discretization primitives per `IMPLEMENTATION_PLAN.md` |
-| **Working tree before this docs task** | Phase 3 immutability fix reported committed |
-| **Test status** | 502 passed, verified 2026-06-13 with `python -B -m pytest -p no:cacheprovider` |
+| **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
+| **Current active phase** | **Phase 5 - Calibration** |
+| **Immediate Phase 5 slice** | Calibration value objects and conservation-firewall shape per `IMPLEMENTATION_PLAN.md`; do not start implementation until a Phase 5 task is explicitly opened |
+| **Working tree before this docs task** | Phase 4A and Phase 4B implementation present |
+| **Test status** | 588 passed, verified 2026-06-13 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
 | **Lint status** | `ruff check .` clean, verified 2026-06-13 |
 | **Format status** | `black --check src tests` clean, verified 2026-06-13; `black --check .` blocked by `.pytest_cache` permission error |
 
-Phase 3 is complete. Phase 4 may begin after this closeout document is reviewed and committed.
+Phase 4 is complete. The audit closeout changed documentation only: no source code and no tests were modified.
 
-Phase 4 is geometry and discretization only. Do not implement components in Phase 4.
+Implementation should stop here for now after Phase 4 closeout. Do not start Phase 5 implementation unless a new task explicitly opens it.
+
+Pipe component is not implemented. It remains deferred to V1 Build Phase 6. Component-tied discretization integration objects are not implemented and remain deferred until component integration requires them.
 
 ---
 
@@ -71,6 +74,9 @@ Key authority statements:
 | **Phase 3B - Correlation registry** | **Complete** |
 | **Phase 3C - Churchill single-phase friction-gradient closure** | **Complete** |
 | **Phase 3 correlation layer foundation** | **Complete; approved for Phase 4** |
+| **Phase 4A - Immutable geometry primitives** | **Complete** |
+| **Phase 4B - Discretization primitives** | **Complete** |
+| **Phase 4 geometry and discretization foundation** | **Complete; approved for Phase 5** |
 
 Phase 2 closeout artifacts:
 
@@ -81,6 +87,10 @@ Phase 2 closeout artifacts:
 Phase 3 closeout artifact:
 
 - `docs/validation/audits/PHASE_3_CORRELATION_LAYER_AUDIT.md`
+
+Phase 4 closeout artifact:
+
+- `docs/validation/audits/PHASE_4_GEOMETRY_DISCRETIZATION_AUDIT.md`
 
 ---
 
@@ -165,38 +175,43 @@ Known deferred items:
 
 ## 6. Current Active Phase
 
-**Phase 4 - Geometry and discretization** is the next implementation phase according to `IMPLEMENTATION_PLAN.md`.
+**Phase 5 - Calibration** is the next implementation phase according to `IMPLEMENTATION_PLAN.md`.
 
-Start with a narrow Phase 4 slice focused only on immutable geometry and discretization primitives:
+Phase 4 is closed:
 
-- `PipeGeometry` with `L`, `D_h`, `A`, `roughness`, and `trajectory`.
-- `PipePath` and the V1 `StraightSegment` path.
-- Containment-only `AccumulatorGeometry`; no accumulator law parameters in geometry.
-- Discretization primitives: `Lumped`, `Segmented`, and declared `MovingBoundary` seam as specified by the frozen docs.
+- Phase 4A immutable geometry primitives are complete.
+- Phase 4B discretization primitives are complete.
+- Phase 4 audit verdict is **APPROVED FOR PHASE 5**.
+- No source code or test files were modified during the Phase 4 audit closeout.
 
-Do not implement components yet.
-Do not implement the Pipe component in Phase 4; Pipe remains Phase 6.
-Do not implement Pump or Accumulator components in Phase 4; they remain Phase 10.
-Do not implement Evaporator or Condenser components in Phase 4; they remain Phase 11.
-Do not add new real correlations unless a later consuming component phase requires them.
+Implementation should stop here for now after the Phase 4 closeout document is reviewed and committed. Do not begin Phase 5 implementation unless a new task explicitly opens it.
+
+Phase boundaries to preserve:
+
+- Do not implement the Pipe component yet; Pipe remains V1 Build Phase 6.
+- Do not implement Pump or Accumulator components yet; they remain V1 Build Phase 10.
+- Do not implement Evaporator or Condenser components yet; they remain V1 Build Phase 11.
+- Do not implement solvers or network work yet.
+- Do not add new real correlations unless a later consuming component phase requires them.
+- Keep component-coupled discretization integration objects deferred until component integration requires them.
 
 ---
 
 ## 7. Next Immediate Actions
 
-1. Review and commit the Phase 3 closeout audit.
-2. Begin Phase 4 with immutable geometry primitives and PipePath / StraightSegment.
-3. Add containment-only AccumulatorGeometry; keep pressure-law parameters out of geometry.
-4. Add discretization primitives only; do not implement component contribution logic.
-5. Keep Pipe component work deferred to Phase 6.
-6. Keep Pump and Accumulator component work deferred to Phase 10.
-7. Keep Evaporator and Condenser component work deferred to Phase 11.
+1. Review and commit the Phase 4 audit closeout.
+2. Stop implementation here until a new task explicitly opens Phase 5.
+3. When Phase 5 starts, implement Calibration only per `IMPLEMENTATION_PLAN.md`.
+4. Keep Pipe component work deferred to Phase 6.
+5. Keep Pump and Accumulator component work deferred to Phase 10.
+6. Keep Evaporator and Condenser component work deferred to Phase 11.
+7. Keep component-coupled discretization integration objects deferred until component integration requires them.
 8. Add import-linter or equivalent before higher-layer cross-package imports expand, or keep this as a tracked follow-up until it is implemented.
 
 Recommended commit message:
 
 ```text
-docs: close out phase 3 correlation layer
+docs: close out phase 4 geometry and discretization
 ```
 
 ---
@@ -226,7 +241,7 @@ These rules are operational forms of the frozen decisions. Violating any is a re
 
 ## 9. Current Known Blockers and Deferred Work
 
-None block Phase 4 after Phase 3 closeout review and commit.
+None block Phase 5 after Phase 4 closeout review and commit.
 
 | Item | What it affects | Resolution path |
 |---|---|---|
@@ -251,13 +266,14 @@ Before any coding task, read in order:
 
 Rules for the next implementation session:
 
-- Phase 3 is complete and approved for Phase 4.
-- Work only on Phase 4 geometry and discretization primitives until that phase is closed.
-- Do not implement components in Phase 4.
+- Phase 4 is complete and approved for Phase 5.
+- Work only on Phase 5 calibration when a new task explicitly opens that phase.
+- Do not implement components in Phase 5.
 - Do not implement Pipe until Phase 6.
 - Do not implement Pump or Accumulator components until Phase 10.
 - Do not implement Evaporator or Condenser until Phase 11.
 - Preserve the separation between geometry, discretization, correlations, calibration, and components.
+- Keep component-coupled discretization integration objects deferred until component integration requires them.
 - Preserve the separation between `PropertyBackendRegistry` and `CorrelationRegistry`.
 - Run `pytest`, `ruff check`, and `black --check` before reporting any implementation task complete.
 - Do not include `Co-Authored-By` lines unless explicitly requested by the user.
@@ -270,6 +286,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-13 |
 | **Updated by** | Codex |
-| **Status note** | Phase 3 correlation layer foundation complete; approved for Phase 4 geometry and discretization |
+| **Status note** | Phase 4 geometry and discretization foundation complete; approved for Phase 5 calibration |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
