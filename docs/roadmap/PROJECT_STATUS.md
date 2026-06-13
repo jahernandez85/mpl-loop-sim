@@ -12,18 +12,19 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
 | **Branch** | `main` |
-| **Stage** | Phase 2 closeout complete; Phase 3 pending closeout review/commit |
-| **Completed phase** | Phase 2 - PropertyBackend |
-| **Current active phase** | **Phase 3 - Correlation contract and registry** |
-| **Immediate Phase 3 slice** | **Phase 3A - Correlation contract primitives** |
-| **Working tree before this docs task** | Phase 2C reported committed |
-| **Test status** | 316 passed, verified 2026-06-12 with `python -B -m pytest -p no:cacheprovider` |
-| **Lint status** | `ruff check src tests` clean, verified 2026-06-12 |
-| **Format status** | `black --check src tests` clean, verified 2026-06-12 |
+| **Stage** | Phase 3 closeout complete; approved for Phase 4 |
+| **Completed phase** | Phase 3 - Correlation contract and registry |
+| **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
+| **Current active phase** | **Phase 4 - Geometry and discretization** |
+| **Immediate Phase 4 slice** | Immutable geometry primitives: `PipeGeometry`, `PipePath`, `StraightSegment`; containment-only `AccumulatorGeometry`; discretization primitives per `IMPLEMENTATION_PLAN.md` |
+| **Working tree before this docs task** | Phase 3 immutability fix reported committed |
+| **Test status** | 502 passed, verified 2026-06-13 with `python -B -m pytest -p no:cacheprovider` |
+| **Lint status** | `ruff check .` clean, verified 2026-06-13 |
+| **Format status** | `black --check src tests` clean, verified 2026-06-13; `black --check .` blocked by `.pytest_cache` permission error |
 
-Phase 3 should not start until the Phase 2 complete audit and closeout summary have been reviewed and committed.
+Phase 3 is complete. Phase 4 may begin after this closeout document is reviewed and committed.
 
-Claude is not being used further in the current session due to high session usage. Future implementation should resume with a fresh Claude session or another coding agent.
+Phase 4 is geometry and discretization only. Do not implement components in Phase 4.
 
 ---
 
@@ -66,12 +67,20 @@ Key authority statements:
 | **Phase 2B - CoolPropBackend** | **Complete** |
 | **Phase 2C - PropertyBackend registry and backend selection binding** | **Complete** |
 | **Phase 2 property layer foundation** | **Complete** |
+| **Phase 3A - Correlation contract primitives** | **Complete** |
+| **Phase 3B - Correlation registry** | **Complete** |
+| **Phase 3C - Churchill single-phase friction-gradient closure** | **Complete** |
+| **Phase 3 correlation layer foundation** | **Complete; approved for Phase 4** |
 
 Phase 2 closeout artifacts:
 
 - `docs/validation/audits/PHASE_2_CLOSEOUT_SUMMARY.md`
 - `docs/validation/audits/PHASE_2_COMPLETE_AUDIT.md`
 - Existing supporting audit: `docs/validation/audits/PHASE_2_PROPERTY_LAYER_AUDIT.md`
+
+Phase 3 closeout artifact:
+
+- `docs/validation/audits/PHASE_3_CORRELATION_LAYER_AUDIT.md`
 
 ---
 
@@ -156,34 +165,38 @@ Known deferred items:
 
 ## 6. Current Active Phase
 
-**Phase 3 - Correlation contract and registry** is the next implementation phase according to `IMPLEMENTATION_PLAN.md`.
+**Phase 4 - Geometry and discretization** is the next implementation phase according to `IMPLEMENTATION_PLAN.md`.
 
-Start with a narrow **Phase 3A - Correlation contract primitives** prompt only after Phase 2 closeout docs are reviewed and committed.
+Start with a narrow Phase 4 slice focused only on immutable geometry and discretization primitives:
 
-Phase 3A should focus on:
+- `PipeGeometry` with `L`, `D_h`, `A`, `roughness`, and `trajectory`.
+- `PipePath` and the V1 `StraightSegment` path.
+- Containment-only `AccumulatorGeometry`; no accumulator law parameters in geometry.
+- Discretization primitives: `Lumped`, `Segmented`, and declared `MovingBoundary` seam as specified by the frozen docs.
 
-- Correlation roles.
-- Input value objects.
-- `ValidityVerdict`.
-- Correlation result object.
-- Registry skeleton only if aligned with `IMPLEMENTATION_PLAN.md`.
-
-Do not implement actual correlations in the first Phase 3 prompt.
+Do not implement components yet.
+Do not implement the Pipe component in Phase 4; Pipe remains Phase 6.
+Do not implement Pump or Accumulator components in Phase 4; they remain Phase 10.
+Do not implement Evaporator or Condenser components in Phase 4; they remain Phase 11.
+Do not add new real correlations unless a later consuming component phase requires them.
 
 ---
 
 ## 7. Next Immediate Actions
 
-1. Review and commit Phase 2 closeout docs.
-2. Begin Phase 3A with a narrow prompt focused only on correlation contract primitives.
-3. Do not implement actual correlations yet.
-4. Do not implement components, geometry, network, solvers, or calibration yet.
-5. Add import-linter or equivalent before Phase 3 expands into correlations/components/network/solvers, or keep this as a tracked follow-up until it is implemented.
+1. Review and commit the Phase 3 closeout audit.
+2. Begin Phase 4 with immutable geometry primitives and PipePath / StraightSegment.
+3. Add containment-only AccumulatorGeometry; keep pressure-law parameters out of geometry.
+4. Add discretization primitives only; do not implement component contribution logic.
+5. Keep Pipe component work deferred to Phase 6.
+6. Keep Pump and Accumulator component work deferred to Phase 10.
+7. Keep Evaporator and Condenser component work deferred to Phase 11.
+8. Add import-linter or equivalent before higher-layer cross-package imports expand, or keep this as a tracked follow-up until it is implemented.
 
 Recommended commit message:
 
 ```text
-docs: close out phase 2 property layer
+docs: close out phase 3 correlation layer
 ```
 
 ---
@@ -213,14 +226,15 @@ These rules are operational forms of the frozen decisions. Violating any is a re
 
 ## 9. Current Known Blockers and Deferred Work
 
-None block Phase 3A after Phase 2 closeout review and commit.
+None block Phase 4 after Phase 3 closeout review and commit.
 
 | Item | What it affects | Resolution path |
 |---|---|---|
-| Import-direction rules are not enforced by import-linter tooling | Future cross-layer expansion | Add import-linter or equivalent before Phase 3 expands beyond primitives |
+| Import-direction rules are not enforced by import-linter tooling | Future cross-layer expansion | Add import-linter or equivalent before higher layers expand |
 | 29 property CSV files missing | Future `TabulatedPropertyBackend`; `sigma_e`/`eps_r` | Data recovery task; does not block CoolProp-backed V1 path |
 | Literature validation data must be lifted and pinned | Literature tests | Phase 12 validation-data task |
-| Per-correlation validity envelopes | Correlation admissibility | Author per correlation in Phase 3+ |
+| Registry-name vs `ClosureMetadata.name` canonicalization | Future correlation catalogue growth | Document or enforce before the catalogue expands |
+| Per-correlation validity envelopes | Correlation admissibility | Author per additional correlation when consuming components require it |
 | Content-hash canonicalization rule | Schema serialization determinism | Establish when serializers are implemented in Phase 9 |
 
 ---
@@ -237,11 +251,14 @@ Before any coding task, read in order:
 
 Rules for the next implementation session:
 
-- Do not start Phase 3 until Phase 2 closeout docs are reviewed and committed.
-- Work only on Phase 3A correlation contract primitives.
-- Do not implement HTC, pressure-drop, void-fraction, or heat-exchanger correlations yet.
-- Do not implement geometry, components, calibration, network, solvers, schema, results, or validation harness work yet.
-- Preserve the separation between `PropertyBackendRegistry` and the future correlation registry.
+- Phase 3 is complete and approved for Phase 4.
+- Work only on Phase 4 geometry and discretization primitives until that phase is closed.
+- Do not implement components in Phase 4.
+- Do not implement Pipe until Phase 6.
+- Do not implement Pump or Accumulator components until Phase 10.
+- Do not implement Evaporator or Condenser until Phase 11.
+- Preserve the separation between geometry, discretization, correlations, calibration, and components.
+- Preserve the separation between `PropertyBackendRegistry` and `CorrelationRegistry`.
 - Run `pytest`, `ruff check`, and `black --check` before reporting any implementation task complete.
 - Do not include `Co-Authored-By` lines unless explicitly requested by the user.
 
@@ -251,8 +268,8 @@ Rules for the next implementation session:
 
 | Field | Value |
 |---|---|
-| **Date** | 2026-06-12 |
+| **Date** | 2026-06-13 |
 | **Updated by** | Codex |
-| **Status note** | Phase 2 property layer foundation complete; approved for Phase 3 pending closeout review/commit |
+| **Status note** | Phase 3 correlation layer foundation complete; approved for Phase 4 geometry and discretization |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
