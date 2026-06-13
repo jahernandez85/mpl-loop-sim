@@ -438,6 +438,8 @@ class TestEvaluation:
             D_h=0.01,
             roughness=1e-6,
             L_cell=0.1,
+            rho=1000.0,
+            mu=1e-3,
         )
         out = resolved.evaluate(inp)
         assert isinstance(out, CorrelationOutput)

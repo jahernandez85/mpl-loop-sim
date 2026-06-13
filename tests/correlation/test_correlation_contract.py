@@ -515,13 +515,19 @@ class TestSinglePhaseDPInput:
             D_h=0.002,
             roughness=1e-6,
             L_cell=0.01,
+            rho=1000.0,
+            mu=1e-3,
         )
         assert inp.G == pytest.approx(300.0)
         assert inp.D_h == pytest.approx(0.002)
+        assert inp.rho == pytest.approx(1000.0)
+        assert inp.mu == pytest.approx(1e-3)
         assert len(inp.state) == 1
 
     def test_is_frozen(self):
-        inp = SinglePhaseDPInput(state=(_state(),), G=300.0, D_h=0.002, roughness=1e-6, L_cell=0.01)
+        inp = SinglePhaseDPInput(
+            state=(_state(),), G=300.0, D_h=0.002, roughness=1e-6, L_cell=0.01, rho=1000.0, mu=1e-3
+        )
         with pytest.raises((AttributeError, TypeError)):
             inp.G = 400.0  # type: ignore[misc]
 
@@ -532,6 +538,8 @@ class TestSinglePhaseDPInput:
             D_h=0.003,
             roughness=5e-7,
             L_cell=0.05,
+            rho=900.0,
+            mu=5e-4,
         )
         assert len(inp.state) == 2
 
@@ -754,7 +762,9 @@ class TestCorrelationABC:
 
         corr = DummyDP()
         assert corr.role() == CorrelationRole.SINGLE_PHASE_DP
-        inp = SinglePhaseDPInput(state=(_state(),), G=300.0, D_h=0.002, roughness=1e-6, L_cell=0.01)
+        inp = SinglePhaseDPInput(
+            state=(_state(),), G=300.0, D_h=0.002, roughness=1e-6, L_cell=0.01, rho=1000.0, mu=1e-3
+        )
         out = corr.evaluate(inp)
         assert isinstance(out, CorrelationOutput)
         assert out.value == (100.0,)

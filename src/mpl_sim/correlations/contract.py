@@ -311,6 +311,8 @@ class SinglePhaseDPInput:
     D_h       : hydraulic diameter [m]
     roughness : absolute wall roughness [m]
     L_cell    : cell length [m] (caller's integration length; closure returns gradient)
+    rho       : fluid density [kg/m³]  — must be positive
+    mu        : dynamic viscosity [Pa·s] — must be positive
     """
 
     state: tuple[FluidState, ...]
@@ -318,6 +320,8 @@ class SinglePhaseDPInput:
     D_h: float
     roughness: float
     L_cell: float
+    rho: float
+    mu: float
 
 
 @dataclass(frozen=True)
