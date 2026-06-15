@@ -12,20 +12,22 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
 | **Branch** | `main` |
-| **Stage** | Phase 6 final audit complete; ready for Phase 7 |
-| **Completed phase** | **Phase 6 - Pipe Component** |
+| **Stage** | Phase 7 final audit complete; ready for Phase 8 |
+| **Completed phase** | **Phase 7 - Network and Assembly** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
 | **Phase 6 checkpoint verdict** | **APPROVED AS PHASE 6 CHECKPOINT - CONTINUE PHASE 6** |
 | **Phase 6 final audit verdict** | **APPROVED FOR NEXT PHASE** |
 | **Phase 6 status** | **Complete for Pipe component closeout scope. Phase 6A, 6B, 6C, 6D, 6E, and 6F are complete.** |
-| **Current active phase** | **Phase 7 - Network and Assembly** |
-| **Next immediate slice** | Begin Phase 7 topology validation and `SystemState` assembly without making Pipe network-aware or solver-aware |
-| **Working tree before this docs task** | Phase 6A through Phase 6F implementation present |
-| **Test status** | 1083 passed, verified 2026-06-15 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
+| **Phase 7 final audit verdict** | **APPROVED FOR NEXT PHASE** |
+| **Phase 7 status** | **Complete for Network and Assembly closeout scope. Phase 7A, 7B, and 7C are complete.** |
+| **Current active phase** | **Phase 8 - First Steady Solver** |
+| **Next immediate slice** | Begin Phase 8 first steady solver without making Network a solver or Pipe network-aware |
+| **Working tree before this docs task** | Phase 7A through Phase 7C implementation present |
+| **Test status** | 1222 passed, verified 2026-06-15 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
 | **Lint status** | `ruff check .` clean, verified 2026-06-15 |
-| **Format status** | `black --check src tests` clean, verified 2026-06-15; 57 files would be left unchanged |
+| **Format status** | `black --check src tests` clean, verified 2026-06-15; 64 files would be left unchanged |
 
 Phase 6 is complete as a documentation-audited implementation milestone:
 
@@ -38,9 +40,17 @@ Phase 6 is complete as a documentation-audited implementation milestone:
 
 The Pipe component currently includes skeleton, single-phase friction, gravity, acceleration, mechanical pressure summary, and friction-only calibration placement. It remains local and is not a network.
 
-Heat transfer, phase change, two-phase pressure drop, network assembly, and solvers remain deferred. Pump, accumulator, evaporator, condenser, and heat-exchanger components remain deferred to their planned later phases.
+Phase 7 is complete as a documentation-audited implementation milestone:
 
-The Phase 6 final audit closeout changed documentation only. No source code and no test files were modified.
+- Phase 7A added Network identity and topology primitives.
+- Phase 7B added connection validation and graph checks.
+- Phase 7C added deterministic `SystemState` assembly through `StateLayout`, port handles, optional internal handles, and connected-port peer mapping.
+
+The Network currently includes topology primitives, validation/graph checks, and `SystemState` assembly. It remains solver-free and physics-free.
+
+Solvers, residual solving, pressure solving, flow solving, heat transfer, phase change, two-phase pressure drop, and new component physics remain deferred. Pump, accumulator, evaporator, condenser, and heat-exchanger components remain deferred to their planned later phases.
+
+The Phase 7 final audit closeout changed documentation only. No source code and no test files were modified.
 
 ---
 
@@ -100,6 +110,10 @@ Key authority statements:
 | **Phase 6F - Pipe friction-only calibration placement proof** | **Complete** |
 | **Phase 6 checkpoint audit** | **Complete; approved as checkpoint, continue Phase 6** |
 | **Phase 6 final audit** | **Complete; approved for Phase 7** |
+| **Phase 7A - Network identity and topology primitives** | **Complete** |
+| **Phase 7B - Connection validation and graph checks** | **Complete** |
+| **Phase 7C - Network SystemState assembly** | **Complete** |
+| **Phase 7 final audit** | **Complete; approved for Phase 8** |
 
 Closeout artifacts:
 
@@ -111,43 +125,47 @@ Closeout artifacts:
 - `docs/validation/audits/PHASE_5A_CALIBRATION_PRIMITIVES_AUDIT.md`
 - `docs/validation/audits/PHASE_6_PIPE_COMPONENT_CHECKPOINT_AUDIT.md`
 - `docs/validation/audits/PHASE_6_PIPE_COMPONENT_FINAL_AUDIT.md`
+- `docs/validation/audits/PHASE_7_NETWORK_ASSEMBLY_AUDIT.md`
 
 ---
 
 ## 4. Current Active Phase
 
-**Phase 7 - Network and Assembly** is now the current active phase according to `IMPLEMENTATION_PLAN.md`.
+**Phase 8 - First Steady Solver** is now the current active phase according to `IMPLEMENTATION_PLAN.md`.
 
-Phase 7 objective:
+Phase 8 objective:
 
-- assemble validated topology into `SystemState`;
-- implement connections, junctions, branch structure, one-reference invariant, and inventory-accounting shape as planned;
-- keep the Network responsible for topology and assembly;
+- close the first vertical slice with a steady solver;
+- assemble residuals from component contributions and Network continuity/closure conditions;
+- drive the assembled system over `SystemState`;
+- keep Network responsible for topology and assembly, not numerical solving;
 - keep Pipe as a local component that does not name the Network, neighbours, or Solver.
 
 Phase boundaries to preserve:
 
-- Do not implement solvers yet; Phase 8 owns the first steady solver.
+- Do not turn Network into a solver.
+- Do not make Pipe network-aware or solver-aware.
 - Do not implement Pump or Accumulator components yet; they remain V1 Build Phase 10.
 - Do not implement Evaporator, Condenser, `HeatExchangerModel`, or heat-exchanger components yet; they remain V1 Build Phase 11.
-- Do not implement heat transfer, phase change, or two-phase pressure drop in Phase 7.
+- Do not implement heat transfer, phase change, or two-phase pressure drop in Phase 8.
 - Do not move pressure, enthalpy, mass flow, derived properties, or solver vectors onto Pipe or Port objects.
-- Keep calibration registry resolution out of Pipe until component slots and network assembly require it.
+- Keep `SystemState` as the only owner of values.
 
 ---
 
 ## 5. Next Immediate Actions
 
-1. Review and commit the Phase 6 final audit closeout.
-2. Start **Phase 7 - Network and Assembly** from `IMPLEMENTATION_PLAN.md`.
-3. Keep Phase 7 focused on topology validation and `SystemState` assembly.
-4. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
-5. Run `pytest`, `ruff check .`, and `black --check src tests` before reporting the next implementation task complete.
+1. Review and commit the Phase 7 final audit closeout.
+2. Start **Phase 8 - First Steady Solver** from `IMPLEMENTATION_PLAN.md`.
+3. Keep Phase 8 focused on solver residual assembly and numerical iteration over `SystemState`.
+4. Preserve the Phase 7 boundary: Network owns topology and assembly only.
+5. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
+6. Run `pytest`, `ruff check .`, and `black --check src tests` before reporting the next implementation task complete.
 
 Recommended commit message:
 
 ```text
-docs: close out phase 6 pipe component
+docs: close out phase 7 network assembly
 ```
 
 ---
@@ -177,13 +195,12 @@ These rules are operational forms of the frozen decisions. Violating any is a re
 
 ## 7. Current Known Blockers and Deferred Work
 
-None block starting Phase 7 after this final audit is reviewed and committed.
+None block starting Phase 8 after this final audit is reviewed and committed.
 
 | Item | What it affects | Resolution path |
 |---|---|---|
 | Import-direction rules are not enforced by import-linter tooling | Future cross-layer expansion | Add import-linter or equivalent before higher layers expand further |
-| Network and topology assembly not yet implemented | Phase 7 | Implement according to `IMPLEMENTATION_PLAN.md` without changing Pipe into a network-aware object |
-| Solver residual assembly not yet implemented | Phase 8 | Implement after Phase 7 Network assembly is green |
+| Solver residual assembly not yet implemented | Phase 8 | Implement in the first steady solver without changing Network into a solver |
 | Pump and Accumulator absent | Phase 10 | Implement in planned component phase |
 | Evaporator, Condenser, and HeatExchangerModel absent | Phase 11 | Implement in planned heat-exchanger phase |
 | Heat transfer, phase change, and two-phase pressure drop absent | Phase 11+ | Keep deferred until the planned phases |
@@ -205,10 +222,11 @@ Before any coding task, read in order:
 
 Rules for the next implementation session:
 
-- Phase 7 is active.
-- Phase 6 is complete and approved for the next phase.
-- Do not reopen Phase 6 unless a new task explicitly requests a Phase 6 fix.
-- Work only on Network and assembly scope unless a new task explicitly changes the phase.
+- Phase 8 is active.
+- Phase 7 is complete and approved for the next phase.
+- Do not reopen Phase 7 unless a new task explicitly requests a Phase 7 fix.
+- Work only on first steady solver scope unless a new task explicitly changes the phase.
+- Keep Network topology/assembly-only; do not turn it into a solver.
 - Keep Pipe local; do not add network or solver behavior to Pipe.
 - Preserve separation among geometry, discretization, correlations, calibration, components, network, and solvers.
 - Keep Pump, Accumulator, Evaporator, Condenser, heat transfer, phase change, and two-phase pressure drop deferred.
@@ -223,6 +241,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-15 |
 | **Updated by** | Codex |
-| **Status note** | Phase 6A-6F complete; Phase 6 final audit approved for Phase 7; documentation-only closeout with no source/test changes |
+| **Status note** | Phase 7A-7C complete; Phase 7 final audit approved for Phase 8; documentation-only closeout with no source/test changes |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
