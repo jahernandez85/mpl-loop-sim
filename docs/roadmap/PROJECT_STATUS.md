@@ -12,24 +12,29 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
 | **Branch** | `main` |
-| **Stage** | Phase 5A audit closeout complete; approved for Phase 6 |
-| **Completed phase** | Phase 5A - Calibration primitives and registry |
+| **Stage** | Phase 6 checkpoint audited; Phase 6 remains active |
+| **Completed phase** | Phase 6C - Pipe gravity pressure contribution |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
-| **Phase 5 status** | **Complete for the V1 Build Phase 5 gate; no additional Phase 5 substep remains before Phase 6 in `IMPLEMENTATION_PLAN.md`** |
+| **Phase 6 checkpoint verdict** | **APPROVED AS PHASE 6 CHECKPOINT - CONTINUE PHASE 6** |
+| **Phase 6 status** | **Active; partially complete. Phase 6A, 6B, and 6C are complete, but full Phase 6 closeout is not yet supported by `IMPLEMENTATION_PLAN.md`.** |
 | **Current active phase** | **Phase 6 - Pipe Component** |
-| **Immediate Phase 6 slice** | Pipe component and required component contract/kernel work per `IMPLEMENTATION_PLAN.md`; do not start implementation until a Phase 6 task is explicitly opened |
-| **Working tree before this docs task** | Phase 5A calibration primitives and registry implementation present |
-| **Test status** | 696 passed, verified 2026-06-15 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
+| **Immediate Phase 6 slice** | **Phase 6D - pipe acceleration pressure contribution and mechanical summary scaffold** |
+| **Working tree before this docs task** | Phase 6A/6B/6C implementation present |
+| **Test status** | 870 passed, verified 2026-06-15 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
 | **Lint status** | `ruff check .` clean, verified 2026-06-15 |
-| **Format status** | `black --check src tests` clean, verified 2026-06-15; 47 files would be left unchanged |
+| **Format status** | `black --check src tests` clean, verified 2026-06-15; 54 files would be left unchanged |
 
-Phase 5A is complete. The audit closeout changed documentation only: no source code and no tests were modified.
+Phase 6A, Phase 6B, and Phase 6C are complete as implementation checkpoints:
 
-Implementation should stop here for now after Phase 5A closeout. Do not start Phase 6 implementation unless a new task explicitly opens it.
+- Phase 6A added component contract primitives and the Pipe skeleton.
+- Phase 6B added the Pipe single-phase friction-only contribution helper using the existing `SINGLE_PHASE_DP` correlation contract.
+- Phase 6C added the Pipe gravity pressure contribution helper.
 
-Pipe component is not implemented. It is now the next planned V1 Build Phase, Phase 6, but no Pipe work was performed during Phase 5A audit closeout. Calibration application, fitting, optimization, and component-coupled resolution remain deferred.
+The Pipe component currently includes a skeleton, single-phase friction contribution, and gravity contribution. It does not yet implement the full Phase 6 contribution contract, acceleration contribution, integrated mechanical residual/summary, calibration placement, network integration, or solver integration.
+
+The Phase 6 audit closeout changed documentation only. No source code and no test files were modified.
 
 ---
 
@@ -81,151 +86,73 @@ Key authority statements:
 | **Phase 4 geometry and discretization foundation** | **Complete; approved for Phase 5** |
 | **Phase 5A - Calibration primitives and registry** | **Complete** |
 | **Phase 5A calibration audit** | **Complete; approved for Phase 6** |
+| **Phase 6A - Component contract and Pipe skeleton** | **Complete** |
+| **Phase 6B - Pipe single-phase friction-only kernel** | **Complete** |
+| **Phase 6C - Pipe gravity pressure contribution** | **Complete** |
+| **Phase 6 checkpoint audit** | **Complete; approved as checkpoint, continue Phase 6** |
 
-Phase 2 closeout artifacts:
+Closeout artifacts:
 
 - `docs/validation/audits/PHASE_2_CLOSEOUT_SUMMARY.md`
 - `docs/validation/audits/PHASE_2_COMPLETE_AUDIT.md`
-- Existing supporting audit: `docs/validation/audits/PHASE_2_PROPERTY_LAYER_AUDIT.md`
-
-Phase 3 closeout artifact:
-
+- `docs/validation/audits/PHASE_2_PROPERTY_LAYER_AUDIT.md`
 - `docs/validation/audits/PHASE_3_CORRELATION_LAYER_AUDIT.md`
-
-Phase 4 closeout artifact:
-
 - `docs/validation/audits/PHASE_4_GEOMETRY_DISCRETIZATION_AUDIT.md`
-
-Phase 5A closeout artifact:
-
 - `docs/validation/audits/PHASE_5A_CALIBRATION_PRIMITIVES_AUDIT.md`
+- `docs/validation/audits/PHASE_6_PIPE_COMPONENT_CHECKPOINT_AUDIT.md`
 
 ---
 
-## 4. Current Repository Structure
+## 4. Current Active Phase
 
-```text
-mpl-loop-sim/
-|-- docs/
-|   |-- architecture/
-|   |-- decisions/
-|   |-- roadmap/
-|   `-- validation/
-|       `-- audits/
-|-- src/
-|   `-- mpl_sim/
-|       |-- core/
-|       |-- properties/
-|       |-- correlations/
-|       |-- geometry/
-|       |-- discretization/
-|       |-- calibration/
-|       |-- components/
-|       |-- hx_models/
-|       |-- network/
-|       |-- solvers/
-|       |-- schema/
-|       |-- results/
-|       `-- validation/
-|-- tests/
-|   |-- unit/
-|   |-- property/
-|   |-- correlation/
-|   |-- geometry/
-|   |-- calibration/
-|   |-- component/
-|   |-- network/
-|   |-- solver/
-|   |-- result/
-|   |-- schema/
-|   |-- literature/
-|   |-- regression/
-|   `-- compliance/
-|-- pyproject.toml
-`-- README.md
-```
+**Phase 6 - Pipe Component** remains active according to `IMPLEMENTATION_PLAN.md`.
 
----
+The current Phase 6 implementation is a checkpoint, not a full closeout:
 
-## 5. Phase 2 Closeout
+- Component contract primitives are present.
+- Pipe skeleton is present.
+- Pipe single-phase friction-only helper is present.
+- Pipe gravity pressure contribution helper is present.
+- Friction and gravity are separately inspectable.
+- Pipe remains local and does not know network or solver objects.
 
-**Phase 2 - PropertyBackend** (`src/mpl_sim/properties/`) is complete.
+Still required before full Phase 6 closeout:
 
-Scope completed:
-
-- Phase 2A - `PropertyBackend` interface contract.
-- Phase 2B - `CoolPropBackend`.
-- Phase 2C - `PropertyBackendRegistry`, `BackendSelection`, and default backend-name binding.
-
-Architectural guarantees preserved:
-
-- `FluidState` remains pure P/h/identity.
-- `FluidState` stores no derived properties.
-- `FluidState` holds no `PropertyBackend` reference.
-- CoolProp is confined to `properties/`.
-- `core/` does not import `properties/` or CoolProp.
-- P-h remains the canonical property input pair.
-- `PropertyBackend` remains vector-first.
-- Unsupported mixtures/custom fluids are explicit, not silently guessed.
-- The property backend registry is separate from the future correlation registry.
-
-Known deferred items:
-
-- `TabulatedPropertyBackend`.
-- REFPROP backend.
-- Empirical backend.
-- Mixture backend support.
-- Full `ReproducibilityTuple` serialization.
-- Import-linter or equivalent import-boundary enforcement before higher layers expand.
-- `CoolPropBackend.valid_range()` remains a coarse envelope, not a precision domain certificate.
-
----
-
-## 6. Current Active Phase
-
-**Phase 6 - Pipe Component** is the next implementation phase according to `IMPLEMENTATION_PLAN.md`.
-
-Phase 5A is closed:
-
-- Phase 5A calibration primitives are complete.
-- Phase 5A calibration registry is complete.
-- Phase 5A audit verdict is **APPROVED FOR NEXT PHASE**.
-- No source code or test files were modified during the Phase 5A audit closeout.
-
-Implementation should stop here for now after the Phase 5A closeout document is reviewed and committed. Do not begin Phase 6 implementation unless a new task explicitly opens it.
+- Pipe contribution-contract behavior.
+- Internal 1D gradient kernel in lumped mode.
+- Acceleration pressure contribution.
+- Integrated mechanical summary or momentum residual.
+- Frozen-zero derivative reporting if included in the chosen Phase 6D contract slice.
+- Calibration placement proving `R*` scales only friction, not gravity, acceleration, or balances.
 
 Phase boundaries to preserve:
 
-- Pipe component is next, but do not implement it without an explicit Phase 6 task.
+- Do not start Phase 7 network work yet.
+- Do not implement solvers yet.
 - Do not implement Pump or Accumulator components yet; they remain V1 Build Phase 10.
-- Do not implement Evaporator or Condenser components yet; they remain V1 Build Phase 11.
-- Do not implement solvers or network work yet.
-- Do not add new real correlations unless a later consuming component phase requires them.
-- Keep component-coupled discretization integration objects deferred until component integration requires them.
-- Keep calibration application, fitting, optimization, and component-coupled resolution deferred until their consuming phases require them.
+- Do not implement Evaporator, Condenser, `HeatExchangerModel`, or heat-exchanger components yet; they remain V1 Build Phase 11.
+- Do not implement heat transfer, phase change, or two-phase behavior in Phase 6D unless explicitly scoped by the implementation plan.
+- Keep calibration application narrow and only at the documented friction-gradient seam when it is introduced.
 
 ---
 
-## 7. Next Immediate Actions
+## 5. Next Immediate Actions
 
-1. Review and commit the Phase 5A audit closeout.
-2. Stop implementation here until a new task explicitly opens Phase 6.
-3. When Phase 6 starts, implement the Pipe component and required component contract/kernel work only per `IMPLEMENTATION_PLAN.md`.
-4. Keep Pump and Accumulator component work deferred to Phase 10.
-5. Keep Evaporator and Condenser component work deferred to Phase 11.
-6. Keep calibration application, fitting, optimization, and component-coupled resolution deferred until their consuming phases require them.
-7. Keep component-coupled discretization integration objects deferred until component integration requires them.
-8. Add import-linter or equivalent before higher-layer cross-package imports expand, or keep this as a tracked follow-up until it is implemented.
+1. Review and commit the Phase 6 checkpoint audit closeout.
+2. Continue Phase 6 with **Phase 6D - pipe acceleration pressure contribution and mechanical summary scaffold**.
+3. Keep friction, gravity, and acceleration separately inspectable.
+4. Do not implement network, solvers, pump, accumulator, evaporator, condenser, heat transfer, phase change, or two-phase behavior in the next slice.
+5. Run `pytest`, `ruff check .`, and `black --check src tests` before reporting the next implementation task complete.
 
 Recommended commit message:
 
 ```text
-docs: close out phase 5a calibration primitives
+docs: audit phase 6 pipe checkpoint
 ```
 
 ---
 
-## 8. Non-Negotiable Implementation Rules
+## 6. Non-Negotiable Implementation Rules
 
 These rules are operational forms of the frozen decisions. Violating any is a review failure.
 
@@ -248,23 +175,23 @@ These rules are operational forms of the frozen decisions. Violating any is a re
 
 ---
 
-## 9. Current Known Blockers and Deferred Work
+## 7. Current Known Blockers and Deferred Work
 
-None block Phase 6 after Phase 5A closeout review and commit.
+None block continued Phase 6 implementation after this checkpoint audit is reviewed and committed.
 
 | Item | What it affects | Resolution path |
 |---|---|---|
+| Full Phase 6 contribution contract not yet implemented | Phase 6 closeout | Continue with Phase 6D before advancing to Phase 7 |
+| Acceleration contribution not yet implemented | Phase 6 closeout | Add as a separate inspectable Pipe contribution |
+| Calibration application not yet wired into Pipe | Phase 6 closeout if selected for the next contract slice | Apply only to friction-gradient output, never gravity/acceleration/balances |
 | Import-direction rules are not enforced by import-linter tooling | Future cross-layer expansion | Add import-linter or equivalent before higher layers expand |
 | 29 property CSV files missing | Future `TabulatedPropertyBackend`; `sigma_e`/`eps_r` | Data recovery task; does not block CoolProp-backed V1 path |
 | Literature validation data must be lifted and pinned | Literature tests | Phase 12 validation-data task |
-| Registry-name vs `ClosureMetadata.name` canonicalization | Future correlation catalogue growth | Document or enforce before the catalogue expands |
-| Per-correlation validity envelopes | Correlation admissibility | Author per additional correlation when consuming components require it |
 | Content-hash canonicalization rule | Schema serialization determinism | Establish when serializers are implemented in Phase 9 |
-| Calibration resolution/application helpers | Future component calibration application | Implement when components consume calibration; not a Phase 5A blocker |
 
 ---
 
-## 10. Instructions for Future AI Agents
+## 8. Instructions for Future AI Agents
 
 Before any coding task, read in order:
 
@@ -276,26 +203,24 @@ Before any coding task, read in order:
 
 Rules for the next implementation session:
 
-- Phase 5A is complete and approved for Phase 6.
-- Work only on Phase 6 Pipe/component-contract scope when a new task explicitly opens that phase.
-- Do not implement network, solvers, optimization, parameter fitting, or DOE/surrogate work in Phase 6.
-- Do not implement calibration fitting, optimization, or experimental-data ingestion.
-- Do not implement Pump or Accumulator components until Phase 10.
-- Do not implement Evaporator or Condenser until Phase 11.
-- Preserve the separation between geometry, discretization, correlations, calibration, and components.
-- Keep component-coupled discretization integration objects deferred until component integration requires them.
-- Preserve the separation between `PropertyBackendRegistry` and `CorrelationRegistry`.
-- Run `pytest`, `ruff check`, and `black --check` before reporting any implementation task complete.
-- Do not include `Co-Authored-By` lines unless explicitly requested by the user.
+- Phase 6 remains active.
+- Phase 6A, 6B, and 6C are complete.
+- Do not mark Phase 6 complete until the remaining `IMPLEMENTATION_PLAN.md` Phase 6 requirements are implemented and audited.
+- Work only on the Pipe/component-contract scope unless a new task explicitly changes the phase.
+- Keep Pipe local; do not add network or solver behavior.
+- Preserve separation among geometry, discretization, correlations, calibration, and components.
+- Keep Pump, Accumulator, Evaporator, Condenser, heat transfer, phase change, and two-phase pressure drop deferred.
+- Run `pytest`, `ruff check .`, and `black --check src tests` before reporting any implementation task complete.
+- Do not include `Co-Authored-By` lines unless explicitly requested.
 
 ---
 
-## 11. Last Updated
+## 9. Last Updated
 
 | Field | Value |
 |---|---|
 | **Date** | 2026-06-15 |
 | **Updated by** | Codex |
-| **Status note** | Phase 5A calibration primitives and registry complete; audit approved for Phase 6 Pipe Component |
+| **Status note** | Phase 6A/6B/6C complete; Phase 6 checkpoint audit approved; continue Phase 6 with acceleration/mechanical summary slice |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
