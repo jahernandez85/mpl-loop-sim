@@ -1,9 +1,10 @@
-"""Pipe component — Phase 6D: acceleration pressure contribution added.
+"""Pipe component — Phase 6E: mechanical pressure summary added.
 
 Defines the Pipe component: an immutable value object that holds a
 PipeGeometry and DiscretizationSpec, declares inlet and outlet ports, and
 exposes evaluate_single_phase_friction (Phase 6B), evaluate_gravity_pressure
-(Phase 6C), and evaluate_acceleration_pressure (Phase 6D).
+(Phase 6C), evaluate_acceleration_pressure (Phase 6D), and
+evaluate_mechanical_pressure_summary (Phase 6E).
 
 Phase 6B adds:
 - PipeSinglePhaseFrictionInput: scalar input value object for friction eval
@@ -20,6 +21,14 @@ Phase 6D adds:
 - PipeAccelerationResult: result value object (delta_p_acceleration + echo fields)
 - Pipe.evaluate_acceleration_pressure: pure arithmetic; no correlation called
 
+Phase 6E adds:
+- PipeMechanicalPressureInput: scalar-only input combining friction, gravity,
+  and acceleration fields; optional friction_multiplier (default 1.0)
+- PipeMechanicalPressureSummary: immutable result holding all three sub-results
+  and explicit delta_p_total
+- Pipe.evaluate_mechanical_pressure_summary: delegates to the three existing
+  helpers; no new physics; no network; no solver
+
 Sign convention (Phase 6C):
   delta_p_gravity = rho * g * delta_z
   positive delta_z → outlet is higher than inlet → positive delta_p_gravity
@@ -30,7 +39,11 @@ Sign convention (Phase 6D):
   positive when momentum flux increases from inlet to outlet
   (pressure required/lost accelerating the fluid)
 
-Hard constraints respected in Phase 6D:
+Sign convention (Phase 6E):
+  delta_p_total = delta_p_friction + delta_p_gravity + delta_p_acceleration
+  where delta_p_friction includes the optional friction_multiplier scaling.
+
+Hard constraints respected in Phase 6E:
 - No heat transfer.
 - No energy balance.
 - No phase change / two-phase.
@@ -39,13 +52,7 @@ Hard constraints respected in Phase 6D:
 - No PropertyBackend.
 - No CalibrationRegistry.
 - Pipe, geometry, discretization, and inputs are never mutated.
-- evaluate_acceleration_pressure does not call any correlation.
-
-Calibration deferred note:
-  A scalar friction-gradient multiplier (CalibrationModifier.MULTIPLIER on
-  FRICTION_GRADIENT) is structurally possible via calibration.primitives, but
-  wiring it into evaluate_single_phase_friction is deferred to a dedicated
-  calibration-integration sub-phase to keep this patch narrow.
+- evaluate_mechanical_pressure_summary only calls existing helper methods.
 """
 
 from __future__ import annotations
@@ -262,6 +269,105 @@ class PipeAccelerationResult:
     rho_in: float
     G_out: float
     rho_out: float
+
+
+# ---------------------------------------------------------------------------
+# PipeMechanicalPressureInput / PipeMechanicalPressureSummary  (Phase 6E)
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PipeMechanicalPressureInput:
+    """Input for Pipe.evaluate_mechanical_pressure_summary.
+
+    Collects all scalar inputs needed for friction, gravity, and acceleration
+    contributions.  No FluidState, PropertyBackend, or registry is stored.
+
+    Fields for friction (see PipeSinglePhaseFrictionInput):
+        G   : mass flux [kg/m²s]  — finite; zero allowed
+        rho : fluid density [kg/m³]  — must be > 0; shared with gravity
+        mu  : dynamic viscosity [Pa·s] — must be > 0
+
+    Fields for gravity (see PipeGravityInput):
+        rho : shared with friction above
+        g   : gravitational acceleration [m/s²] — must be > 0; default standard
+
+    Fields for acceleration (see PipeAccelerationInput):
+        G_in   : inlet mass flux [kg/m²s]  — finite; zero allowed
+        rho_in : inlet density [kg/m³]  — must be > 0
+        G_out  : outlet mass flux [kg/m²s] — finite; zero allowed
+        rho_out: outlet density [kg/m³] — must be > 0
+
+    Optional calibration:
+        friction_multiplier : scalar multiplier applied only to the friction
+                              contribution (default 1.0).  Must be finite.
+                              Does not scale gravity or acceleration.
+    """
+
+    G: float
+    rho: float
+    mu: float
+    G_in: float
+    rho_in: float
+    G_out: float
+    rho_out: float
+    g: float = _STANDARD_GRAVITY
+    friction_multiplier: float = 1.0
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.G):
+            raise ValueError(f"PipeMechanicalPressureInput.G must be finite; got {self.G!r}")
+        if not (math.isfinite(self.rho) and self.rho > 0.0):
+            raise ValueError(f"PipeMechanicalPressureInput.rho must be > 0; got {self.rho!r}")
+        if not (math.isfinite(self.mu) and self.mu > 0.0):
+            raise ValueError(f"PipeMechanicalPressureInput.mu must be > 0; got {self.mu!r}")
+        if not (math.isfinite(self.g) and self.g > 0.0):
+            raise ValueError(f"PipeMechanicalPressureInput.g must be > 0; got {self.g!r}")
+        if not math.isfinite(self.G_in):
+            raise ValueError(f"PipeMechanicalPressureInput.G_in must be finite; got {self.G_in!r}")
+        if not (math.isfinite(self.rho_in) and self.rho_in > 0.0):
+            raise ValueError(f"PipeMechanicalPressureInput.rho_in must be > 0; got {self.rho_in!r}")
+        if not math.isfinite(self.G_out):
+            raise ValueError(
+                f"PipeMechanicalPressureInput.G_out must be finite; got {self.G_out!r}"
+            )
+        if not (math.isfinite(self.rho_out) and self.rho_out > 0.0):
+            raise ValueError(
+                f"PipeMechanicalPressureInput.rho_out must be > 0; got {self.rho_out!r}"
+            )
+        if not math.isfinite(self.friction_multiplier):
+            raise ValueError(
+                f"PipeMechanicalPressureInput.friction_multiplier must be finite; "
+                f"got {self.friction_multiplier!r}"
+            )
+
+
+@dataclass(frozen=True)
+class PipeMechanicalPressureSummary:
+    """Result of Pipe.evaluate_mechanical_pressure_summary.
+
+    Combines friction, gravity, and acceleration contributions into an
+    explicit, inspectable summary.  No terms are hidden or collapsed.
+
+    Sign convention:
+        delta_p_total = friction.delta_p_friction
+                      + gravity.delta_p_gravity
+                      + acceleration.delta_p_acceleration
+
+    The friction sub-result already incorporates any friction_multiplier
+    passed in PipeMechanicalPressureInput.
+
+    Fields:
+        friction      : PipeFrictionResult — includes verdict and metadata
+        gravity       : PipeGravityResult
+        acceleration  : PipeAccelerationResult
+        delta_p_total : total mechanical pressure contribution [Pa]
+    """
+
+    friction: PipeFrictionResult
+    gravity: PipeGravityResult
+    acceleration: PipeAccelerationResult
+    delta_p_total: float
 
 
 # ---------------------------------------------------------------------------
@@ -488,4 +594,86 @@ class Pipe(Component):
             rho=inp.rho,
             g=inp.g,
             delta_z=delta_z,
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 6E: mechanical pressure summary
+    # ------------------------------------------------------------------
+
+    def evaluate_mechanical_pressure_summary(
+        self,
+        inp: PipeMechanicalPressureInput,
+        correlation: Correlation,
+    ) -> PipeMechanicalPressureSummary:
+        """Evaluate the combined mechanical pressure summary for this pipe.
+
+        Delegates to the three existing helpers:
+          - evaluate_single_phase_friction  (Phase 6B)
+          - evaluate_gravity_pressure       (Phase 6C)
+          - evaluate_acceleration_pressure  (Phase 6D)
+
+        The optional friction_multiplier in *inp* scales only the friction
+        contribution (dp_dx_friction and delta_p_friction); gravity and
+        acceleration are not scaled.  The friction verdict and metadata
+        are preserved unchanged through any multiplier scaling.
+
+        Total:
+            delta_p_total = friction.delta_p_friction
+                          + gravity.delta_p_gravity
+                          + acceleration.delta_p_acceleration
+
+        No new physics is computed here.  No PropertyBackend is called.
+        No network or solver objects are created.  Neither the Pipe, its
+        geometry, its discretization, nor any input object is mutated.
+
+        Parameters
+        ----------
+        inp         : PipeMechanicalPressureInput — all scalar inputs
+        correlation : Correlation with role SINGLE_PHASE_DP
+
+        Returns
+        -------
+        PipeMechanicalPressureSummary
+
+        Raises
+        ------
+        TypeError
+            If *correlation* is not a Correlation instance.
+        ValueError
+            If *correlation*.role() is not CorrelationRole.SINGLE_PHASE_DP.
+        """
+        # Friction
+        friction_inp = PipeSinglePhaseFrictionInput(G=inp.G, rho=inp.rho, mu=inp.mu)
+        raw_friction = self.evaluate_single_phase_friction(friction_inp, correlation)
+        friction_result = PipeFrictionResult(
+            dp_dx_friction=raw_friction.dp_dx_friction * inp.friction_multiplier,
+            delta_p_friction=raw_friction.delta_p_friction * inp.friction_multiplier,
+            verdict=raw_friction.verdict,
+            metadata=raw_friction.metadata,
+        )
+
+        # Gravity
+        gravity_inp = PipeGravityInput(rho=inp.rho, g=inp.g)
+        gravity_result = self.evaluate_gravity_pressure(gravity_inp)
+
+        # Acceleration
+        accel_inp = PipeAccelerationInput(
+            G_in=inp.G_in,
+            rho_in=inp.rho_in,
+            G_out=inp.G_out,
+            rho_out=inp.rho_out,
+        )
+        accel_result = self.evaluate_acceleration_pressure(accel_inp)
+
+        delta_p_total = (
+            friction_result.delta_p_friction
+            + gravity_result.delta_p_gravity
+            + accel_result.delta_p_acceleration
+        )
+
+        return PipeMechanicalPressureSummary(
+            friction=friction_result,
+            gravity=gravity_result,
+            acceleration=accel_result,
+            delta_p_total=delta_p_total,
         )
