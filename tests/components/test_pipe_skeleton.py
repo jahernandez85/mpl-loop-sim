@@ -331,11 +331,15 @@ class TestPipeImportBoundary:
                 "mpl_sim.properties" not in line
             ), f"components/pipe.py must not import properties in Phase 6A: {line!r}"
 
-    def test_pipe_module_does_not_import_correlations(self) -> None:
+    def test_pipe_module_does_not_import_correlations_registry(self) -> None:
+        # Phase 6B: pipe.py imports from correlations.contract (Correlation,
+        # CorrelationRole, etc.) — that is allowed.
+        # The registry is not imported; Pipe accepts a Correlation object
+        # directly so registry coupling is deferred to the call site.
         for line in self._pipe_imports():
             assert (
-                "mpl_sim.correlations" not in line
-            ), f"components/pipe.py must not import correlations in Phase 6A: {line!r}"
+                "mpl_sim.correlations.registry" not in line
+            ), f"components/pipe.py must not import the CorrelationRegistry: {line!r}"
 
     def test_components_init_does_not_import_network(self) -> None:
         for line in self._init_imports():
