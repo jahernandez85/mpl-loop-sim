@@ -1,9 +1,9 @@
-"""Pipe component — Phase 6C: gravity pressure contribution added.
+"""Pipe component — Phase 6D: acceleration pressure contribution added.
 
 Defines the Pipe component: an immutable value object that holds a
 PipeGeometry and DiscretizationSpec, declares inlet and outlet ports, and
-exposes evaluate_single_phase_friction (Phase 6B) and evaluate_gravity_pressure
-(Phase 6C).
+exposes evaluate_single_phase_friction (Phase 6B), evaluate_gravity_pressure
+(Phase 6C), and evaluate_acceleration_pressure (Phase 6D).
 
 Phase 6B adds:
 - PipeSinglePhaseFrictionInput: scalar input value object for friction eval
@@ -15,13 +15,22 @@ Phase 6C adds:
 - PipeGravityResult: result value object (delta_p_gravity, rho, g, delta_z)
 - Pipe.evaluate_gravity_pressure: pure arithmetic; reads delta_z from geometry
 
+Phase 6D adds:
+- PipeAccelerationInput: scalar input value object (G_in, rho_in, G_out, rho_out)
+- PipeAccelerationResult: result value object (delta_p_acceleration + echo fields)
+- Pipe.evaluate_acceleration_pressure: pure arithmetic; no correlation called
+
 Sign convention (Phase 6C):
   delta_p_gravity = rho * g * delta_z
   positive delta_z → outlet is higher than inlet → positive delta_p_gravity
   (pressure required/lost lifting the fluid upward)
 
-Hard constraints respected in Phase 6C:
-- No acceleration.
+Sign convention (Phase 6D):
+  delta_p_acceleration = G_out**2 / rho_out - G_in**2 / rho_in
+  positive when momentum flux increases from inlet to outlet
+  (pressure required/lost accelerating the fluid)
+
+Hard constraints respected in Phase 6D:
 - No heat transfer.
 - No energy balance.
 - No phase change / two-phase.
@@ -30,7 +39,7 @@ Hard constraints respected in Phase 6C:
 - No PropertyBackend.
 - No CalibrationRegistry.
 - Pipe, geometry, discretization, and inputs are never mutated.
-- evaluate_gravity_pressure does not call any correlation.
+- evaluate_acceleration_pressure does not call any correlation.
 
 Calibration deferred note:
   A scalar friction-gradient multiplier (CalibrationModifier.MULTIPLIER on
@@ -189,6 +198,73 @@ class PipeGravityResult:
 
 
 # ---------------------------------------------------------------------------
+# PipeAccelerationInput / PipeAccelerationResult
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PipeAccelerationInput:
+    """Input for Pipe.evaluate_acceleration_pressure.
+
+    All fields are physical scalars; no FluidState is stored.
+
+    Sign convention: G_in and G_out may be positive or negative; the
+    momentum-flux expression uses squared mass fluxes, so the sign of G
+    does not affect the magnitude of the acceleration contribution.  Positive
+    G conventionally means flow from inlet toward outlet.
+
+    Fields:
+        G_in   : inlet mass flux [kg/m²s]  — finite; zero allowed
+        rho_in : inlet fluid density [kg/m³]  — must be > 0
+        G_out  : outlet mass flux [kg/m²s] — finite; zero allowed
+        rho_out: outlet fluid density [kg/m³] — must be > 0
+    """
+
+    G_in: float
+    rho_in: float
+    G_out: float
+    rho_out: float
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.G_in):
+            raise ValueError(f"PipeAccelerationInput.G_in must be finite; got {self.G_in!r}")
+        if not (math.isfinite(self.rho_in) and self.rho_in > 0.0):
+            raise ValueError(f"PipeAccelerationInput.rho_in must be > 0; got {self.rho_in!r}")
+        if not math.isfinite(self.G_out):
+            raise ValueError(f"PipeAccelerationInput.G_out must be finite; got {self.G_out!r}")
+        if not (math.isfinite(self.rho_out) and self.rho_out > 0.0):
+            raise ValueError(f"PipeAccelerationInput.rho_out must be > 0; got {self.rho_out!r}")
+
+
+@dataclass(frozen=True)
+class PipeAccelerationResult:
+    """Result of Pipe.evaluate_acceleration_pressure.
+
+    Acceleration only — no friction, gravity, or heat transfer.
+
+    Sign convention:
+        delta_p_acceleration = G_out**2 / rho_out - G_in**2 / rho_in
+        positive when momentum flux increases from inlet to outlet
+        (pressure required/lost accelerating the fluid)
+        negative when momentum flux decreases (pressure recovered)
+        zero when momentum flux is unchanged
+
+    Fields:
+        delta_p_acceleration : acceleration pressure contribution [Pa]
+        G_in                 : inlet mass flux used [kg/m²s]
+        rho_in               : inlet density used [kg/m³]
+        G_out                : outlet mass flux used [kg/m²s]
+        rho_out              : outlet density used [kg/m³]
+    """
+
+    delta_p_acceleration: float
+    G_in: float
+    rho_in: float
+    G_out: float
+    rho_out: float
+
+
+# ---------------------------------------------------------------------------
 # Pipe
 # ---------------------------------------------------------------------------
 
@@ -337,6 +413,45 @@ class Pipe(Component):
     # ------------------------------------------------------------------
     # Phase 6C: gravity pressure contribution
     # ------------------------------------------------------------------
+
+    def evaluate_acceleration_pressure(
+        self,
+        inp: PipeAccelerationInput,
+    ) -> PipeAccelerationResult:
+        """Evaluate the inviscid acceleration pressure contribution for this pipe.
+
+        Computes:
+            delta_p_acceleration = G_out**2 / rho_out - G_in**2 / rho_in
+
+        where G_in, rho_in are inlet mass flux and density, and G_out, rho_out
+        are outlet mass flux and density.
+
+        Sign convention:
+            positive when momentum flux increases from inlet to outlet
+            (pressure required/lost accelerating the fluid)
+            zero when G_in == G_out and rho_in == rho_out (no acceleration)
+            negative when momentum flux decreases (pressure recovered)
+
+        No correlation is called.  No PropertyBackend is called.  Neither
+        the Pipe, its geometry, nor inp are mutated.  Geometry and
+        discretization are not read; this is a pure scalar calculation.
+
+        Parameters
+        ----------
+        inp : PipeAccelerationInput — scalar inlet/outlet mass flux and density
+
+        Returns
+        -------
+        PipeAccelerationResult
+        """
+        delta_p = inp.G_out**2 / inp.rho_out - inp.G_in**2 / inp.rho_in
+        return PipeAccelerationResult(
+            delta_p_acceleration=delta_p,
+            G_in=inp.G_in,
+            rho_in=inp.rho_in,
+            G_out=inp.G_out,
+            rho_out=inp.rho_out,
+        )
 
     def evaluate_gravity_pressure(
         self,

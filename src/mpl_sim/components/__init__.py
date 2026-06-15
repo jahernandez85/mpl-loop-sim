@@ -1,12 +1,13 @@
-"""Components package — Phase 6C: pipe gravity pressure contribution added.
+"""Components package — Phase 6D: pipe acceleration pressure contribution added.
 
 Exports:
   Component contract primitives:
     ComponentId, ComponentKind, ComponentPort, Component
 
-  Pipe (with Phase 6B friction kernel and Phase 6C gravity contribution):
+  Pipe (with Phase 6B friction, Phase 6C gravity, Phase 6D acceleration):
     Pipe, PipeSinglePhaseFrictionInput, PipeFrictionResult,
-    PipeGravityInput, PipeGravityResult
+    PipeGravityInput, PipeGravityResult,
+    PipeAccelerationInput, PipeAccelerationResult
 
 Architectural constraints:
   - MUST NOT import from network/ or solvers/.
@@ -22,6 +23,8 @@ from mpl_sim.components.base import (
 )
 from mpl_sim.components.pipe import (
     Pipe,
+    PipeAccelerationInput,
+    PipeAccelerationResult,
     PipeFrictionResult,
     PipeGravityInput,
     PipeGravityResult,
@@ -43,4 +46,7 @@ __all__ = [
     # Pipe Phase 6C gravity types
     "PipeGravityInput",
     "PipeGravityResult",
+    # Pipe Phase 6D acceleration types
+    "PipeAccelerationInput",
+    "PipeAccelerationResult",
 ]
