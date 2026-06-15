@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B: topology primitives and validation.
+"""Network package — Phase 7A/7B/7C: topology, validation, and assembly.
 
 Exports:
 
@@ -11,9 +11,13 @@ Exports:
   Validation:
     NetworkValidationResult, validate_topology
 
+  Assembly (Phase 7C):
+    NetworkAssembly, assemble_network
+
 MUST NOT import from solvers/.
 """
 
+from mpl_sim.network.assembly import NetworkAssembly, assemble_network
 from mpl_sim.network.topology import (
     ConnectionId,
     NetworkConnection,
@@ -39,4 +43,7 @@ __all__ = [
     # Validation
     "NetworkValidationResult",
     "validate_topology",
+    # Assembly
+    "NetworkAssembly",
+    "assemble_network",
 ]
