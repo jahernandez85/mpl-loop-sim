@@ -19,9 +19,9 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Current active phase** | **Phase 5 - Calibration** |
 | **Immediate Phase 5 slice** | Calibration value objects and conservation-firewall shape per `IMPLEMENTATION_PLAN.md`; do not start implementation until a Phase 5 task is explicitly opened |
 | **Working tree before this docs task** | Phase 4A and Phase 4B implementation present |
-| **Test status** | 588 passed, verified 2026-06-13 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
-| **Lint status** | `ruff check .` clean, verified 2026-06-13 |
-| **Format status** | `black --check src tests` clean, verified 2026-06-13; `black --check .` blocked by `.pytest_cache` permission error |
+| **Test status** | 588 passed, verified 2026-06-15 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
+| **Lint status** | `ruff check .` clean, verified 2026-06-15 |
+| **Format status** | `black --check src tests` clean, verified 2026-06-15; `black --check .` blocked by `.pytest_cache` permission error |
 
 Phase 4 is complete. The audit closeout changed documentation only: no source code and no tests were modified.
 
@@ -284,7 +284,7 @@ Rules for the next implementation session:
 
 | Field | Value |
 |---|---|
-| **Date** | 2026-06-13 |
+| **Date** | 2026-06-15 |
 | **Updated by** | Codex |
 | **Status note** | Phase 4 geometry and discretization foundation complete; approved for Phase 5 calibration |
 

@@ -146,6 +146,8 @@ Phase 5 is calibration, not Pipe. The Pipe component remains deferred to V1 Buil
 
 ## Verification
 
+Verified on 2026-06-15.
+
 Commands run:
 
 ```text
