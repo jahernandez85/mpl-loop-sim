@@ -1,10 +1,11 @@
-"""Pipe component — Phase 6E: mechanical pressure summary added.
+"""Pipe component — Phase 6F: calibration placement proof added.
 
 Defines the Pipe component: an immutable value object that holds a
 PipeGeometry and DiscretizationSpec, declares inlet and outlet ports, and
 exposes evaluate_single_phase_friction (Phase 6B), evaluate_gravity_pressure
-(Phase 6C), evaluate_acceleration_pressure (Phase 6D), and
-evaluate_mechanical_pressure_summary (Phase 6E).
+(Phase 6C), evaluate_acceleration_pressure (Phase 6D),
+evaluate_mechanical_pressure_summary (Phase 6E), and the calibration
+placement seam (Phase 6F).
 
 Phase 6B adds:
 - PipeSinglePhaseFrictionInput: scalar input value object for friction eval
@@ -29,6 +30,13 @@ Phase 6E adds:
 - Pipe.evaluate_mechanical_pressure_summary: delegates to the three existing
   helpers; no new physics; no network; no solver
 
+Phase 6F adds (calibration placement proof):
+- Extends PipeMechanicalPressureSummary with raw_friction and friction_multiplier
+  fields so the calibration seam is fully inspectable without collapsing any term.
+- Adds non-negative validation for PipeMechanicalPressureInput.friction_multiplier
+  (>= 0 required; NaN and infinity already rejected by Phase 6E).
+- No CalibrationRegistry, no fitting, no optimization.
+
 Sign convention (Phase 6C):
   delta_p_gravity = rho * g * delta_z
   positive delta_z → outlet is higher than inlet → positive delta_p_gravity
@@ -39,11 +47,12 @@ Sign convention (Phase 6D):
   positive when momentum flux increases from inlet to outlet
   (pressure required/lost accelerating the fluid)
 
-Sign convention (Phase 6E):
-  delta_p_total = delta_p_friction + delta_p_gravity + delta_p_acceleration
-  where delta_p_friction includes the optional friction_multiplier scaling.
+Sign convention (Phase 6E/6F):
+  delta_p_total = delta_p_friction_calibrated + delta_p_gravity + delta_p_acceleration
+  where delta_p_friction_calibrated = friction_multiplier × raw friction contribution.
+  Gravity and acceleration are never scaled.
 
-Hard constraints respected in Phase 6E:
+Hard constraints respected through Phase 6F:
 - No heat transfer.
 - No energy balance.
 - No phase change / two-phase.
@@ -340,6 +349,11 @@ class PipeMechanicalPressureInput:
                 f"PipeMechanicalPressureInput.friction_multiplier must be finite; "
                 f"got {self.friction_multiplier!r}"
             )
+        if self.friction_multiplier < 0.0:
+            raise ValueError(
+                f"PipeMechanicalPressureInput.friction_multiplier must be >= 0; "
+                f"got {self.friction_multiplier!r}"
+            )
 
 
 @dataclass(frozen=True)
@@ -349,22 +363,31 @@ class PipeMechanicalPressureSummary:
     Combines friction, gravity, and acceleration contributions into an
     explicit, inspectable summary.  No terms are hidden or collapsed.
 
+    Calibration placement (Phase 6F):
+        raw_friction holds the unscaled correlation output.
+        friction holds the calibrated result: raw × friction_multiplier.
+        friction_multiplier records which scalar was applied.
+        Gravity and acceleration are never scaled.
+
     Sign convention:
         delta_p_total = friction.delta_p_friction
                       + gravity.delta_p_gravity
                       + acceleration.delta_p_acceleration
 
-    The friction sub-result already incorporates any friction_multiplier
-    passed in PipeMechanicalPressureInput.
+        where friction.delta_p_friction = friction_multiplier × raw_friction.delta_p_friction
 
     Fields:
-        friction      : PipeFrictionResult — includes verdict and metadata
-        gravity       : PipeGravityResult
-        acceleration  : PipeAccelerationResult
-        delta_p_total : total mechanical pressure contribution [Pa]
+        friction            : PipeFrictionResult — calibrated (multiplier applied)
+        raw_friction        : PipeFrictionResult — unscaled correlation output
+        friction_multiplier : scalar multiplier applied to raw_friction → friction
+        gravity             : PipeGravityResult
+        acceleration        : PipeAccelerationResult
+        delta_p_total       : total mechanical pressure contribution [Pa]
     """
 
     friction: PipeFrictionResult
+    raw_friction: PipeFrictionResult
+    friction_multiplier: float
     gravity: PipeGravityResult
     acceleration: PipeAccelerationResult
     delta_p_total: float
@@ -673,6 +696,8 @@ class Pipe(Component):
 
         return PipeMechanicalPressureSummary(
             friction=friction_result,
+            raw_friction=raw_friction,
+            friction_multiplier=inp.friction_multiplier,
             gravity=gravity_result,
             acceleration=accel_result,
             delta_p_total=delta_p_total,
