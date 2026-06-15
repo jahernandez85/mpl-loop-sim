@@ -18,8 +18,8 @@ For coding work, always follow `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 - Phase 3 correlation layer foundation is complete and audited.
 - Phase 4 geometry/discretization foundation is complete and audited.
 - Phase 5A calibration primitives and registry are complete and audited.
-- Phase 6A, Phase 6B, and Phase 6C are complete as Pipe component checkpoints.
-- Phase 6 remains active; the current implementation is approved as a checkpoint, not a full Phase 6 closeout.
+- Phase 6 Pipe component is complete and finally audited.
+- Phase 7 - Network and Assembly is the current active phase.
 
 ## Component Implementation Timing
 
@@ -28,7 +28,7 @@ For coding work, always follow `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 - `HeatExchangerModel`, Evaporator, and Condenser: V1 Build Phase 11.
 
 Therefore, the absence of components in `src/mpl_sim/components/` at the end of Phase 2 is expected and correct.
-The current presence of the Pipe skeleton plus friction and gravity helpers in `src/mpl_sim/components/` is expected and correct for the Phase 6 checkpoint.
+The current presence of the Pipe skeleton plus single-phase friction, gravity, acceleration, mechanical pressure summary, and friction-only calibration placement helpers in `src/mpl_sim/components/` is expected and correct for the Phase 6 closeout.
 
 ## Legacy Coarse Roadmap
 
