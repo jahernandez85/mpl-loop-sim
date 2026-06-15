@@ -19,7 +19,8 @@ For coding work, always follow `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 - Phase 4 geometry/discretization foundation is complete and audited.
 - Phase 5A calibration primitives and registry are complete and audited.
 - Phase 6 Pipe component is complete and finally audited.
-- Phase 7 - Network and Assembly is the current active phase.
+- Phase 7 - Network and Assembly is complete and audited.
+- Phase 8 - First Steady Solver is the current active phase.
 
 ## Component Implementation Timing
 
@@ -29,6 +30,7 @@ For coding work, always follow `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 
 Therefore, the absence of components in `src/mpl_sim/components/` at the end of Phase 2 is expected and correct.
 The current presence of the Pipe skeleton plus single-phase friction, gravity, acceleration, mechanical pressure summary, and friction-only calibration placement helpers in `src/mpl_sim/components/` is expected and correct for the Phase 6 closeout.
+The current presence of Network topology primitives, validation/graph checks, and `SystemState` assembly in `src/mpl_sim/network/` is expected and correct for the Phase 7 closeout.
 
 ## Legacy Coarse Roadmap
 
