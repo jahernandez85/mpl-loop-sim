@@ -12,22 +12,24 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
 | **Branch** | `main` |
-| **Stage** | Phase 4 closeout complete; approved for Phase 5 |
-| **Completed phase** | Phase 4 - Geometry and discretization |
+| **Stage** | Phase 5A audit closeout complete; approved for Phase 6 |
+| **Completed phase** | Phase 5A - Calibration primitives and registry |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
-| **Current active phase** | **Phase 5 - Calibration** |
-| **Immediate Phase 5 slice** | Calibration value objects and conservation-firewall shape per `IMPLEMENTATION_PLAN.md`; do not start implementation until a Phase 5 task is explicitly opened |
-| **Working tree before this docs task** | Phase 4A and Phase 4B implementation present |
-| **Test status** | 588 passed, verified 2026-06-15 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
+| **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
+| **Phase 5 status** | **Complete for the V1 Build Phase 5 gate; no additional Phase 5 substep remains before Phase 6 in `IMPLEMENTATION_PLAN.md`** |
+| **Current active phase** | **Phase 6 - Pipe Component** |
+| **Immediate Phase 6 slice** | Pipe component and required component contract/kernel work per `IMPLEMENTATION_PLAN.md`; do not start implementation until a Phase 6 task is explicitly opened |
+| **Working tree before this docs task** | Phase 5A calibration primitives and registry implementation present |
+| **Test status** | 696 passed, verified 2026-06-15 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
 | **Lint status** | `ruff check .` clean, verified 2026-06-15 |
-| **Format status** | `black --check src tests` clean, verified 2026-06-15; `black --check .` blocked by `.pytest_cache` permission error |
+| **Format status** | `black --check src tests` clean, verified 2026-06-15; 47 files would be left unchanged |
 
-Phase 4 is complete. The audit closeout changed documentation only: no source code and no tests were modified.
+Phase 5A is complete. The audit closeout changed documentation only: no source code and no tests were modified.
 
-Implementation should stop here for now after Phase 4 closeout. Do not start Phase 5 implementation unless a new task explicitly opens it.
+Implementation should stop here for now after Phase 5A closeout. Do not start Phase 6 implementation unless a new task explicitly opens it.
 
-Pipe component is not implemented. It remains deferred to V1 Build Phase 6. Component-tied discretization integration objects are not implemented and remain deferred until component integration requires them.
+Pipe component is not implemented. It is now the next planned V1 Build Phase, Phase 6, but no Pipe work was performed during Phase 5A audit closeout. Calibration application, fitting, optimization, and component-coupled resolution remain deferred.
 
 ---
 
@@ -77,6 +79,8 @@ Key authority statements:
 | **Phase 4A - Immutable geometry primitives** | **Complete** |
 | **Phase 4B - Discretization primitives** | **Complete** |
 | **Phase 4 geometry and discretization foundation** | **Complete; approved for Phase 5** |
+| **Phase 5A - Calibration primitives and registry** | **Complete** |
+| **Phase 5A calibration audit** | **Complete; approved for Phase 6** |
 
 Phase 2 closeout artifacts:
 
@@ -91,6 +95,10 @@ Phase 3 closeout artifact:
 Phase 4 closeout artifact:
 
 - `docs/validation/audits/PHASE_4_GEOMETRY_DISCRETIZATION_AUDIT.md`
+
+Phase 5A closeout artifact:
+
+- `docs/validation/audits/PHASE_5A_CALIBRATION_PRIMITIVES_AUDIT.md`
 
 ---
 
@@ -175,43 +183,44 @@ Known deferred items:
 
 ## 6. Current Active Phase
 
-**Phase 5 - Calibration** is the next implementation phase according to `IMPLEMENTATION_PLAN.md`.
+**Phase 6 - Pipe Component** is the next implementation phase according to `IMPLEMENTATION_PLAN.md`.
 
-Phase 4 is closed:
+Phase 5A is closed:
 
-- Phase 4A immutable geometry primitives are complete.
-- Phase 4B discretization primitives are complete.
-- Phase 4 audit verdict is **APPROVED FOR PHASE 5**.
-- No source code or test files were modified during the Phase 4 audit closeout.
+- Phase 5A calibration primitives are complete.
+- Phase 5A calibration registry is complete.
+- Phase 5A audit verdict is **APPROVED FOR NEXT PHASE**.
+- No source code or test files were modified during the Phase 5A audit closeout.
 
-Implementation should stop here for now after the Phase 4 closeout document is reviewed and committed. Do not begin Phase 5 implementation unless a new task explicitly opens it.
+Implementation should stop here for now after the Phase 5A closeout document is reviewed and committed. Do not begin Phase 6 implementation unless a new task explicitly opens it.
 
 Phase boundaries to preserve:
 
-- Do not implement the Pipe component yet; Pipe remains V1 Build Phase 6.
+- Pipe component is next, but do not implement it without an explicit Phase 6 task.
 - Do not implement Pump or Accumulator components yet; they remain V1 Build Phase 10.
 - Do not implement Evaporator or Condenser components yet; they remain V1 Build Phase 11.
 - Do not implement solvers or network work yet.
 - Do not add new real correlations unless a later consuming component phase requires them.
 - Keep component-coupled discretization integration objects deferred until component integration requires them.
+- Keep calibration application, fitting, optimization, and component-coupled resolution deferred until their consuming phases require them.
 
 ---
 
 ## 7. Next Immediate Actions
 
-1. Review and commit the Phase 4 audit closeout.
-2. Stop implementation here until a new task explicitly opens Phase 5.
-3. When Phase 5 starts, implement Calibration only per `IMPLEMENTATION_PLAN.md`.
-4. Keep Pipe component work deferred to Phase 6.
-5. Keep Pump and Accumulator component work deferred to Phase 10.
-6. Keep Evaporator and Condenser component work deferred to Phase 11.
+1. Review and commit the Phase 5A audit closeout.
+2. Stop implementation here until a new task explicitly opens Phase 6.
+3. When Phase 6 starts, implement the Pipe component and required component contract/kernel work only per `IMPLEMENTATION_PLAN.md`.
+4. Keep Pump and Accumulator component work deferred to Phase 10.
+5. Keep Evaporator and Condenser component work deferred to Phase 11.
+6. Keep calibration application, fitting, optimization, and component-coupled resolution deferred until their consuming phases require them.
 7. Keep component-coupled discretization integration objects deferred until component integration requires them.
 8. Add import-linter or equivalent before higher-layer cross-package imports expand, or keep this as a tracked follow-up until it is implemented.
 
 Recommended commit message:
 
 ```text
-docs: close out phase 4 geometry and discretization
+docs: close out phase 5a calibration primitives
 ```
 
 ---
@@ -241,7 +250,7 @@ These rules are operational forms of the frozen decisions. Violating any is a re
 
 ## 9. Current Known Blockers and Deferred Work
 
-None block Phase 5 after Phase 4 closeout review and commit.
+None block Phase 6 after Phase 5A closeout review and commit.
 
 | Item | What it affects | Resolution path |
 |---|---|---|
@@ -251,6 +260,7 @@ None block Phase 5 after Phase 4 closeout review and commit.
 | Registry-name vs `ClosureMetadata.name` canonicalization | Future correlation catalogue growth | Document or enforce before the catalogue expands |
 | Per-correlation validity envelopes | Correlation admissibility | Author per additional correlation when consuming components require it |
 | Content-hash canonicalization rule | Schema serialization determinism | Establish when serializers are implemented in Phase 9 |
+| Calibration resolution/application helpers | Future component calibration application | Implement when components consume calibration; not a Phase 5A blocker |
 
 ---
 
@@ -266,10 +276,10 @@ Before any coding task, read in order:
 
 Rules for the next implementation session:
 
-- Phase 4 is complete and approved for Phase 5.
-- Work only on Phase 5 calibration when a new task explicitly opens that phase.
-- Do not implement components in Phase 5.
-- Do not implement Pipe until Phase 6.
+- Phase 5A is complete and approved for Phase 6.
+- Work only on Phase 6 Pipe/component-contract scope when a new task explicitly opens that phase.
+- Do not implement network, solvers, optimization, parameter fitting, or DOE/surrogate work in Phase 6.
+- Do not implement calibration fitting, optimization, or experimental-data ingestion.
 - Do not implement Pump or Accumulator components until Phase 10.
 - Do not implement Evaporator or Condenser until Phase 11.
 - Preserve the separation between geometry, discretization, correlations, calibration, and components.
@@ -286,6 +296,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-15 |
 | **Updated by** | Codex |
-| **Status note** | Phase 4 geometry and discretization foundation complete; approved for Phase 5 calibration |
+| **Status note** | Phase 5A calibration primitives and registry complete; audit approved for Phase 6 Pipe Component |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
