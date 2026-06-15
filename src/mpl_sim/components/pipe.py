@@ -1,16 +1,26 @@
-"""Pipe component — Phase 6B: single-phase friction kernel.
+"""Pipe component — Phase 6C: gravity pressure contribution added.
 
 Defines the Pipe component: an immutable value object that holds a
 PipeGeometry and DiscretizationSpec, declares inlet and outlet ports, and
-(from Phase 6B) exposes evaluate_single_phase_friction.
+exposes evaluate_single_phase_friction (Phase 6B) and evaluate_gravity_pressure
+(Phase 6C).
 
 Phase 6B adds:
 - PipeSinglePhaseFrictionInput: scalar input value object for friction eval
 - PipeFrictionResult: result value object (gradient, total ΔP, verdict, metadata)
 - Pipe.evaluate_single_phase_friction: calls a SINGLE_PHASE_DP correlation
 
-Hard constraints respected in Phase 6B:
-- No gravity.
+Phase 6C adds:
+- PipeGravityInput: scalar input value object (rho, g)
+- PipeGravityResult: result value object (delta_p_gravity, rho, g, delta_z)
+- Pipe.evaluate_gravity_pressure: pure arithmetic; reads delta_z from geometry
+
+Sign convention (Phase 6C):
+  delta_p_gravity = rho * g * delta_z
+  positive delta_z → outlet is higher than inlet → positive delta_p_gravity
+  (pressure required/lost lifting the fluid upward)
+
+Hard constraints respected in Phase 6C:
 - No acceleration.
 - No heat transfer.
 - No energy balance.
@@ -18,8 +28,9 @@ Hard constraints respected in Phase 6B:
 - No network / solvers.
 - No CoolProp.
 - No PropertyBackend.
-- No CalibrationRegistry (calibration application deferred; see module note).
+- No CalibrationRegistry.
 - Pipe, geometry, discretization, and inputs are never mutated.
+- evaluate_gravity_pressure does not call any correlation.
 
 Calibration deferred note:
   A scalar friction-gradient multiplier (CalibrationModifier.MULTIPLIER on
@@ -118,6 +129,66 @@ class PipeFrictionResult:
 
 
 # ---------------------------------------------------------------------------
+# PipeGravityInput
+# ---------------------------------------------------------------------------
+
+_STANDARD_GRAVITY: float = 9.80665  # m/s²
+
+
+@dataclass(frozen=True)
+class PipeGravityInput:
+    """Input for Pipe.evaluate_gravity_pressure.
+
+    Fields:
+        rho : fluid density [kg/m³]  — must be > 0
+        g   : gravitational acceleration [m/s²]  — must be > 0;
+              defaults to standard gravity (9.80665 m/s²)
+
+    delta_z is not a field here — it is read directly from the Pipe's
+    geometry.trajectory so that this object carries only fluid properties
+    and the gravitational constant.
+    """
+
+    rho: float
+    g: float = _STANDARD_GRAVITY
+
+    def __post_init__(self) -> None:
+        if not (math.isfinite(self.rho) and self.rho > 0.0):
+            raise ValueError(f"PipeGravityInput.rho must be > 0; got {self.rho!r}")
+        if not (math.isfinite(self.g) and self.g > 0.0):
+            raise ValueError(f"PipeGravityInput.g must be > 0; got {self.g!r}")
+
+
+# ---------------------------------------------------------------------------
+# PipeGravityResult
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PipeGravityResult:
+    """Result of Pipe.evaluate_gravity_pressure.
+
+    Gravity only — no friction, acceleration, or heat transfer.
+
+    Sign convention:
+        delta_p_gravity = rho * g * delta_z
+        positive delta_z  → outlet is higher than inlet
+        positive delta_p_gravity → pressure required/lost lifting fluid upward
+
+    Fields:
+        delta_p_gravity : gravity pressure contribution [Pa]
+        rho             : density used [kg/m³]
+        g               : gravitational acceleration used [m/s²]
+        delta_z         : elevation change (outlet − inlet) [m] from geometry
+    """
+
+    delta_p_gravity: float
+    rho: float
+    g: float
+    delta_z: float
+
+
+# ---------------------------------------------------------------------------
 # Pipe
 # ---------------------------------------------------------------------------
 
@@ -142,9 +213,10 @@ class Pipe(Component):
         ports()                      → (inlet, outlet) — exactly two in V1
         internal_state_names()       → () — deferred to future phase
         evaluate_single_phase_friction(...) → PipeFrictionResult  (Phase 6B)
+        evaluate_gravity_pressure(...)      → PipeGravityResult   (Phase 6C)
 
     Must NOT compute:
-        gravity term, acceleration term, heat transfer, phase, quality, HTC, Nu.
+        acceleration term, heat transfer, phase, quality, HTC, Nu.
 
     Must NOT call:
         PropertyBackend, CalibrationRegistry, CoolProp.
@@ -260,4 +332,45 @@ class Pipe(Component):
             delta_p_friction=dp_dx * self.geometry.L,
             verdict=output.verdict,
             metadata=output.metadata,
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 6C: gravity pressure contribution
+    # ------------------------------------------------------------------
+
+    def evaluate_gravity_pressure(
+        self,
+        inp: PipeGravityInput,
+    ) -> PipeGravityResult:
+        """Evaluate the gravity pressure contribution for this pipe.
+
+        Computes:
+            delta_p_gravity = rho * g * delta_z
+
+        where delta_z is read from self.geometry.trajectory.delta_z.
+
+        Sign convention:
+            positive delta_z  → outlet is higher than inlet
+            positive delta_p_gravity → pressure required/lost lifting fluid upward
+            zero delta_z → horizontal pipe → zero gravity contribution
+            negative delta_z → outlet lower → negative delta_p_gravity (pressure recovered)
+
+        No correlation is called.  No PropertyBackend is called.  Neither
+        the Pipe, its geometry, nor inp are mutated.
+
+        Parameters
+        ----------
+        inp : PipeGravityInput — density and gravitational acceleration
+
+        Returns
+        -------
+        PipeGravityResult
+        """
+        delta_z = self.geometry.trajectory.delta_z
+        delta_p_gravity = inp.rho * inp.g * delta_z
+        return PipeGravityResult(
+            delta_p_gravity=delta_p_gravity,
+            rho=inp.rho,
+            g=inp.g,
+            delta_z=delta_z,
         )
