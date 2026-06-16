@@ -11,8 +11,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-9-schema` |
-| **Stage** | Phase 9 final audit complete; ready to merge and advance after merge |
+| **Branch** | `phase-10-pump-accumulator` |
+| **Stage** | Phase 10 Pump and Accumulator checkpoint audit complete; safe to merge as checkpoint; continue Phase 10 |
 | **Completed phase** | **Phase 9 - Result and schema serialization** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -24,28 +24,46 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 8 status** | **Complete. Phase 8A, 8B, 8C, 8D, and 8E are complete.** |
 | **Phase 9 final audit verdict** | **APPROVED FOR MERGE AND NEXT PHASE** |
 | **Phase 9 status** | **Complete. Result primitives, schema primitives, canonical serialization, validation invariant primitives, and safe serialization adapters are complete.** |
-| **Branch status** | **Implemented on `phase-9-schema`; safe to merge into `main`.** |
-| **Current active phase** | **Phase 10 - Pump and Accumulator, after `phase-9-schema` is merged** |
-| **Next immediate slice** | Phase 10 - Pump and Accumulator |
-| **Working tree before this docs task** | Phase 9 implementation present on `phase-9-schema` |
-| **Test status** | 1679 passed, verified 2026-06-16 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
+| **Phase 10 final audit verdict** | **APPROVED FOR MERGE AS PHASE 10 CHECKPOINT - CONTINUE PHASE 10** |
+| **Phase 10 status** | **Checkpoint complete, full Phase 10 not complete. Pump and Accumulator foundations are implemented; detailed Phase 10 map/law/wiring work remains.** |
+| **Branch status** | **Implemented on `phase-10-pump-accumulator`; safe to merge into `main` as a Phase 10 checkpoint only.** |
+| **Current active phase** | **Phase 10 - Pump and Accumulator** |
+| **Next immediate slice** | Continue Phase 10 with pump map/command behavior, accumulator volume-pressure law work, stored `V_g`, and reference-node wiring |
+| **Working tree before this docs task** | Phase 10 checkpoint implementation present on `phase-10-pump-accumulator` |
+| **Test status** | 1774 passed, verified 2026-06-16 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
 | **Lint status** | `ruff check .` clean, verified 2026-06-16 |
-| **Format status** | `black --check src tests` clean, verified 2026-06-16; 89 files would be left unchanged |
+| **Format status** | `black --check src tests` clean, verified 2026-06-16; 93 files would be left unchanged |
 
-Phase 9 is complete as a documentation-audited implementation milestone:
+Phase 10 currently contains a safe component-foundation checkpoint:
 
-- Phase 9 added generic result primitives under `src/mpl_sim/results/`.
-- Phase 9 added schema primitives, deterministic primitive/canonical serialization, and SHA-256 content hashing under `src/mpl_sim/schema/`.
-- Phase 9 added validation invariant and validation report primitives under `src/mpl_sim/validation/`.
-- Phase 9 added safe serialization adapters for solver reports, result bundles, and validation reports.
+- Pump component foundation under `src/mpl_sim/components/pump.py`.
+- Pump prescribed pressure-rise seam: `delta_p = delta_p_setpoint * pressure_rise_multiplier`.
+- Pump hydraulic summary with raw and scaled pressure-rise reporting.
+- Accumulator component foundation under `src/mpl_sim/components/accumulator.py`.
+- Accumulator prescribed pressure-reference seam: `p_ref = p_setpoint`.
+- Accumulator pressure summary with setpoint echo.
+- Pump and Accumulator exports from `src/mpl_sim/components/__init__.py`.
 
-Serialization remains data-only, deterministic, and physics-free. It does not call CoolProp, `PropertyBackend`, correlations, component methods, network assembly, or solver execution. It does not mutate source objects during serialization.
+Pump and Accumulator remain local, immutable, physics-light components. They do not call CoolProp, `PropertyBackend`, correlations, Network, Solver, physical residual assembly, dynamic simulation, fitting, or optimization. Ports remain value-free, and `SystemState` remains the owner of numerical state values.
 
-The solver remains generic and physics-free. Network and components remain solver-free. Ports remain value-free, and `SystemState` remains the owner of numerical state values.
+This Phase 10 audit closeout changed documentation only. No source code and no test files were modified during audit closeout.
 
-Physical invariant calculations, component serialization beyond safe generic/report adapters, physical residual assembly, pressure solving, flow solving, optimization, fitting, advanced component models, transient solving, heat transfer, phase change, two-phase pressure drop, Pump, Accumulator, Evaporator, and Condenser remain deferred to their planned phases unless a future task explicitly changes scope.
+The following remain deferred unless explicitly planned in the next Phase 10 slice or a later phase:
 
-The Phase 9 final audit closeout changed documentation only. No source code and no test files were modified during audit closeout.
+- pump performance maps;
+- pump shaft-speed dynamics;
+- pump efficiency/power model and NPSH checks;
+- accumulator stored gas volume or inventory state;
+- accumulator `VolumePressureLaw` slot integration;
+- PCA/HCA laws and gas-charged/spring/bellows law bindings;
+- `VOLUME_PRESSURE_LAW` closures;
+- network reference-node wiring;
+- physical residual assembly;
+- pressure/flow solving;
+- optimization and fitting;
+- advanced component models;
+- dynamic simulation and controls;
+- Evaporator, Condenser, `HeatExchangerModel`, heat transfer, phase change, and two-phase pressure drop.
 
 ---
 
@@ -116,6 +134,7 @@ Key authority statements:
 | **Phase 8 final audit** | **Complete; approved for merge and next phase** |
 | **Phase 9 - Result and schema serialization** | **Complete** |
 | **Phase 9 final audit** | **Complete; approved for merge and next phase** |
+| **Phase 10 Pump and Accumulator foundation checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 10** |
 
 Closeout artifacts:
 
@@ -131,53 +150,57 @@ Closeout artifacts:
 - `docs/validation/audits/PHASE_8_STEADY_SOLVER_AUDIT.md`
 - `docs/validation/audits/PHASE_8_STEADY_SOLVER_FINAL_AUDIT.md`
 - `docs/validation/audits/PHASE_9_SCHEMA_RESULTS_FINAL_AUDIT.md`
+- `docs/validation/audits/PHASE_10_PUMP_ACCUMULATOR_FINAL_AUDIT.md`
 
 ---
 
 ## 4. Current Active Phase
 
-After `phase-9-schema` is merged, the current active phase is:
+The current active phase remains:
 
 **Phase 10 - Pump and Accumulator**, according to `IMPLEMENTATION_PLAN.md`.
 
-Phase 10 should focus on:
+The completed checkpoint should be carried forward as the local component foundation. The next Phase 10 slice should focus on the remaining detailed Phase 10 acceptance scope:
 
-- Pump component primitives and simple drive behavior;
-- Accumulator component primitives;
-- accumulator volume-pressure law separation;
-- pressure-reference behavior through the planned component/network contracts;
-- tests that keep law parameters out of geometry and avoid out-of-band solver/component coupling.
+- pump map or command seam required by the plan;
+- pump speed/flow command binding behavior;
+- accumulator `VolumePressureLaw` slot integration;
+- PCA/HCA law work required by the plan;
+- stored `V_g` / pressure-derived behavior at the planned V1 fidelity;
+- reference-node wiring owned by Network;
+- pump-driven, accumulator-referenced loop readiness through the planned contracts.
 
 Phase 10 should not extend heat-exchanger physics or start Phase 11. It should not implement Evaporator, Condenser, heat transfer, phase change, two-phase pressure drop, transient solving, optimization, fitting, DOE generation, or literature validation unless a future task explicitly changes scope.
 
 Phase boundaries to preserve:
 
 - Do not turn Network into a solver.
-- Do not make Pipe network-aware or solver-aware.
-- Implement only the Pump and Accumulator scope planned for V1 Build Phase 10.
+- Do not make Pipe, Pump, or Accumulator network-aware or solver-aware.
+- Keep Pump and Accumulator local until explicit network wiring work is planned.
 - Do not implement Evaporator, Condenser, `HeatExchangerModel`, or heat-exchanger components yet; they remain V1 Build Phase 11.
 - Do not implement heat transfer, phase change, or two-phase pressure drop in Phase 10.
-- Do not move pressure, enthalpy, mass flow, derived properties, or solver vectors onto Pipe or Port objects.
-- Keep `SystemState` as the only owner of values.
+- Do not move pressure, enthalpy, mass flow, derived properties, or solver vectors onto component or Port objects.
+- Keep `SystemState` as the only owner of numerical values.
 
 ---
 
 ## 5. Next Immediate Actions
 
-1. Review and commit the Phase 9 final audit closeout.
-2. Merge `phase-9-schema` into `main`.
-3. Start **Phase 10 - Pump and Accumulator** from `IMPLEMENTATION_PLAN.md`.
-4. Keep Phase 10 focused on Pump and Accumulator only.
-5. Preserve the Phase 9 boundary: schema/results/validation primitives remain data-only and physics-free.
-6. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
-7. Preserve the Phase 7 boundary: Network owns topology and assembly only.
-8. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
-9. Run `pytest`, `ruff check .`, and `black --check src tests` before reporting the next implementation task complete.
+1. Review and commit the Phase 10 checkpoint audit closeout.
+2. Merge `phase-10-pump-accumulator` into `main` only as a Phase 10 checkpoint.
+3. Continue **Phase 10 - Pump and Accumulator** after merge.
+4. Add the remaining detailed Phase 10 pump map/command and accumulator volume-pressure/reference wiring work in focused slices.
+5. Preserve the checkpoint boundary: Pump and Accumulator foundations remain local and physics-light.
+6. Preserve the Phase 9 boundary: schema/results/validation primitives remain data-only and physics-free.
+7. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
+8. Preserve the Phase 7 boundary: Network owns topology and assembly/reference wiring only.
+9. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
+10. Run `pytest`, `ruff check .`, and `black --check src tests` before reporting the next implementation task complete.
 
 Recommended commit message:
 
 ```text
-docs: close out phase 9 schema and results
+docs: audit phase 10 pump and accumulator checkpoint
 ```
 
 ---
@@ -207,10 +230,16 @@ These rules are operational forms of the frozen decisions. Violating any is a re
 
 ## 7. Current Known Blockers and Deferred Work
 
-None block merging Phase 9 or advancing to Phase 10 after this audit is reviewed and committed.
+None block merging the Phase 10 checkpoint. Full Phase 10 closeout is blocked by the remaining detailed Phase 10 scope.
 
 | Item | What it affects | Resolution path |
 |---|---|---|
+| Pump performance map and command binding not yet implemented | Full Phase 10 closeout | Continue Phase 10 with planned pump map/command seam |
+| Pump shaft-speed/inertia named state not yet represented at planned V1 fidelity | Full Phase 10 closeout | Add only in the planned Phase 10 component-contract shape; keep dynamics deferred |
+| Accumulator `VolumePressureLaw` slot not yet integrated | Full Phase 10 closeout | Continue Phase 10 with law slot separated from geometry |
+| PCA/HCA law closures and numerical tests not yet implemented | Full Phase 10 closeout | Continue Phase 10 under `VOLUME_PRESSURE_LAW`; keep law params out of geometry |
+| Stored accumulator `V_g` / derived-pressure law behavior not yet implemented | Full Phase 10 closeout | Add according to `INTERFACE_SPEC.md`; never store `P_sys` on the component |
+| Network reference-node wiring not yet implemented | Full Phase 10 closeout | Add in Network, not as accumulator-side solver coupling |
 | Import-direction rules are not enforced by import-linter tooling | Future cross-layer expansion | Add import-linter or equivalent if boundary risks grow |
 | Full physical minimal `Result` artifact not yet implemented | Future schema/result integration | Add when later loop artifacts can produce physical run results |
 | Physical invariant calculations not yet implemented | Future validation/residual integration | Keep primitives data-only until physical balances are explicitly planned |
@@ -219,8 +248,7 @@ None block merging Phase 9 or advancing to Phase 10 after this audit is reviewed
 | Physical residual assembly not yet implemented | Future solver integration | Add only when explicitly planned, keeping adapters separate from solver core |
 | Newton and finite-difference Jacobian not yet implemented | Future solver strategy work | Introduce only when explicitly planned |
 | Pressure solving and flow solving not yet implemented | Future loop solving work | Implement through generic residual/update contracts, not by coupling solver to components |
-| Pump and Accumulator absent | Phase 10 | Implement in planned component phase |
-| Evaporator, Condenser, and HeatExchangerModel absent | Phase 11 | Implement in planned heat-exchanger phase |
+| Evaporator, Condenser, and HeatExchangerModel absent | Phase 11 | Implement only after full Phase 10 closeout |
 | Heat transfer, phase change, and two-phase pressure drop absent | Phase 11+ | Keep deferred until the planned phases |
 | 29 property CSV files missing | Future `TabulatedPropertyBackend`; `sigma_e`/`eps_r` | Data recovery task; does not block CoolProp-backed V1 path |
 | Literature validation data must be lifted and pinned | Literature tests | Phase 12 validation-data task |
@@ -240,18 +268,19 @@ Before any coding task, read in order:
 
 Rules for the next implementation session:
 
-- Phase 9 is complete and approved for merge and next phase.
-- The branch `phase-9-schema` is safe to merge into `main`.
-- After merge, Phase 10 is active.
-- Do not start Phase 11 heat-exchanger work from Phase 10 work.
+- The Phase 10 Pump and Accumulator foundation checkpoint is safe to merge.
+- The branch `phase-10-pump-accumulator` is safe to merge into `main` as a checkpoint only.
+- Phase 10 is not fully complete.
+- Do not start Phase 11 heat-exchanger work from this checkpoint.
 - Do not reopen Phase 9 unless a new task explicitly requests a Phase 9 fix.
 - Keep schema/results/validation serialization data-only and physics-free.
 - Keep solver core generic and physics-free.
 - Keep physical residual adapters separate from solver core.
-- Keep Network topology/assembly-only; do not turn it into a solver.
+- Keep Network topology/assembly/reference wiring separate from solver behavior.
 - Keep Pipe local; do not add network or solver behavior to Pipe.
+- Keep Pump and Accumulator local; do not add network or solver behavior to either component.
 - Preserve separation among geometry, discretization, correlations, calibration, components, network, solvers, schema, and results.
-- Build Pump and Accumulator only within the Phase 10 plan; keep Evaporator, Condenser, heat transfer, phase change, two-phase pressure drop, Newton, Jacobians, and transient solving deferred unless explicitly requested.
+- Continue Pump and Accumulator work only within the Phase 10 plan; keep Evaporator, Condenser, heat transfer, phase change, two-phase pressure drop, Newton, Jacobians, and transient solving deferred unless explicitly requested.
 - Run `pytest`, `ruff check .`, and `black --check src tests` before reporting any implementation task complete.
 - Do not include `Co-Authored-By` lines unless explicitly requested.
 
@@ -263,6 +292,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-16 |
 | **Updated by** | Codex |
-| **Status note** | Phase 9 complete; Phase 9 final audit approved for merge and next phase; documentation-only closeout with no source/test changes |
+| **Status note** | Phase 10 Pump and Accumulator foundation checkpoint approved for merge as checkpoint; continue Phase 10; documentation-only audit closeout with no source/test changes |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
