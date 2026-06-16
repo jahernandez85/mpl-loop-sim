@@ -1,4 +1,4 @@
-"""Minimal steady solver tests — Phase 8C.
+"""Steady solver tests — Phase 8C/8D.
 
 Covers:
   SteadySolver.solve — convergence gate:
@@ -9,6 +9,13 @@ Covers:
     - solver respects the tolerance threshold
     - SolverResult contains a SolverReport and a final SystemState
     - final state is independent of (not the same object as) the initial state
+
+  SteadySolver.solve_problem — AssembledSteadyProblem path (Phase 8D):
+    - zero residual  -> CONVERGED with ConvergenceMetadata
+    - nonzero residual -> FAILED with ConvergenceMetadata
+    - metadata strategy is RESIDUAL_GATE
+    - solver does not mutate problem.initial_state
+    - existing direct solve() path unaffected
 
 Import-boundary assertions:
   solvers/steady.py must not import CoolProp, properties, correlations,
@@ -24,7 +31,13 @@ import numpy as np
 import pytest
 
 from mpl_sim.core.state import StateLayout, StateVariableId, SystemState, VariableKind
-from mpl_sim.solvers.base import SolverOptions, SolverResult, SolverStatus
+from mpl_sim.solvers.base import (
+    ConvergenceStrategy,
+    SolverOptions,
+    SolverResult,
+    SolverStatus,
+)
+from mpl_sim.solvers.problem import AssembledSteadyProblem
 from mpl_sim.solvers.residuals import ResidualEvaluation, ResidualEvaluator, ResidualVector
 from mpl_sim.solvers.steady import SteadySolver
 
@@ -331,3 +344,170 @@ class TestFullIsolationStillHolds:
     def test_pipe_does_not_import_solvers(self) -> None:
         imports = _import_lines("mpl_sim.components.pipe")
         assert not any("solvers" in line for line in imports)
+
+
+# ---------------------------------------------------------------------------
+# solve_problem() — AssembledSteadyProblem path (Phase 8D)
+# ---------------------------------------------------------------------------
+
+
+def _make_problem(evaluator: ResidualEvaluator, name: str = "test") -> AssembledSteadyProblem:
+    return AssembledSteadyProblem(
+        name=name,
+        initial_state=_simple_state(),
+        evaluator=evaluator,
+    )
+
+
+class TestSolveProblemsConverges:
+    def test_zero_residual_problem_converges(self) -> None:
+        prob = _make_problem(_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.report.status is SolverStatus.CONVERGED
+
+    def test_converged_result_has_state(self) -> None:
+        prob = _make_problem(_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.state is not None
+
+    def test_converged_result_has_report(self) -> None:
+        prob = _make_problem(_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.report is not None
+
+    def test_converged_report_has_zero_norm(self) -> None:
+        prob = _make_problem(_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.report.residual_norm == pytest.approx(0.0)
+
+    def test_result_is_solver_result(self) -> None:
+        prob = _make_problem(_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert isinstance(result, SolverResult)
+
+
+class TestSolveProblemFails:
+    def test_large_residual_fails(self) -> None:
+        prob = _make_problem(_FixedResidualEvaluator([1.0]))
+        result = SteadySolver().solve_problem(prob, _default_options(tolerance=1e-6))
+        assert result.report.status in (SolverStatus.FAILED, SolverStatus.MAX_ITERATIONS)
+
+    def test_failed_result_still_has_state(self) -> None:
+        prob = _make_problem(_FixedResidualEvaluator([1.0, 2.0]))
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.state is not None
+
+    def test_failed_report_norm_matches_evaluated(self) -> None:
+        prob = _make_problem(_FixedResidualEvaluator([3.0, 4.0]))
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.report.residual_norm == pytest.approx(5.0)
+
+
+class TestSolveProblemConvergenceMetadata:
+    def test_result_carries_convergence_metadata(self) -> None:
+        prob = _make_problem(_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.report.convergence_metadata is not None
+
+    def test_metadata_strategy_is_residual_gate(self) -> None:
+        prob = _make_problem(_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.report.convergence_metadata is not None
+        assert result.report.convergence_metadata.strategy is ConvergenceStrategy.RESIDUAL_GATE
+
+    def test_metadata_converged_true_on_success(self) -> None:
+        prob = _make_problem(_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.report.convergence_metadata is not None
+        assert result.report.convergence_metadata.converged is True
+
+    def test_metadata_converged_false_on_failure(self) -> None:
+        prob = _make_problem(_FixedResidualEvaluator([1.0]))
+        result = SteadySolver().solve_problem(prob, _default_options(tolerance=1e-6))
+        assert result.report.convergence_metadata is not None
+        assert result.report.convergence_metadata.converged is False
+
+    def test_metadata_tolerance_matches_options(self) -> None:
+        tol = 1e-4
+        prob = _make_problem(_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options(tolerance=tol))
+        assert result.report.convergence_metadata is not None
+        assert result.report.convergence_metadata.tolerance == pytest.approx(tol)
+
+    def test_metadata_final_residual_norm_is_set(self) -> None:
+        prob = _make_problem(_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.report.convergence_metadata is not None
+        assert result.report.convergence_metadata.final_residual_norm is not None
+
+    def test_metadata_final_residual_norm_matches_report(self) -> None:
+        prob = _make_problem(_FixedResidualEvaluator([3.0, 4.0]))
+        result = SteadySolver().solve_problem(prob, _default_options())
+        meta = result.report.convergence_metadata
+        assert meta is not None
+        assert meta.final_residual_norm == pytest.approx(result.report.residual_norm)
+
+    def test_metadata_iterations_is_one(self) -> None:
+        prob = _make_problem(_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.report.convergence_metadata is not None
+        assert result.report.convergence_metadata.iterations == 1
+
+
+class TestSolveProblemDoesNotMutateState:
+    def test_initial_state_values_unchanged(self) -> None:
+        state = _simple_state(3)
+        original_values = state.values.copy()
+        prob = AssembledSteadyProblem(name="test", initial_state=state, evaluator=_ZeroEvaluator())
+        SteadySolver().solve_problem(prob, _default_options())
+        assert (state.values == original_values).all()
+
+    def test_final_state_is_different_object_from_initial(self) -> None:
+        state = _simple_state(2)
+        prob = AssembledSteadyProblem(name="test", initial_state=state, evaluator=_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.state is not state
+        assert result.state is not prob.initial_state
+
+    def test_final_state_has_same_values_as_initial(self) -> None:
+        state = _simple_state(2)
+        original_values = state.values.copy()
+        prob = AssembledSteadyProblem(name="test", initial_state=state, evaluator=_ZeroEvaluator())
+        result = SteadySolver().solve_problem(prob, _default_options())
+        assert result.state is not None
+        assert (result.state.values == original_values).all()
+
+
+class TestSolveProblemEvaluatorCallCount:
+    def test_evaluator_called_exactly_once_on_convergence(self) -> None:
+        ev = _ZeroEvaluator()
+        prob = _make_problem(ev)
+        SteadySolver().solve_problem(prob, _default_options())
+        assert ev.call_count == 1
+
+    def test_evaluator_called_exactly_once_on_failure(self) -> None:
+        ev = _FixedResidualEvaluator([100.0])
+        prob = _make_problem(ev)
+        SteadySolver().solve_problem(prob, _default_options())
+        assert ev.call_count == 1
+
+
+class TestDirectSolvePathUnaffected:
+    def test_existing_solve_still_works(self) -> None:
+        state = _simple_state()
+        result = SteadySolver().solve(state, _ZeroEvaluator(), _default_options())
+        assert result.report.status is SolverStatus.CONVERGED
+
+    def test_existing_solve_metadata_is_none(self) -> None:
+        state = _simple_state()
+        result = SteadySolver().solve(state, _ZeroEvaluator(), _default_options())
+        assert result.report.convergence_metadata is None
+
+    def test_both_paths_can_be_called_on_same_solver(self) -> None:
+        solver = SteadySolver()
+        state = _simple_state()
+        opts = _default_options()
+        r1 = solver.solve(state, _ZeroEvaluator(), opts)
+        r2 = solver.solve_problem(_make_problem(_ZeroEvaluator()), opts)
+        assert r1.report.status is SolverStatus.CONVERGED
+        assert r2.report.status is SolverStatus.CONVERGED

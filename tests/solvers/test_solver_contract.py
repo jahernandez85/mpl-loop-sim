@@ -1,4 +1,4 @@
-"""Solver contract primitive tests — Phase 8A.
+"""Solver contract primitive tests — Phase 8A/8D.
 
 Covers:
   SolverId — construction, non-empty validation, hashable, immutable.
@@ -6,6 +6,9 @@ Covers:
   SolverOptions — construction, tolerance/max_iterations/relaxation validation.
   SolverReport — construction, finite residual_norm validation, immutable.
   SolverResult — construction, immutable.
+  ConvergenceStrategy — all four values present (Phase 8D).
+  ConvergenceMetadata — construction, validation, immutability (Phase 8D).
+  SolverReport with convergence_metadata (Phase 8D).
 
 Import-boundary assertions:
   solvers/base.py must not import CoolProp, properties, correlations,
@@ -23,6 +26,8 @@ import pytest
 
 from mpl_sim.core.state import StateLayout, StateVariableId, SystemState, VariableKind
 from mpl_sim.solvers.base import (
+    ConvergenceMetadata,
+    ConvergenceStrategy,
     SolverId,
     SolverOptions,
     SolverReport,
@@ -405,3 +410,194 @@ class TestComponentsDoNotImportSolvers:
     def test_pipe_does_not_import_solvers(self) -> None:
         imports = _import_lines("mpl_sim.components.pipe")
         assert not any("solvers" in line for line in imports)
+
+
+# ---------------------------------------------------------------------------
+# ConvergenceStrategy — Phase 8D
+# ---------------------------------------------------------------------------
+
+
+class TestConvergenceStrategy:
+    def test_residual_gate_exists(self) -> None:
+        assert ConvergenceStrategy.RESIDUAL_GATE is not None
+
+    def test_fixed_point_exists(self) -> None:
+        assert ConvergenceStrategy.FIXED_POINT is not None
+
+    def test_newton_exists(self) -> None:
+        assert ConvergenceStrategy.NEWTON is not None
+
+    def test_user_provided_exists(self) -> None:
+        assert ConvergenceStrategy.USER_PROVIDED is not None
+
+    def test_all_four_values_present(self) -> None:
+        names = {s.name for s in ConvergenceStrategy}
+        assert names == {"RESIDUAL_GATE", "FIXED_POINT", "NEWTON", "USER_PROVIDED"}
+
+    def test_members_are_distinct(self) -> None:
+        all_strategies = list(ConvergenceStrategy)
+        assert len(all_strategies) == len(set(all_strategies))
+
+    def test_string_values(self) -> None:
+        for strategy in ConvergenceStrategy:
+            assert isinstance(strategy.value, str)
+
+    def test_identity_by_member(self) -> None:
+        assert ConvergenceStrategy.RESIDUAL_GATE is ConvergenceStrategy.RESIDUAL_GATE
+        assert ConvergenceStrategy.RESIDUAL_GATE is not ConvergenceStrategy.NEWTON
+
+
+# ---------------------------------------------------------------------------
+# ConvergenceMetadata — Phase 8D
+# ---------------------------------------------------------------------------
+
+
+def _default_metadata(**overrides) -> ConvergenceMetadata:
+    defaults = dict(
+        strategy=ConvergenceStrategy.RESIDUAL_GATE,
+        tolerance=1e-6,
+        max_iterations=100,
+        iterations=1,
+        converged=True,
+        final_residual_norm=0.0,
+        message="ok",
+    )
+    defaults.update(overrides)
+    return ConvergenceMetadata(**defaults)
+
+
+class TestConvergenceMetadata:
+    def test_construction(self) -> None:
+        meta = _default_metadata()
+        assert meta.strategy is ConvergenceStrategy.RESIDUAL_GATE
+        assert meta.tolerance == pytest.approx(1e-6)
+        assert meta.max_iterations == 100
+        assert meta.iterations == 1
+        assert meta.converged is True
+        assert meta.final_residual_norm == pytest.approx(0.0)
+        assert meta.message == "ok"
+
+    def test_optional_fields_default_to_none(self) -> None:
+        meta = ConvergenceMetadata(
+            strategy=ConvergenceStrategy.RESIDUAL_GATE,
+            tolerance=1e-6,
+            max_iterations=100,
+            iterations=0,
+            converged=False,
+        )
+        assert meta.final_residual_norm is None
+        assert meta.message is None
+
+    def test_is_immutable(self) -> None:
+        meta = _default_metadata()
+        with pytest.raises((AttributeError, TypeError)):
+            meta.iterations = 99  # type: ignore[misc]
+
+    def test_rejects_zero_tolerance(self) -> None:
+        with pytest.raises(ValueError, match="tolerance"):
+            _default_metadata(tolerance=0.0)
+
+    def test_rejects_negative_tolerance(self) -> None:
+        with pytest.raises(ValueError, match="tolerance"):
+            _default_metadata(tolerance=-1e-6)
+
+    def test_rejects_zero_max_iterations(self) -> None:
+        with pytest.raises(ValueError, match="max_iterations"):
+            _default_metadata(max_iterations=0)
+
+    def test_rejects_negative_max_iterations(self) -> None:
+        with pytest.raises(ValueError, match="max_iterations"):
+            _default_metadata(max_iterations=-1)
+
+    def test_rejects_negative_iterations(self) -> None:
+        with pytest.raises(ValueError, match="iterations"):
+            _default_metadata(iterations=-1)
+
+    def test_zero_iterations_accepted(self) -> None:
+        meta = _default_metadata(iterations=0)
+        assert meta.iterations == 0
+
+    def test_rejects_nan_residual_norm(self) -> None:
+        with pytest.raises(ValueError, match="finite"):
+            _default_metadata(final_residual_norm=float("nan"))
+
+    def test_rejects_inf_residual_norm(self) -> None:
+        with pytest.raises(ValueError, match="finite"):
+            _default_metadata(final_residual_norm=float("inf"))
+
+    def test_rejects_negative_residual_norm(self) -> None:
+        with pytest.raises(ValueError, match=">= 0"):
+            _default_metadata(final_residual_norm=-1.0)
+
+    def test_zero_residual_norm_accepted(self) -> None:
+        meta = _default_metadata(final_residual_norm=0.0)
+        assert meta.final_residual_norm == 0.0
+
+    def test_positive_residual_norm_accepted(self) -> None:
+        meta = _default_metadata(final_residual_norm=1e-8, converged=False)
+        assert math.isfinite(meta.final_residual_norm)  # type: ignore[arg-type]
+
+    def test_none_residual_norm_accepted(self) -> None:
+        meta = _default_metadata(final_residual_norm=None)
+        assert meta.final_residual_norm is None
+
+    def test_structural_equality(self) -> None:
+        m1 = _default_metadata()
+        m2 = _default_metadata()
+        assert m1 == m2
+
+    def test_different_strategy_not_equal(self) -> None:
+        m1 = _default_metadata(strategy=ConvergenceStrategy.RESIDUAL_GATE)
+        m2 = _default_metadata(strategy=ConvergenceStrategy.FIXED_POINT)
+        assert m1 != m2
+
+
+# ---------------------------------------------------------------------------
+# SolverReport with convergence_metadata — Phase 8D
+# ---------------------------------------------------------------------------
+
+
+class TestSolverReportWithMetadata:
+    def test_report_accepts_metadata(self) -> None:
+        meta = _default_metadata()
+        report = SolverReport(
+            status=SolverStatus.CONVERGED,
+            iterations=1,
+            residual_norm=0.0,
+            message="ok",
+            convergence_metadata=meta,
+        )
+        assert report.convergence_metadata is meta
+
+    def test_report_metadata_defaults_to_none(self) -> None:
+        report = SolverReport(
+            status=SolverStatus.CONVERGED,
+            iterations=1,
+            residual_norm=0.0,
+            message="ok",
+        )
+        assert report.convergence_metadata is None
+
+    def test_report_with_metadata_is_immutable(self) -> None:
+        meta = _default_metadata()
+        report = SolverReport(
+            status=SolverStatus.CONVERGED,
+            iterations=1,
+            residual_norm=0.0,
+            message="ok",
+            convergence_metadata=meta,
+        )
+        with pytest.raises((AttributeError, TypeError)):
+            report.convergence_metadata = None  # type: ignore[misc]
+
+    def test_metadata_strategy_accessible_via_report(self) -> None:
+        meta = _default_metadata(strategy=ConvergenceStrategy.RESIDUAL_GATE)
+        report = SolverReport(
+            status=SolverStatus.CONVERGED,
+            iterations=1,
+            residual_norm=0.0,
+            message="ok",
+            convergence_metadata=meta,
+        )
+        assert report.convergence_metadata is not None
+        assert report.convergence_metadata.strategy is ConvergenceStrategy.RESIDUAL_GATE
