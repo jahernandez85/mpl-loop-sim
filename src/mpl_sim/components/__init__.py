@@ -1,4 +1,4 @@
-"""Components package — Phase 6E: pipe mechanical pressure summary added.
+"""Components package — Phase 10E: Pump and Accumulator added.
 
 Exports:
   Component contract primitives:
@@ -11,12 +11,23 @@ Exports:
     PipeAccelerationInput, PipeAccelerationResult,
     PipeMechanicalPressureInput, PipeMechanicalPressureSummary
 
+  Pump (Phase 10A/10B):
+    PumpComponent, PumpOperatingPoint, PumpHydraulicSummary
+
+  Accumulator (Phase 10C/10D):
+    AccumulatorComponent, AccumulatorOperatingPoint, AccumulatorPressureSummary
+
 Architectural constraints:
   - MUST NOT import from network/ or solvers/.
   - MUST NOT import CoolProp.
   - MUST NOT import properties/.
 """
 
+from mpl_sim.components.accumulator import (
+    AccumulatorComponent,
+    AccumulatorOperatingPoint,
+    AccumulatorPressureSummary,
+)
 from mpl_sim.components.base import (
     Component,
     ComponentId,
@@ -33,6 +44,11 @@ from mpl_sim.components.pipe import (
     PipeMechanicalPressureInput,
     PipeMechanicalPressureSummary,
     PipeSinglePhaseFrictionInput,
+)
+from mpl_sim.components.pump import (
+    PumpComponent,
+    PumpHydraulicSummary,
+    PumpOperatingPoint,
 )
 
 __all__ = [
@@ -56,4 +72,12 @@ __all__ = [
     # Pipe Phase 6E mechanical summary types
     "PipeMechanicalPressureInput",
     "PipeMechanicalPressureSummary",
+    # Pump Phase 10A/10B
+    "PumpComponent",
+    "PumpOperatingPoint",
+    "PumpHydraulicSummary",
+    # Accumulator Phase 10C/10D
+    "AccumulatorComponent",
+    "AccumulatorOperatingPoint",
+    "AccumulatorPressureSummary",
 ]
