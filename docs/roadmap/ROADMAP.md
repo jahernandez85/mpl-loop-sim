@@ -22,7 +22,8 @@ For coding work, always follow `docs/roadmap/IMPLEMENTATION_PLAN.md`.
 - Phase 7 - Network and Assembly is complete and audited.
 - Phase 8 - First Steady Solver is complete and finally audited.
 - Phase 9 - Result and schema serialization is complete and finally audited.
-- Phase 10 - Pump and Accumulator is active. The Pump and Accumulator foundation checkpoint on `phase-10-pump-accumulator` is safe to merge as a checkpoint, but full Phase 10 remains in progress.
+- Phase 10 - Pump and Accumulator is complete. The final closeout on `phase-10b-pump-map-accumulator-law` is safe to merge into `main`.
+- Phase 11 - HeatExchangerModel, Evaporator and Condenser is the next active phase after the Phase 10 merge.
 
 ## Component Implementation Timing
 
@@ -35,7 +36,7 @@ The current presence of the Pipe skeleton plus single-phase friction, gravity, a
 The current presence of Network topology primitives, validation/graph checks, and `SystemState` assembly in `src/mpl_sim/network/` is expected and correct for the Phase 7 closeout.
 The current presence of generic solver contract primitives, residual interface, assembled steady problem wrapper, convergence metadata, update interface, and fixed-point steady iteration in `src/mpl_sim/solvers/` is expected and correct for the Phase 8 closeout.
 The current presence of result primitives, schema primitives, canonical serialization, validation invariant primitives, and safe serialization adapters is expected and correct for the Phase 9 closeout.
-The current presence of Pump and Accumulator component foundations, prescribed pressure-rise and pressure-reference seams, and component exports is expected and correct for the Phase 10 checkpoint.
+The current presence of Pump and Accumulator component foundations, prescribed pressure-rise and pressure-reference seams, pump map/command behavior, pump power/efficiency seam, shaft-speed/inertia named seam, accumulator `VolumePressureLaw` integration, PCA closure, `V_g` seam, network pressure-reference wiring, pump-driven accumulator-referenced loop acceptance shape, and component exports is expected and correct for the Phase 10 final closeout.
 
 ## Legacy Coarse Roadmap
 
@@ -50,5 +51,6 @@ They should not be used by AI agents or contributors for implementation sequenci
 - Work only on the current active phase.
 - Do not infer missing implementation tasks from this file.
 - Do not implement components until the V1 Build Phase that schedules them.
-- After merging the Phase 10 checkpoint, continue Phase 10 for the remaining pump map/command, accumulator volume-pressure law, stored `V_g`, and reference-node wiring work; do not extend heat-exchanger physics or start Phase 11 as part of that handoff.
+- After merging the Phase 10 final closeout, start Phase 11 with `HeatExchangerModel`, Evaporator, and Condenser according to `IMPLEMENTATION_PLAN.md`.
+- Keep dynamic simulation, controls, fitting, optimization, DOE generation, literature validation, and unplanned solver behavior changes deferred unless explicitly requested.
 - Do not modify architecture or decision documents unless explicitly requested.
