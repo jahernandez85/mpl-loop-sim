@@ -1,7 +1,16 @@
-"""Network topology primitives — Phase 7A.
+"""Network topology primitives -- Phase 7A / 10I.
 
 Identity primitives (NetworkId, NodeId, ConnectionId) and the immutable
 topology objects (NetworkNode, NetworkConnection, NetworkTopology).
+
+Phase 10I adds:
+- PressureReferenceWiring: identity-only pointer to an ACCUMULATOR-kind
+  component that sets the system pressure reference.  No pressure value is
+  stored; only component_id and port_name are recorded.
+- NetworkTopology accepts an optional pressure_references parameter.  When
+  supplied, exactly-one-ACCUMULATOR validation is enforced.  When omitted
+  (None), the check is skipped for backward compatibility with tests that
+  use Pipe-only networks.
 
 Architecture constraints:
 - MUST NOT import from solvers/, properties/, correlations/, calibration/.
@@ -11,6 +20,7 @@ Architecture constraints:
   ports); no physical evaluation methods are called.
 - SystemState is never stored, allocated, or mutated here.
 - Ports retain connectivity-only semantics; no thermodynamic values are added.
+- No pressure value is stored in PressureReferenceWiring.
 """
 
 from __future__ import annotations
@@ -20,6 +30,34 @@ from dataclasses import dataclass
 
 from mpl_sim.components.base import Component, ComponentKind
 from mpl_sim.core.port import PortId
+
+# ---------------------------------------------------------------------------
+# Phase 10I -- PressureReferenceWiring
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class PressureReferenceWiring:
+    """Identity-only pointer to the accumulator that sets the pressure reference.
+
+    Carries only the component id and port name -- no pressure value.
+    The Network is responsible for ensuring the referenced component is of
+    kind ACCUMULATOR and is present in the topology.
+
+    Fields:
+        component_id : name of the ACCUMULATOR-kind component
+        port_name    : name of the port on that component
+    """
+
+    component_id: str
+    port_name: str
+
+    def __post_init__(self) -> None:
+        if not self.component_id:
+            raise ValueError("PressureReferenceWiring.component_id must be non-empty")
+        if not self.port_name:
+            raise ValueError("PressureReferenceWiring.port_name must be non-empty")
+
 
 # ---------------------------------------------------------------------------
 # Identity primitives
@@ -113,7 +151,7 @@ class NetworkTopology:
 
     Assembles Component objects into a validated, queryable topology graph.
     Components are inspected for structural identity (component_id, kind,
-    ports) and then released — the topology stores only immutable node and
+    ports) and then released -- the topology stores only immutable node and
     connection data objects after construction.
 
     Does NOT:
@@ -122,18 +160,25 @@ class NetworkTopology:
     - import or call solvers, properties, correlations, or calibration
     - import CoolProp
     - mutate components
+    - store pressure values in pressure_references
 
     Parameters
     ----------
-    network_id : NetworkId
-    components  : Component objects (inspected structurally; not mutated)
-    connections : NetworkConnection declarations
+    network_id          : NetworkId
+    components          : Component objects (inspected structurally; not mutated)
+    connections         : NetworkConnection declarations
+    pressure_references : optional sequence of PressureReferenceWiring.
+                          When supplied, exactly one entry must reference an
+                          ACCUMULATOR-kind component in the topology.
+                          When None (default), pressure-reference validation
+                          is skipped (backward compatible with Pipe-only tests).
 
     Raises
     ------
     ValueError
         On duplicate component ids, invalid connection references,
-        incompatible port roles, self-connections, or over-connected ports.
+        incompatible port roles, self-connections, over-connected ports,
+        or invalid pressure-reference wiring (when supplied).
     """
 
     def __init__(
@@ -141,12 +186,16 @@ class NetworkTopology:
         network_id: NetworkId,
         components: Sequence[Component],
         connections: Sequence[NetworkConnection],
+        pressure_references: Sequence[PressureReferenceWiring] | None = None,
     ) -> None:
         # Snapshot inputs so later mutations to source lists have no effect.
         comp_list: list[Component] = list(components)
         conn_list: list[NetworkConnection] = list(connections)
+        pref_list: list[PressureReferenceWiring] = (
+            list(pressure_references) if pressure_references is not None else []
+        )
 
-        # Build component map — catches duplicate component ids immediately.
+        # Build component map -- catches duplicate component ids immediately.
         comp_map: dict[str, Component] = {}
         for comp in comp_list:
             # All concrete Component implementations carry component_id as a
@@ -157,15 +206,19 @@ class NetworkTopology:
             comp_map[cid] = comp
 
         # Full structural validation (late import breaks the circular dep
-        # between topology ↔ validation within the same package).
+        # between topology <-> validation within the same package).
         from mpl_sim.network.validation import validate_topology
 
-        result = validate_topology(comp_map, conn_list)
+        result = validate_topology(
+            comp_map,
+            conn_list,
+            pressure_references=pref_list if pressure_references is not None else None,
+        )
         if not result.is_valid:
             errors_str = "; ".join(result.errors)
             raise ValueError(f"Invalid topology: {errors_str}")
 
-        # Build sorted, deterministic node list — extract immutable data
+        # Build sorted, deterministic node list -- extract immutable data
         # from components so the topology does not hold Component references.
         raw_nodes: list[NetworkNode] = []
         for cid, comp in comp_map.items():
@@ -183,6 +236,7 @@ class NetworkTopology:
         self._network_id = network_id
         self._nodes: tuple[NetworkNode, ...] = tuple(raw_nodes)
         self._connections: tuple[NetworkConnection, ...] = tuple(conn_list)
+        self._pressure_references: tuple[PressureReferenceWiring, ...] = tuple(pref_list)
         # Sentinel that makes __setattr__ reject further writes.
         self.__dict__["_initialized"] = True
 
@@ -198,6 +252,11 @@ class NetworkTopology:
     @property
     def network_id(self) -> NetworkId:
         return self._network_id
+
+    @property
+    def pressure_references(self) -> tuple[PressureReferenceWiring, ...]:
+        """Identity-only pressure-reference wirings (empty when not declared)."""
+        return self._pressure_references
 
     # ------------------------------------------------------------------
     # Graph queries

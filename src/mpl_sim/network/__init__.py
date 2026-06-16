@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B/7C: topology, validation, and assembly.
+"""Network package -- Phase 7A/7B/7C/10I: topology, validation, assembly, pressure reference.
 
 Exports:
 
@@ -7,6 +7,9 @@ Exports:
 
   Topology data objects:
     NetworkNode, NetworkConnection, NetworkTopology
+
+  Pressure-reference wiring (Phase 10I):
+    PressureReferenceWiring
 
   Validation:
     NetworkValidationResult, validate_topology
@@ -25,6 +28,7 @@ from mpl_sim.network.topology import (
     NetworkNode,
     NetworkTopology,
     NodeId,
+    PressureReferenceWiring,
 )
 from mpl_sim.network.validation import (
     NetworkValidationResult,
@@ -40,6 +44,8 @@ __all__ = [
     "NetworkNode",
     "NetworkConnection",
     "NetworkTopology",
+    # Pressure-reference wiring
+    "PressureReferenceWiring",
     # Validation
     "NetworkValidationResult",
     "validate_topology",

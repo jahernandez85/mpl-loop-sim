@@ -1,16 +1,20 @@
-"""Accumulator component tests — Phase 10C / 10D.
+"""Accumulator component tests -- Phase 10C / 10D / 10H.
 
 Verifies:
-  AccumulatorComponent — construction, id/name, kind, port, geometry storage,
+  AccumulatorComponent -- construction, id/name, kind, port, geometry storage,
     immutability.
-  AccumulatorOperatingPoint — construction, validation, immutability.
-  AccumulatorPressureSummary — structure, immutability.
-  AccumulatorComponent.evaluate_pressure_reference — prescribed pressure-reference
+  AccumulatorOperatingPoint -- construction, validation, immutability.
+  AccumulatorPressureSummary -- structure, immutability.
+  AccumulatorComponent.evaluate_pressure_reference -- prescribed pressure-reference
     law, validation, no mutation.
+  VolumePressureLawBinding -- data-only, immutable, law_params isolation (10H).
+  AccumulatorVolumePressureSummary -- result shape (10H).
+  AccumulatorComponent.evaluate_volume_pressure_law -- delegation to correlation (10H).
 
 Import-boundary assertions:
-  components/accumulator.py must not import coolprop, network, solvers, or
-  mpl_sim.properties.
+  components/accumulator.py may import mpl_sim.correlations.contract only;
+  must not import coolprop, network, solvers, mpl_sim.properties,
+  mpl_sim.correlations.registry, or any other correlations sub-module.
 """
 
 from __future__ import annotations
@@ -23,6 +27,8 @@ from mpl_sim.components.accumulator import (
     AccumulatorComponent,
     AccumulatorOperatingPoint,
     AccumulatorPressureSummary,
+    AccumulatorVolumePressureSummary,
+    VolumePressureLawBinding,
 )
 from mpl_sim.components.base import ComponentId, ComponentKind
 from mpl_sim.core.port import PortRole
@@ -49,7 +55,7 @@ def _make_accumulator(name: str = "acc_1") -> AccumulatorComponent:
 
 
 def _import_lines(module_file: str) -> list[str]:
-    with open(module_file) as f:
+    with open(module_file, encoding="utf-8") as f:
         lines = f.readlines()
     return [line.strip() for line in lines if line.strip().startswith(("import ", "from "))]
 
@@ -102,8 +108,8 @@ class TestAccumulatorConstruction:
         acc = _make_accumulator("myacc")
         assert "myacc" in repr(acc)
 
-    def test_internal_state_names_empty(self) -> None:
-        assert _make_accumulator().internal_state_names() == ()
+    def test_internal_state_names_has_V_g(self) -> None:
+        assert "V_g" in _make_accumulator().internal_state_names()
 
     def test_geometry_carries_no_law_parameters(self) -> None:
         geom = _make_geometry()
@@ -205,12 +211,15 @@ class TestAccumulatorImportBoundaries:
         for line in _import_lines(mod.__file__):
             assert "mpl_sim.properties" not in line, f"Forbidden import: {line!r}"
 
-    def test_accumulator_module_does_not_import_correlations(self) -> None:
+    def test_accumulator_module_may_only_import_correlations_contract(self) -> None:
         import mpl_sim.components.accumulator as mod
 
         assert mod.__file__ is not None
         for line in _import_lines(mod.__file__):
-            assert "mpl_sim.correlations" not in line, f"Forbidden import: {line!r}"
+            if "mpl_sim.correlations" in line:
+                assert "mpl_sim.correlations.contract" in line, (
+                    f"Only mpl_sim.correlations.contract is allowed; " f"forbidden import: {line!r}"
+                )
 
 
 # ---------------------------------------------------------------------------
@@ -327,3 +336,215 @@ class TestAccumulatorEvaluatePressureReference:
         acc.evaluate_pressure_reference(AccumulatorOperatingPoint(p_setpoint=1e6))
         assert not hasattr(acc, "P_sys")
         assert not hasattr(acc, "p_sys")
+
+
+# ---------------------------------------------------------------------------
+# Phase 10H -- VolumePressureLawBinding
+# ---------------------------------------------------------------------------
+
+
+def _pca_law_params() -> dict:
+    return {
+        "charge_volume": 0.005,
+        "charge_pressure": 1_000_000.0,
+        "polytropic_index": 1.4,
+    }
+
+
+class TestVolumePressureLawBinding:
+    def test_basic_construction(self) -> None:
+        b = VolumePressureLawBinding(law_params=_pca_law_params())
+        assert b.law_params["charge_volume"] == pytest.approx(0.005)
+
+    def test_is_immutable_dataclass(self) -> None:
+        b = VolumePressureLawBinding(law_params=_pca_law_params())
+        with pytest.raises((AttributeError, TypeError)):
+            b.law_params = {}  # type: ignore[misc]
+
+    def test_law_params_is_immutable_mapping(self) -> None:
+        b = VolumePressureLawBinding(law_params=_pca_law_params())
+        with pytest.raises((TypeError, AttributeError)):
+            b.law_params["new_key"] = 1.0  # type: ignore[index]
+
+    def test_mutation_of_source_dict_does_not_affect_binding(self) -> None:
+        params = _pca_law_params()
+        b = VolumePressureLawBinding(law_params=params)
+        params["charge_volume"] = 999.0
+        assert b.law_params["charge_volume"] == pytest.approx(0.005)
+
+    def test_carries_no_geometry_object(self) -> None:
+        b = VolumePressureLawBinding(law_params=_pca_law_params())
+        forbidden = ("geometry", "Geometry", "AccumulatorGeometry", "V_total")
+        for attr in forbidden:
+            assert not hasattr(b, attr), f"Binding must not carry {attr!r}"
+
+    def test_carries_no_correlation_object(self) -> None:
+        b = VolumePressureLawBinding(law_params=_pca_law_params())
+        forbidden = ("correlation", "Correlation", "role", "evaluate", "envelope")
+        for attr in forbidden:
+            assert not hasattr(b, attr), f"Binding must not carry {attr!r}"
+
+
+# ---------------------------------------------------------------------------
+# Phase 10H -- AccumulatorVolumePressureSummary
+# ---------------------------------------------------------------------------
+
+
+class TestAccumulatorVolumePressureSummary:
+    def _make_summary(self) -> AccumulatorVolumePressureSummary:
+        from mpl_sim.correlations.contract import VolumePressureLawInput
+        from mpl_sim.correlations.volume_pressure_law import PcaVolumePressureLaw
+
+        pca = PcaVolumePressureLaw()
+        inp = VolumePressureLawInput(
+            V_g=0.005,
+            V_total=0.010,
+            law_params={
+                "charge_volume": 0.005,
+                "charge_pressure": 1_000_000.0,
+                "polytropic_index": 1.4,
+            },
+        )
+        output = pca.evaluate(inp)
+        return AccumulatorVolumePressureSummary(
+            P_derived=output.value[0],
+            V_g=0.005,
+            output=output,
+        )
+
+    def test_p_derived_accessible(self) -> None:
+        s = self._make_summary()
+        assert s.P_derived == pytest.approx(1_000_000.0)
+
+    def test_v_g_accessible(self) -> None:
+        s = self._make_summary()
+        assert s.V_g == pytest.approx(0.005)
+
+    def test_output_accessible(self) -> None:
+        s = self._make_summary()
+        assert s.output is not None
+
+    def test_is_immutable(self) -> None:
+        s = self._make_summary()
+        with pytest.raises((AttributeError, TypeError)):
+            s.P_derived = 2e6  # type: ignore[misc]
+
+
+# ---------------------------------------------------------------------------
+# Phase 10H -- AccumulatorComponent.evaluate_volume_pressure_law
+# ---------------------------------------------------------------------------
+
+
+class TestEvaluateVolumePressureLaw:
+    def _make_pca(self):
+        from mpl_sim.correlations.volume_pressure_law import PcaVolumePressureLaw
+
+        return PcaVolumePressureLaw()
+
+    def _make_binding(self) -> VolumePressureLawBinding:
+        return VolumePressureLawBinding(law_params=_pca_law_params())
+
+    def test_returns_summary(self) -> None:
+        acc = _make_accumulator()
+        result = acc.evaluate_volume_pressure_law(
+            binding=self._make_binding(),
+            V_g=0.005,
+            correlation=self._make_pca(),
+        )
+        assert isinstance(result, AccumulatorVolumePressureSummary)
+
+    def test_p_derived_is_positive(self) -> None:
+        acc = _make_accumulator()
+        result = acc.evaluate_volume_pressure_law(
+            binding=self._make_binding(),
+            V_g=0.005,
+            correlation=self._make_pca(),
+        )
+        assert result.P_derived > 0.0
+
+    def test_p_derived_matches_hand_calc(self) -> None:
+        # P = 1e6 * (0.005 / 0.005)^1.4 = 1e6
+        acc = _make_accumulator()
+        result = acc.evaluate_volume_pressure_law(
+            binding=self._make_binding(),
+            V_g=0.005,
+            correlation=self._make_pca(),
+        )
+        assert result.P_derived == pytest.approx(1_000_000.0, rel=1e-9)
+
+    def test_v_g_echoed_in_result(self) -> None:
+        acc = _make_accumulator()
+        result = acc.evaluate_volume_pressure_law(
+            binding=self._make_binding(),
+            V_g=0.007,
+            correlation=self._make_pca(),
+        )
+        assert result.V_g == pytest.approx(0.007)
+
+    def test_uses_geometry_V_total_as_envelope_bound(self) -> None:
+        from mpl_sim.correlations.contract import ValidityStatus
+
+        acc = AccumulatorComponent(
+            component_id=ComponentId("acc"),
+            geometry=_make_geometry(v_total=0.010),
+        )
+        # V_g within V_total => IN_ENVELOPE
+        result = acc.evaluate_volume_pressure_law(
+            binding=self._make_binding(),
+            V_g=0.008,
+            correlation=self._make_pca(),
+        )
+        assert result.output.verdict.status is ValidityStatus.IN_ENVELOPE
+
+    def test_extrapolated_when_V_g_exceeds_V_total(self) -> None:
+        from mpl_sim.correlations.contract import ValidityStatus
+
+        acc = AccumulatorComponent(
+            component_id=ComponentId("acc"),
+            geometry=_make_geometry(v_total=0.010),
+        )
+        result = acc.evaluate_volume_pressure_law(
+            binding=self._make_binding(),
+            V_g=0.015,  # > V_total=0.010
+            correlation=self._make_pca(),
+        )
+        assert result.output.verdict.status is ValidityStatus.EXTRAPOLATED
+
+    def test_accumulator_not_mutated_by_evaluation(self) -> None:
+        acc = _make_accumulator("acc_vol")
+        acc.evaluate_volume_pressure_law(
+            binding=self._make_binding(),
+            V_g=0.005,
+            correlation=self._make_pca(),
+        )
+        assert acc.component_id == ComponentId("acc_vol")
+
+    def test_geometry_not_mutated_by_evaluation(self) -> None:
+        geom = _make_geometry(v_total=0.02)
+        acc = AccumulatorComponent(component_id=ComponentId("a"), geometry=geom)
+        acc.evaluate_volume_pressure_law(
+            binding=self._make_binding(),
+            V_g=0.005,
+            correlation=self._make_pca(),
+        )
+        assert acc.geometry.V_total == pytest.approx(0.02)
+
+    def test_p_derived_matches_output_value(self) -> None:
+        acc = _make_accumulator()
+        result = acc.evaluate_volume_pressure_law(
+            binding=self._make_binding(),
+            V_g=0.005,
+            correlation=self._make_pca(),
+        )
+        assert result.P_derived == pytest.approx(result.output.value[0])
+
+    def test_pressure_not_stored_on_accumulator(self) -> None:
+        acc = _make_accumulator()
+        acc.evaluate_volume_pressure_law(
+            binding=self._make_binding(),
+            V_g=0.005,
+            correlation=self._make_pca(),
+        )
+        forbidden = ("P_sys", "p_sys", "P_derived", "V_g_stored")
+        for attr in forbidden:
+            assert not hasattr(acc, attr), f"Accumulator must not store {attr!r}"

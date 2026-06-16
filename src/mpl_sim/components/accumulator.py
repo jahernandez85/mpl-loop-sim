@@ -1,31 +1,25 @@
-"""Accumulator component — Phase 10D.
+"""Accumulator component -- Phase 10D / 10H.
 
 Defines the Accumulator component: an immutable value object that stores
 AccumulatorGeometry (containment only), declares one bidirectional fluid port,
-and exposes evaluate_pressure_reference for the prescribed pressure-reference law.
+and exposes two evaluation seams:
 
-Phase 10C adds:
-- AccumulatorComponent: component skeleton with one fluid port
+Phase 10D:
+- AccumulatorOperatingPoint: scalar input for prescribed pressure-reference law
+- AccumulatorPressureSummary: result (p_ref, p_setpoint)
+- AccumulatorComponent.evaluate_pressure_reference: p_ref = p_setpoint
 
-Phase 10D adds:
-- AccumulatorOperatingPoint: scalar input value object for pressure-reference evaluation
-- AccumulatorPressureSummary: result value object (p_ref, p_setpoint)
-- AccumulatorComponent.evaluate_pressure_reference: prescribed pressure-reference law
-
-The accumulator model in V1 is a prescribed pressure-reference seam:
-    p_ref = p_setpoint
-
-The accumulator declares one BIDIRECTIONAL port — the node at which it sets the
-system pressure reference.  The Network owns which node is the reference; the
-accumulator law owns the value; the Solver owns global consistency.
-
-P_sys is never stored on the accumulator.  V_g and the volume-pressure law are
-future seams, not implemented in Phase 10.
+Phase 10H:
+- VolumePressureLawBinding: holds law_params (no geometry, no correlation stored)
+- AccumulatorVolumePressureSummary: result (P_derived, V_g, output)
+- AccumulatorComponent.internal_state_names: returns ("V_g",)
+- AccumulatorComponent.evaluate_volume_pressure_law: builds VolumePressureLawInput,
+  delegates to caller-supplied Correlation, returns summary
 
 Hard constraints respected:
 - No CoolProp.
 - No PropertyBackend.
-- No correlations.
+- Only mpl_sim.correlations.contract may be imported (not registry or any closure).
 - No network / solver.
 - No mutation of any object.
 - No dynamic integration.
@@ -36,10 +30,17 @@ Hard constraints respected:
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 from dataclasses import dataclass
+from types import MappingProxyType
 
 from mpl_sim.components.base import Component, ComponentId, ComponentKind
 from mpl_sim.core.port import Port, PortId, PortRole
+from mpl_sim.correlations.contract import (
+    Correlation,
+    CorrelationOutput,
+    VolumePressureLawInput,
+)
 from mpl_sim.geometry.primitives import AccumulatorGeometry
 
 # ---------------------------------------------------------------------------
@@ -89,39 +90,79 @@ class AccumulatorPressureSummary:
 
 
 # ---------------------------------------------------------------------------
+# Phase 10H -- VolumePressureLawBinding
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class VolumePressureLawBinding:
+    """Holds law parameters for the volume-pressure law seam.
+
+    Law parameters are scalar key/value pairs only -- no geometry objects,
+    no Correlation stored here (the caller supplies the Correlation at
+    evaluation time to keep the binding data-only).
+
+    Fields:
+        law_params : immutable mapping of parameter name -> float value.
+                     E.g. {"charge_volume": 0.005, "charge_pressure": 1e6,
+                            "polytropic_index": 1.4}
+    """
+
+    law_params: Mapping[str, float]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "law_params", MappingProxyType(dict(self.law_params)))
+
+
+# ---------------------------------------------------------------------------
+# Phase 10H -- AccumulatorVolumePressureSummary
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class AccumulatorVolumePressureSummary:
+    """Result of AccumulatorComponent.evaluate_volume_pressure_law.
+
+    Fields:
+        P_derived : pressure derived by the law [Pa]; may be NaN if V_g invalid
+        V_g       : gas volume used for evaluation [m3]
+        output    : full CorrelationOutput (value, verdict, metadata)
+    """
+
+    P_derived: float
+    V_g: float
+    output: CorrelationOutput
+
+
+# ---------------------------------------------------------------------------
 # AccumulatorComponent
 # ---------------------------------------------------------------------------
 
 
 @dataclass(frozen=True)
 class AccumulatorComponent(Component):
-    """Accumulator component — pressure-reference seam.
+    """Accumulator component -- pressure-reference and volume-pressure seams.
 
     An immutable component representing a pressure-reference accumulator.
     Stores containment geometry (no law parameters), declares one BIDIRECTIONAL
-    fluid port, and exposes evaluate_pressure_reference for the prescribed-
-    pressure-reference law.
+    fluid port, and exposes:
 
-    P_sys is never stored on this object.  The Network owns reference-node
-    wiring; the Solver owns global consistency.  V_g and volume-pressure laws
-    are future seams.
+      evaluate_pressure_reference  -- Phase 10D prescribed-pressure law
+      evaluate_volume_pressure_law -- Phase 10H PCA/HCA law seam
+
+    P_sys is never stored on this object. The Network owns reference-node
+    wiring; the Solver owns global consistency.
 
     Fields:
         component_id : stable identity for this component
-        geometry     : AccumulatorGeometry — containment only; law parameters
+        geometry     : AccumulatorGeometry -- containment only; law parameters
                        must NOT be stored here
 
-    Exposed interface:
-        kind()                             → ComponentKind.ACCUMULATOR
-        fluid_port                         → Port (BIDIRECTIONAL, peer=None before assembly)
-        ports()                            → (fluid_port,) — exactly one in V1
-        internal_state_names()             → () — V_g state deferred to future law integration
-        evaluate_pressure_reference(...)   → AccumulatorPressureSummary  (Phase 10D)
-
     Must NOT:
-        - call CoolProp, PropertyBackend, or any correlation
+        - call CoolProp, PropertyBackend
+        - import mpl_sim.correlations.registry (only .contract is allowed)
         - reference Network or Solver
-        - store P_sys, V_g, or any dynamic inventory state
+        - store P_sys or any dynamic inventory state
         - implement dynamic integration or mass / energy balance
         - mutate any object
     """
@@ -130,7 +171,7 @@ class AccumulatorComponent(Component):
     geometry: AccumulatorGeometry
 
     # ------------------------------------------------------------------
-    # Component contract — structural declarations
+    # Component contract -- structural declarations
     # ------------------------------------------------------------------
 
     def kind(self) -> ComponentKind:
@@ -148,12 +189,12 @@ class AccumulatorComponent(Component):
         )
 
     def ports(self) -> tuple[Port, ...]:
-        """Returns (fluid_port,) — exactly one port in V1."""
+        """Returns (fluid_port,) -- exactly one port in V1."""
         return (self.fluid_port,)
 
     def internal_state_names(self) -> tuple[str, ...]:
-        """Named internal states — empty; V_g is a future seam."""
-        return ()
+        """Named internal state: V_g (current gas volume, [m3])."""
+        return ("V_g",)
 
     # ------------------------------------------------------------------
     # Phase 10D: prescribed pressure-reference law
@@ -168,10 +209,6 @@ class AccumulatorComponent(Component):
         Computes:
             p_ref = inp.p_setpoint
 
-        The accumulator returns the prescribed setpoint as its pressure reference.
-        Neither the accumulator, its geometry, nor the input is mutated.  No
-        CoolProp, PropertyBackend, correlation, network, or solver is called.
-
         Parameters
         ----------
         inp : AccumulatorOperatingPoint
@@ -183,4 +220,44 @@ class AccumulatorComponent(Component):
         return AccumulatorPressureSummary(
             p_ref=inp.p_setpoint,
             p_setpoint=inp.p_setpoint,
+        )
+
+    # ------------------------------------------------------------------
+    # Phase 10H: volume-pressure law seam
+    # ------------------------------------------------------------------
+
+    def evaluate_volume_pressure_law(
+        self,
+        binding: VolumePressureLawBinding,
+        V_g: float,
+        correlation: Correlation,
+    ) -> AccumulatorVolumePressureSummary:
+        """Evaluate the volume-pressure law for this accumulator.
+
+        Builds a VolumePressureLawInput from the binding parameters and
+        the caller-supplied V_g, then delegates to the supplied Correlation.
+        The accumulator does not know which law is used -- the caller
+        supplies any Correlation with VOLUME_PRESSURE_LAW role.
+
+        Parameters
+        ----------
+        binding     : VolumePressureLawBinding holding law_params
+        V_g         : current gas volume [m3]
+        correlation : Correlation with VOLUME_PRESSURE_LAW role
+
+        Returns
+        -------
+        AccumulatorVolumePressureSummary with P_derived, V_g, and full output
+        """
+        inp = VolumePressureLawInput(
+            V_g=V_g,
+            V_total=self.geometry.V_total,
+            law_params=binding.law_params,
+        )
+        output = correlation.evaluate(inp)
+        P_derived = output.value[0]
+        return AccumulatorVolumePressureSummary(
+            P_derived=P_derived,
+            V_g=V_g,
+            output=output,
         )

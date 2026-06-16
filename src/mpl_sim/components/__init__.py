@@ -1,4 +1,4 @@
-"""Components package — Phase 10E: Pump and Accumulator added.
+"""Components package -- Phase 10F/10H: Pump map/command seams and accumulator VPL added.
 
 Exports:
   Component contract primitives:
@@ -11,11 +11,16 @@ Exports:
     PipeAccelerationInput, PipeAccelerationResult,
     PipeMechanicalPressureInput, PipeMechanicalPressureSummary
 
-  Pump (Phase 10A/10B):
-    PumpComponent, PumpOperatingPoint, PumpHydraulicSummary
+  Pump (Phase 10A/10B/10F):
+    PumpComponent, PumpGeometry,
+    PumpOperatingPoint, PumpHydraulicSummary,
+    PumpMapPoint, PumpPerformanceMap,
+    PumpSpeedCommand, PumpFlowTarget,
+    PumpPowerInput, PumpPowerSummary
 
-  Accumulator (Phase 10C/10D):
-    AccumulatorComponent, AccumulatorOperatingPoint, AccumulatorPressureSummary
+  Accumulator (Phase 10C/10D/10H):
+    AccumulatorComponent, AccumulatorOperatingPoint, AccumulatorPressureSummary,
+    VolumePressureLawBinding, AccumulatorVolumePressureSummary
 
 Architectural constraints:
   - MUST NOT import from network/ or solvers/.
@@ -27,6 +32,8 @@ from mpl_sim.components.accumulator import (
     AccumulatorComponent,
     AccumulatorOperatingPoint,
     AccumulatorPressureSummary,
+    AccumulatorVolumePressureSummary,
+    VolumePressureLawBinding,
 )
 from mpl_sim.components.base import (
     Component,
@@ -47,8 +54,15 @@ from mpl_sim.components.pipe import (
 )
 from mpl_sim.components.pump import (
     PumpComponent,
+    PumpFlowTarget,
+    PumpGeometry,
     PumpHydraulicSummary,
+    PumpMapPoint,
     PumpOperatingPoint,
+    PumpPerformanceMap,
+    PumpPowerInput,
+    PumpPowerSummary,
+    PumpSpeedCommand,
 )
 
 __all__ = [
@@ -72,12 +86,21 @@ __all__ = [
     # Pipe Phase 6E mechanical summary types
     "PipeMechanicalPressureInput",
     "PipeMechanicalPressureSummary",
-    # Pump Phase 10A/10B
+    # Pump Phase 10A/10B/10F
     "PumpComponent",
+    "PumpGeometry",
     "PumpOperatingPoint",
     "PumpHydraulicSummary",
-    # Accumulator Phase 10C/10D
+    "PumpMapPoint",
+    "PumpPerformanceMap",
+    "PumpSpeedCommand",
+    "PumpFlowTarget",
+    "PumpPowerInput",
+    "PumpPowerSummary",
+    # Accumulator Phase 10C/10D/10H
     "AccumulatorComponent",
     "AccumulatorOperatingPoint",
     "AccumulatorPressureSummary",
+    "VolumePressureLawBinding",
+    "AccumulatorVolumePressureSummary",
 ]

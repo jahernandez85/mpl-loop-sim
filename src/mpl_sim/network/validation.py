@@ -1,6 +1,15 @@
-"""Network topology validation — Phase 7B.
+"""Network topology validation -- Phase 7B / 10I.
 
 Validates component and connection declarations for structural correctness.
+
+Phase 10I adds:
+- validate_topology accepts optional pressure_references parameter.
+- When supplied (not None), checks:
+    * Each PressureReferenceWiring references a known component.
+    * Each referenced component is of kind ACCUMULATOR.
+    * Exactly one pressure-reference wiring is present.
+- When pressure_references is None, the check is skipped entirely
+  (backward compatibility for Pipe-only test networks).
 
 Architecture constraints:
 - MUST NOT import from solvers/, properties/, correlations/, calibration/.
@@ -16,11 +25,11 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from mpl_sim.components.base import Component
+from mpl_sim.components.base import Component, ComponentKind
 from mpl_sim.core.port import PortRole
 
 if TYPE_CHECKING:
-    from mpl_sim.network.topology import NetworkConnection
+    from mpl_sim.network.topology import NetworkConnection, PressureReferenceWiring
 
 
 # ---------------------------------------------------------------------------
@@ -78,16 +87,22 @@ def _roles_compatible(r1: PortRole, r2: PortRole) -> bool:
 def validate_topology(
     components: Mapping[str, Component],
     connections: Sequence[NetworkConnection],
+    pressure_references: Sequence[PressureReferenceWiring] | None = None,
 ) -> NetworkValidationResult:
     """Validate the structural integrity of a network topology.
 
-    Checks performed:
+    Checks performed (always):
     1. Duplicate connection ids.
     2. Self-connections (from_component == to_component).
     3. Connections referencing unknown components.
     4. Connections referencing unknown ports.
     5. Incompatible port roles.
-    6. One-to-one port connectivity (V1: each port ≤ 1 connection).
+    6. One-to-one port connectivity (V1: each port <= 1 connection).
+
+    Checks performed (when pressure_references is not None):
+    7. Each PressureReferenceWiring references a known component.
+    8. Each referenced component is of kind ACCUMULATOR.
+    9. Exactly one pressure-reference wiring is present.
 
     Duplicate component ids are NOT checked here; the caller (NetworkTopology)
     is responsible for catching those before building the mapping.
@@ -97,8 +112,10 @@ def validate_topology(
 
     Parameters
     ----------
-    components : mapping of component_id_name → Component (structural access only)
-    connections : sequence of NetworkConnection declarations
+    components          : mapping of component_id_name -> Component (structural access only)
+    connections         : sequence of NetworkConnection declarations
+    pressure_references : optional sequence of PressureReferenceWiring.
+                          Pass None to skip pressure-reference validation.
 
     Returns
     -------
@@ -186,6 +203,33 @@ def validate_topology(
                 f"Port {port_name!r} on component {comp_name!r} has {count} connections "
                 f"(V1 requires one-to-one port connectivity)"
             )
+
+    # --- Pass 4: pressure-reference wiring (optional) ---
+    if pressure_references is not None:
+        pref_list = list(pressure_references)
+
+        # Exactly one required.
+        if len(pref_list) != 1:
+            errors.append(
+                f"Exactly one pressure-reference wiring is required when declared; "
+                f"got {len(pref_list)}"
+            )
+        else:
+            pref = pref_list[0]
+            # Referenced component must exist.
+            if pref.component_id not in components:
+                errors.append(
+                    f"PressureReferenceWiring references unknown component "
+                    f"{pref.component_id!r}"
+                )
+            else:
+                # Referenced component must be an ACCUMULATOR.
+                kind = components[pref.component_id].kind()
+                if kind is not ComponentKind.ACCUMULATOR:
+                    errors.append(
+                        f"PressureReferenceWiring component {pref.component_id!r} "
+                        f"must be kind ACCUMULATOR; got {kind.value!r}"
+                    )
 
     return NetworkValidationResult(
         is_valid=len(errors) == 0,
