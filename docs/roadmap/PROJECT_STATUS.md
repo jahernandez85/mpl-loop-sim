@@ -12,58 +12,39 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
 | **Branch** | `phase-8-solver` |
-| **Stage** | Phase 8 checkpoint audit complete; continue Phase 8 |
-| **Completed phase** | **Phase 8 checkpoint - Solver contract primitives, residual interface, and minimal convergence-gate steady solver** |
+| **Stage** | Phase 8 final audit complete; ready to merge and advance after merge |
+| **Completed phase** | **Phase 8 - First Steady Solver** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
-| **Phase 6 checkpoint verdict** | **APPROVED AS PHASE 6 CHECKPOINT - CONTINUE PHASE 6** |
 | **Phase 6 final audit verdict** | **APPROVED FOR NEXT PHASE** |
-| **Phase 6 status** | **Complete for Pipe component closeout scope. Phase 6A, 6B, 6C, 6D, 6E, and 6F are complete.** |
 | **Phase 7 final audit verdict** | **APPROVED FOR NEXT PHASE** |
-| **Phase 7 status** | **Complete for Network and Assembly closeout scope. Phase 7A, 7B, and 7C are complete.** |
-| **Phase 8 audit verdict** | **APPROVED FOR MERGE AS PHASE 8 CHECKPOINT — CONTINUE PHASE 8** |
-| **Phase 8 status** | **Partially complete and safe to merge as a checkpoint. Phase 8A, 8B, and 8C are complete; Phase 8 remains active.** |
-| **Branch status** | **Implemented on `phase-8-solver`; safe to merge into `main` as a checkpoint, not as full Phase 8 closeout.** |
-| **Current active phase** | **Phase 8 - First Steady Solver** |
-| **Next immediate slice** | Phase 8D - assembled steady problem wrapper, fixed-point pressure iteration/update interface, and convergence metadata with strategy reporting |
-| **Working tree before this docs task** | Phase 8A through Phase 8C implementation present |
-| **Test status** | 1361 passed, verified 2026-06-16 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
+| **Phase 8 checkpoint audit verdict** | **APPROVED FOR MERGE AS PHASE 8 CHECKPOINT - CONTINUE PHASE 8** |
+| **Phase 8 final audit verdict** | **APPROVED FOR MERGE AND NEXT PHASE** |
+| **Phase 8 status** | **Complete. Phase 8A, 8B, 8C, 8D, and 8E are complete.** |
+| **Branch status** | **Implemented on `phase-8-solver`; safe to merge into `main`.** |
+| **Current active phase** | **Phase 9 - Result and schema serialization, after `phase-8-solver` is merged** |
+| **Next immediate slice** | Phase 9 - schema/result serialization and validation invariants |
+| **Working tree before this docs task** | Phase 8A through Phase 8E implementation present |
+| **Test status** | 1519 passed, verified 2026-06-16 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
 | **Lint status** | `ruff check .` clean, verified 2026-06-16 |
-| **Format status** | `black --check src tests` clean, verified 2026-06-16; 71 files would be left unchanged |
+| **Format status** | `black --check src tests` clean, verified 2026-06-16; 76 files would be left unchanged |
 
-Phase 6 is complete as a documentation-audited implementation milestone:
-
-- Phase 6A added component contract primitives and the Pipe skeleton.
-- Phase 6B added the Pipe single-phase friction-only contribution helper using the existing `SINGLE_PHASE_DP` correlation contract.
-- Phase 6C added the Pipe gravity pressure contribution helper.
-- Phase 6D added the Pipe acceleration pressure contribution helper.
-- Phase 6E added the local Pipe mechanical pressure summary scaffold.
-- Phase 6F proved calibration placement: `R*` / `friction_multiplier` scales only friction, not gravity, acceleration, or the total directly.
-
-The Pipe component currently includes skeleton, single-phase friction, gravity, acceleration, mechanical pressure summary, and friction-only calibration placement. It remains local and is not a network.
-
-Phase 7 is complete as a documentation-audited implementation milestone:
-
-- Phase 7A added Network identity and topology primitives.
-- Phase 7B added connection validation and graph checks.
-- Phase 7C added deterministic `SystemState` assembly through `StateLayout`, port handles, optional internal handles, and connected-port peer mapping.
-
-The Network currently includes topology primitives, validation/graph checks, and `SystemState` assembly. It remains solver-free and physics-free.
-
-Phase 8 is partially complete as a documentation-audited checkpoint:
+Phase 8 is complete as a documentation-audited implementation milestone:
 
 - Phase 8A added solver contract primitives: `SolverId`, `SolverStatus`, `SolverOptions`, `SolverReport`, and `SolverResult`.
 - Phase 8B added the generic residual evaluation interface: `ResidualVector`, `ResidualEvaluation`, and `ResidualEvaluator`.
-- Phase 8C added a minimal convergence-gate `SteadySolver`.
+- Phase 8C added the minimal convergence-gate `SteadySolver`.
+- Phase 8D added `AssembledSteadyProblem`, `ConvergenceStrategy`, `ConvergenceMetadata`, `StateUpdate`, and `StateUpdateProvider`.
+- Phase 8E added the fixed-point steady iteration loop through the update interface.
 
-The current solver evaluates the residual at the initial `SystemState` once. If residual norm is within tolerance it returns `CONVERGED`; otherwise it returns `FAILED`. It does not implement state update logic, fixed-point pressure iteration, Newton, Jacobians, physical residual assembly, pressure solving, flow solving, or validation invariants.
+The solver currently includes contract primitives, residual interface, assembled steady problem wrapper, convergence metadata with strategy reporting, update interface, and fixed-point steady iteration. The no-update path preserves residual-gate behavior.
 
-The solver remains generic and physics-free. It does not import CoolProp, properties, correlations, calibration, components, network, geometry, or discretization. Network and components do not import solvers.
+The solver remains generic and physics-free. It does not import CoolProp, properties, correlations, calibration, components, network, geometry, or discretization. It does not own physical residuals, and it does not solve pressure or flow directly. Network and components remain solver-free.
 
-Newton, Jacobians, physical residuals, pressure solving, flow solving, schema serialization, optimization, fitting, advanced component models, transient solving, and new components remain deferred unless a later audit explicitly changes that status. Pump, accumulator, evaporator, condenser, and heat-exchanger components remain deferred to their planned later phases.
+Newton, Jacobians, finite-difference Jacobians, physical residuals, pressure solving, flow solving, schema serialization, optimization, fitting, advanced component models, transient solving, and new components remain deferred to their planned phases unless a future task explicitly changes scope.
 
-The Phase 8 checkpoint audit closeout changed documentation only. No source code and no test files were modified during audit closeout.
+The Phase 8 final audit closeout changed documentation only. No source code and no test files were modified during audit closeout.
 
 ---
 
@@ -121,7 +102,6 @@ Key authority statements:
 | **Phase 6D - Pipe acceleration pressure contribution** | **Complete** |
 | **Phase 6E - Pipe mechanical pressure summary scaffold** | **Complete** |
 | **Phase 6F - Pipe friction-only calibration placement proof** | **Complete** |
-| **Phase 6 checkpoint audit** | **Complete; approved as checkpoint, continue Phase 6** |
 | **Phase 6 final audit** | **Complete; approved for Phase 7** |
 | **Phase 7A - Network identity and topology primitives** | **Complete** |
 | **Phase 7B - Connection validation and graph checks** | **Complete** |
@@ -130,7 +110,9 @@ Key authority statements:
 | **Phase 8A - Solver contract primitives** | **Complete** |
 | **Phase 8B - Residual evaluation interface** | **Complete** |
 | **Phase 8C - Minimal convergence-gate steady solver** | **Complete** |
-| **Phase 8 checkpoint audit** | **Complete; approved for merge as checkpoint, continue Phase 8** |
+| **Phase 8D - Assembled steady problem wrapper, convergence metadata, and update interface** | **Complete** |
+| **Phase 8E - Fixed-point steady solver loop** | **Complete** |
+| **Phase 8 final audit** | **Complete; approved for merge and next phase** |
 
 Closeout artifacts:
 
@@ -144,30 +126,26 @@ Closeout artifacts:
 - `docs/validation/audits/PHASE_6_PIPE_COMPONENT_FINAL_AUDIT.md`
 - `docs/validation/audits/PHASE_7_NETWORK_ASSEMBLY_AUDIT.md`
 - `docs/validation/audits/PHASE_8_STEADY_SOLVER_AUDIT.md`
+- `docs/validation/audits/PHASE_8_STEADY_SOLVER_FINAL_AUDIT.md`
 
 ---
 
 ## 4. Current Active Phase
 
-**Phase 8 - First Steady Solver** remains the current active phase according to `IMPLEMENTATION_PLAN.md`.
+After `phase-8-solver` is merged, the current active phase is:
 
-Phase 8 completed checkpoint scope:
+**Phase 9 - Result and schema serialization**, according to `IMPLEMENTATION_PLAN.md`.
 
-- solver contract primitives;
-- residual evaluation interface;
-- minimal convergence-gate steady solver.
+Phase 9 should focus on:
 
-Phase 8 remaining objective:
+- Result object shape and stored/reported/derived partition;
+- validation invariants, including mass imbalance, energy imbalance, pressure-closure residual, and bound checks;
+- schema serialization for tuple/result artifacts;
+- versioning and round-trip behavior;
+- explicit model selections and no hidden defaults;
+- minimal stored state only.
 
-- close the first vertical slice with a steady solver;
-- assemble residuals from component contributions and Network continuity/closure conditions;
-- drive the assembled system over `SystemState`;
-- keep Network responsible for topology and assembly, not numerical solving;
-- keep Pipe as a local component that does not name the Network, neighbours, or Solver.
-- add fixed-point pressure iteration / update behavior;
-- add an assembled steady problem wrapper;
-- add convergence metadata with a strategy field;
-- add finite-difference Jacobian and Newton only after the assembled residual path is stable, as required for full Phase 8 closeout.
+Phase 9 should not extend solver physics or component models as part of the handoff. It should not implement Newton, Jacobians, physical residual assembly, pressure solving, flow solving, transient solving, optimization, fitting, or new components unless a future task explicitly changes scope.
 
 Phase boundaries to preserve:
 
@@ -175,7 +153,7 @@ Phase boundaries to preserve:
 - Do not make Pipe network-aware or solver-aware.
 - Do not implement Pump or Accumulator components yet; they remain V1 Build Phase 10.
 - Do not implement Evaporator, Condenser, `HeatExchangerModel`, or heat-exchanger components yet; they remain V1 Build Phase 11.
-- Do not implement heat transfer, phase change, or two-phase pressure drop in Phase 8.
+- Do not implement heat transfer, phase change, or two-phase pressure drop in Phase 9.
 - Do not move pressure, enthalpy, mass flow, derived properties, or solver vectors onto Pipe or Port objects.
 - Keep `SystemState` as the only owner of values.
 
@@ -183,18 +161,19 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Review and commit the Phase 8 checkpoint audit closeout.
-2. Continue **Phase 8 - First Steady Solver** from `IMPLEMENTATION_PLAN.md`.
-3. Implement Phase 8D: assembled steady problem wrapper, fixed-point pressure iteration / update interface, and convergence metadata with strategy reporting.
-4. Keep Phase 8 focused on solver residual assembly and numerical iteration over `SystemState`.
-5. Preserve the Phase 7 boundary: Network owns topology and assembly only.
-6. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
-7. Run `pytest`, `ruff check .`, and `black --check src tests` before reporting the next implementation task complete.
+1. Review and commit the Phase 8 final audit closeout.
+2. Merge `phase-8-solver` into `main`.
+3. Start **Phase 9 - Result and schema serialization** from `IMPLEMENTATION_PLAN.md`.
+4. Keep Phase 9 focused on Result/schema/invariant work.
+5. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
+6. Preserve the Phase 7 boundary: Network owns topology and assembly only.
+7. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
+8. Run `pytest`, `ruff check .`, and `black --check src tests` before reporting the next implementation task complete.
 
 Recommended commit message:
 
 ```text
-docs: audit phase 8 steady solver checkpoint
+docs: close out phase 8 steady solver
 ```
 
 ---
@@ -224,15 +203,17 @@ These rules are operational forms of the frozen decisions. Violating any is a re
 
 ## 7. Current Known Blockers and Deferred Work
 
-None block merging this Phase 8 checkpoint or continuing Phase 8 after this audit is reviewed and committed.
+None block merging Phase 8 or advancing to Phase 9 after this audit is reviewed and committed.
 
 | Item | What it affects | Resolution path |
 |---|---|---|
-| Import-direction rules are not enforced by import-linter tooling | Future cross-layer expansion | Add import-linter or equivalent before higher layers expand further |
-| Solver residual assembly not yet implemented | Phase 8 | Implement in the first steady solver without changing Network into a solver |
-| Fixed-point pressure iteration not yet implemented | Phase 8 closeout | Add after the assembled steady problem/update interface is defined |
-| Simultaneous Newton and finite-difference Jacobian not yet implemented | Phase 8 closeout | Add after fixed-point/residual assembly path is stable |
-| `ConvergenceMetadata.strategy` not yet represented | Phase 8 closeout | Extend convergence reporting without coupling solver to physics |
+| Import-direction rules are not enforced by import-linter tooling | Future cross-layer expansion | Add import-linter or equivalent if boundary risks grow |
+| Result object not yet implemented | Phase 9 | Implement in planned Result/schema phase |
+| Validation invariants not yet implemented | Phase 9 | Add mass/energy/pressure/bounds invariants with Result work |
+| Schema serialization not yet implemented | Phase 9 | Implement tuple/result serialization and round-trip checks |
+| Physical residual assembly not yet implemented | Future solver integration | Add only when explicitly planned, keeping adapters separate from solver core |
+| Newton and finite-difference Jacobian not yet implemented | Future solver strategy work | Introduce only when explicitly planned |
+| Pressure solving and flow solving not yet implemented | Future loop solving work | Implement through generic residual/update contracts, not by coupling solver to components |
 | Pump and Accumulator absent | Phase 10 | Implement in planned component phase |
 | Evaporator, Condenser, and HeatExchangerModel absent | Phase 11 | Implement in planned heat-exchanger phase |
 | Heat transfer, phase change, and two-phase pressure drop absent | Phase 11+ | Keep deferred until the planned phases |
@@ -254,17 +235,17 @@ Before any coding task, read in order:
 
 Rules for the next implementation session:
 
-- Phase 8 is active.
-- Phase 8A, 8B, and 8C are complete and approved for merge as a checkpoint.
-- Phase 8 is not fully closed out.
-- Phase 7 is complete and approved for the next phase.
-- Do not reopen Phase 7 unless a new task explicitly requests a Phase 7 fix.
-- Work only on first steady solver scope unless a new task explicitly changes the phase.
-- Continue with the next Phase 8 implementation slice: assembled steady problem wrapper, fixed-point pressure iteration / update interface, and convergence metadata with strategy reporting.
+- Phase 8 is complete and approved for merge and next phase.
+- The branch `phase-8-solver` is safe to merge into `main`.
+- After merge, Phase 9 is active.
+- Do not start Phase 10 components from Phase 9 work.
+- Do not reopen Phase 8 unless a new task explicitly requests a Phase 8 fix.
+- Keep solver core generic and physics-free.
+- Keep physical residual adapters separate from solver core.
 - Keep Network topology/assembly-only; do not turn it into a solver.
 - Keep Pipe local; do not add network or solver behavior to Pipe.
-- Preserve separation among geometry, discretization, correlations, calibration, components, network, and solvers.
-- Keep Pump, Accumulator, Evaporator, Condenser, heat transfer, phase change, and two-phase pressure drop deferred.
+- Preserve separation among geometry, discretization, correlations, calibration, components, network, solvers, schema, and results.
+- Keep Pump, Accumulator, Evaporator, Condenser, heat transfer, phase change, two-phase pressure drop, Newton, Jacobians, and transient solving deferred unless explicitly requested.
 - Run `pytest`, `ruff check .`, and `black --check src tests` before reporting any implementation task complete.
 - Do not include `Co-Authored-By` lines unless explicitly requested.
 
@@ -276,6 +257,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-16 |
 | **Updated by** | Codex |
-| **Status note** | Phase 8A-8C complete; Phase 8 checkpoint audit approved for merge and continued Phase 8 work; documentation-only closeout with no source/test changes |
+| **Status note** | Phase 8A-8E complete; Phase 8 final audit approved for merge and next phase; documentation-only closeout with no source/test changes |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
