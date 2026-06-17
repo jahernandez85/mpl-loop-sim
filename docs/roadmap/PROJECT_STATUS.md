@@ -11,8 +11,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-11f-segmented-hx-model-foundation` |
-| **Stage** | Phase 11F segmented HX model foundation checkpoint complete; safe to merge as checkpoint and continue Phase 11 |
+| **Branch** | `phase-11g-hx-model-consolidation` |
+| **Stage** | Phase 11G HX model consolidation approved for merge as checkpoint; Phase 11 final closeout assessed and remains open |
 | **Completed phase** | **Phase 10 - Pump and Accumulator** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -38,13 +38,31 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11E status** | **Checkpoint complete. `LMTDModel` is implemented as a limited foundation supporting `FixedWallTemp` and `AmbientCoupling`; `SinkInletTempAndFlow` and `FixedHeatRate` remain explicitly unsupported in `LMTDModel`.** |
 | **Phase 11F audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 11F status** | **Checkpoint complete. `SegmentedMarchModel` is implemented as a limited foundation supporting only `FixedHeatRate`; segment-wise secondary coupling and local HTC/UA solving remain deferred.** |
-| **Branch status** | **Implemented on `phase-11f-segmented-hx-model-foundation`; safe to merge into `main` as a Phase 11F checkpoint.** |
-| **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation after checkpoint merge** |
-| **Next immediate slice** | Continue Phase 11 with segment-wise secondary coupling decisions, local HTC/UA solving, migrated HTC/DP closures, moving-boundary strategy work, and loop residual integration according to `IMPLEMENTATION_PLAN.md` |
-| **Working tree before this docs task** | Phase 11F segmented HX model foundation implementation present on `phase-11f-segmented-hx-model-foundation` |
-| **Test status** | 2547 passed, verified 2026-06-17 with `pytest`; targeted `pytest tests/hx_models tests/components` passed 1147 tests; pytest emitted a `.pytest_cache` permission warning |
+| **Phase 11G audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 11G status** | **Checkpoint complete. Cross-model family contract tests added (`test_hx_model_family_contracts.py`); import-boundary coverage extended to `lmtd.py` and `segmented.py`; no new physics added.** |
+| **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
+| **Phase 11 status** | **V1 HX model foundation is coherent and tested, but roadmap-defined correlation migrations, meaningful segmented HTC/secondary coupling, and full-loop convergence acceptance remain incomplete.** |
+| **Branch status** | **Implemented on `phase-11g-hx-model-consolidation`; safe to merge into `main` as a Phase 11G checkpoint.** |
+| **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation** |
+| **Next immediate slice** | Continue Phase 11 with required boiling/condensation HTC and two-phase-DP migrations, meaningful segmented local HTC/secondary coupling, Scenario-bound HX behavior, and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
+| **Working tree before this docs task** | Phase 11G HX model consolidation present on `phase-11g-hx-model-consolidation` |
+| **Test status** | 2601 passed, verified 2026-06-17 with `pytest`; targeted `pytest tests/hx_models tests/components` passed 1201 tests; `pytest tests/hx_models/test_hx_model_family_contracts.py` passed 54 tests |
 | **Lint status** | `ruff check src tests` clean, verified 2026-06-17. |
-| **Format status** | `black --check --no-cache --verbose src tests` passed, with 120 files unchanged |
+| **Format status** | `black --check --no-cache --verbose src tests` passed, with 121 files unchanged |
+
+Phase 11G HX model consolidation is approved and safe to merge as a checkpoint.
+The Phase 11 final closeout assessment is checkpoint-only: Phase 11 remains open.
+
+- New focused test file `tests/hx_models/test_hx_model_family_contracts.py` added (54 tests).
+- Cross-model contracts verified: all three implemented models (`EpsilonNTUModel`, `LMTDModel`, `SegmentedMarchModel`) subclass `HeatExchangerModel`, return their correct and distinct `HeatExchangerModelKind`, and are registerable/resolvable through `HeatExchangerModelRegistry`.
+- `HeatExchangerModelKind` confirmed to have exactly four declared seams: `EPSILON_NTU`, `LMTD`, `SEGMENTED_MARCH`, `MOVING_BOUNDARY`.
+- No `MovingBoundaryModel` class is implemented or exported; `MOVING_BOUNDARY` remains a declared seam only.
+- Unsupported BCs in `LMTDModel` (`FixedHeatRate`, `SinkInletTempAndFlow`) and `SegmentedMarchModel` (`SinkInletTempAndFlow`, `FixedWallTemp`, `AmbientCoupling`) confirmed to raise `UnsupportedHeatExchangerBoundaryConditionError`.
+- `EpsilonNTUModel` `FixedHeatRate` path confirmed still supported.
+- Import-boundary coverage extended to `lmtd.py` and `segmented.py` (previously `test_hx_model_architecture_boundaries.py` covered only `base.py`, `epsilon_ntu.py`, `registry.py`).
+- All exports (`EpsilonNTUModel`, `LMTDModel`, `SegmentedMarchModel`, `SegmentedCellRecord`, `SegmentedProfile`) verified in `mpl_sim.hx_models.__all__`.
+- No new physics was added. No `MovingBoundaryModel` was implemented. No architecture documents were modified.
+- Final Phase 11 closeout is not yet supported by `IMPLEMENTATION_PLAN.md`: required HTC/DP closure migrations, meaningful segmented per-cell HTC/secondary coupling, and the converged full-loop acceptance case remain incomplete.
 
 Phase 11F segmented HX model foundation checkpoint is complete and safe to merge as a checkpoint.
 
@@ -244,6 +262,8 @@ Key authority statements:
 | **Phase 11D HX boundary-condition expansion checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 | **Phase 11E LMTD HX model foundation checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 | **Phase 11F segmented HX model foundation checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
+| **Phase 11G HX model consolidation checkpoint** | **Complete; safe to merge as Phase 11G checkpoint** |
+| **Phase 11 final closeout assessment** | **Checkpoint only; Phase 11 remains open** |
 
 Closeout artifacts:
 
@@ -303,12 +323,12 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Review and commit the Phase 11F segmented HX model foundation audit/status update.
-2. Merge `phase-11f-segmented-hx-model-foundation` into `main` as a checkpoint.
-3. Continue **Phase 11 - HeatExchangerModel, Evaporator and Condenser** after merge.
-4. Implement the next HX physics/integration slices without changing frozen architecture docs.
-5. Preserve the completed Phase 10 boundary: Pump and Accumulator remain local and physics-light; Network owns pressure-reference wiring; law evaluation stays out of Network.
-6. Preserve the Phase 9 boundary: schema/results/validation primitives remain data-only and physics-free.
+1. Merge `phase-11g-hx-model-consolidation` into `main` as a Phase 11G checkpoint.
+2. Continue **Phase 11 - HeatExchangerModel, Evaporator and Condenser** after merge.
+3. Migrate the roadmap-required boiling/condensation HTC and two-phase-DP closures.
+4. Complete meaningful segmented local HTC/secondary coupling and the full-loop convergence acceptance case.
+5. Repeat the Phase 11 final closeout audit before starting Phase 12.
+6. Preserve frozen architecture boundaries while completing the remaining work.
 7. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
 8. Preserve the Phase 7 boundary: Network owns topology and assembly/reference wiring only.
 9. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
@@ -318,7 +338,7 @@ Phase boundaries to preserve:
 Recommended commit message:
 
 ```text
-docs: audit phase 11e LMTD HX model foundation
+test: consolidate HX model family contracts
 ```
 
 ---
@@ -409,6 +429,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-17 |
 | **Updated by** | Codex |
-| **Status note** | Phase 11F segmented HX model foundation checkpoint approved for merge as checkpoint; continue Phase 11 after merge |
+| **Status note** | Phase 11G approved for merge as checkpoint; Phase 11 final closeout is checkpoint-only and Phase 11 remains open |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
