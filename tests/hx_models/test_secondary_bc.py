@@ -102,6 +102,34 @@ class TestSinkInletTempAndFlow:
         with pytest.raises((AttributeError, TypeError)):
             bc.T_in = 0.0  # type: ignore[misc]
 
+    def test_inf_t_in_rejected(self) -> None:
+        with pytest.raises(ValueError, match="T_in"):
+            SinkInletTempAndFlow(T_in=math.inf, mdot_secondary=0.1, cp_secondary=4180.0)
+
+    def test_negative_mdot_rejected(self) -> None:
+        with pytest.raises(ValueError, match="mdot_secondary"):
+            SinkInletTempAndFlow(T_in=300.0, mdot_secondary=-0.1, cp_secondary=4180.0)
+
+    def test_inf_mdot_rejected(self) -> None:
+        with pytest.raises(ValueError, match="mdot_secondary"):
+            SinkInletTempAndFlow(T_in=300.0, mdot_secondary=math.inf, cp_secondary=4180.0)
+
+    def test_nan_mdot_rejected(self) -> None:
+        with pytest.raises(ValueError, match="mdot_secondary"):
+            SinkInletTempAndFlow(T_in=300.0, mdot_secondary=math.nan, cp_secondary=4180.0)
+
+    def test_zero_cp_rejected(self) -> None:
+        with pytest.raises(ValueError, match="cp_secondary"):
+            SinkInletTempAndFlow(T_in=300.0, mdot_secondary=0.1, cp_secondary=0.0)
+
+    def test_nan_cp_rejected(self) -> None:
+        with pytest.raises(ValueError, match="cp_secondary"):
+            SinkInletTempAndFlow(T_in=300.0, mdot_secondary=0.1, cp_secondary=math.nan)
+
+    def test_inf_cp_rejected(self) -> None:
+        with pytest.raises(ValueError, match="cp_secondary"):
+            SinkInletTempAndFlow(T_in=300.0, mdot_secondary=0.1, cp_secondary=math.inf)
+
 
 # ---------------------------------------------------------------------------
 # FixedWallTemp

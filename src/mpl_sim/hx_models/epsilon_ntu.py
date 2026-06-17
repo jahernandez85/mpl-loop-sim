@@ -5,32 +5,48 @@ Implements a minimal lumped ε-NTU strategy for V1.
 Scope (V1):
   - Handles FixedHeatRate BC fully: Q is prescribed, outlet enthalpy and
     pressure are derived from injected correlations.
-  - SinkInletTempAndFlow, FixedWallTemp, and AmbientCoupling BCs are declared
-    seams; solve() raises UnsupportedHeatExchangerBoundaryConditionError for
-    these in V1 (no fake physics).
-  - Calls injected htc_primary and dp_primary through the Correlation contract.
-  - Applies htc_multiplier to HTC output and friction_multiplier to DP output.
+  - Handles SinkInletTempAndFlow BC: lumped ε-NTU calculation with explicit
+    primary thermal mode and UA computation mode — no hidden assumptions.
+  - FixedWallTemp and AmbientCoupling BCs remain declared seams.
+  - Calls injected htc_primary, htc_secondary, and dp_primary through the
+    Correlation contract.
+  - Applies htc_multiplier at the UA seam and friction_multiplier to DP output.
   - Never resolves a registry internally.
   - Never accesses Ports, Network, Solver, SystemState, or PropertyBackend.
   - Never imports CoolProp.
 
-Sign convention (FixedHeatRate):
-  Q > 0  — primary fluid gains enthalpy (evaporator sense)
-  Q < 0  — primary fluid rejects heat (condenser sense)
+Sign convention (both paths):
+  Q > 0  — primary fluid gains enthalpy (evaporator/heating sense)
+  Q < 0  — primary fluid rejects heat (condenser/cooling sense)
   h_out = h_in + Q / primary_mdot
   P_out = P_in - dP_primary      (dP_primary > 0 means pressure decreases)
 
+SinkInletTempAndFlow sign convention:
+  Q = epsilon * C_min * (T_secondary_in - T_primary_in)
+    T_secondary_in > T_primary_in  →  Q > 0  (primary absorbs heat — evaporator)
+    T_primary_in  > T_secondary_in →  Q < 0  (primary rejects heat — condenser)
+
 Calibration seam:
-  HTC calibration:  htc_calibrated = htc_multiplier * raw_htc_value
-    Applied to the HTC correlation output only; does not affect the energy
-    balance when using FixedHeatRate (Q is prescribed, not derived from HTC).
+  HTC calibration:  h_eff = htc_multiplier * raw_htc_value
+    Applied to each HTC output before UA is computed; affects UA, NTU, ε, Q.
+    For FixedHeatRate: Q is prescribed, so htc_multiplier is tracked only.
   DP calibration:   dP_calibrated = friction_multiplier * raw_dP_value
     Applied to the DP correlation output; the calibrated dP is used for P_out.
+
+Primary thermal mode (SinkInletTempAndFlow only — explicit, no inference):
+  FINITE_CAPACITY      — primary_cp required; Cr = C_primary/C_secondary
+  CONSTANT_TEMPERATURE — Cr = 0; primary_cp must be absent from request
+
+UA computation mode (SinkInletTempAndFlow only — explicit, no fallback):
+  PRIMARY_ONLY — UA = h_primary * A_ht; htc_primary required
+  TWO_SIDED    — 1/UA = 1/(h_p·A) + 1/(h_s·A); both HTCs required
 
 Required geom_scalars keys:
   _build_htc_input  : "G", "D_h", "x"
   _build_dp_input   : "G", "D_h", "L_cell", "rho", "mu"
                       "roughness" is optional (defaults to 0.0 — smooth pipe)
+  _solve_sink_inlet : "A_ht" (heat-transfer area [m²]) — plus HTC/DP keys when
+                      those correlations are injected.
 
 Architectural constraints:
   - No import of CoolProp, properties/, components/, network/, or solvers/.
@@ -57,7 +73,9 @@ from mpl_sim.hx_models.base import (
     HeatExchangerModelKind,
     HXSolveRequest,
     HXSolveResult,
+    PrimaryThermalMode,
     SinkInletTempAndFlow,
+    UAComputationMode,
     UnsupportedHeatExchangerBoundaryConditionError,
 )
 
@@ -73,6 +91,35 @@ def _require_scalar(gs: Mapping[str, float], key: str, context: str) -> float:
     if not math.isfinite(value):
         raise ValueError(f"{context}: geom_scalars[{key!r}] must be a finite float; got {value!r}")
     return value
+
+
+def _epsilon_counterflow(NTU: float, Cr: float) -> float:
+    """Counterflow heat-exchanger effectiveness.
+
+    Parameters
+    ----------
+    NTU : number of transfer units (UA / C_min); must be >= 0
+    Cr  : heat-capacity-rate ratio C_min/C_max; 0 <= Cr <= 1
+
+    Returns
+    -------
+    epsilon in [0, 1]
+
+    Formula
+    -------
+    Cr == 0  (phase-change stream or infinite C_max):
+        ε = 1 - exp(-NTU)
+    Cr == 1  (balanced streams — special case to avoid 0/0):
+        ε = NTU / (1 + NTU)
+    0 < Cr < 1:
+        ε = (1 - exp(-NTU*(1-Cr))) / (1 - Cr*exp(-NTU*(1-Cr)))
+    """
+    if Cr == 0.0:
+        return 1.0 - math.exp(-NTU)
+    if abs(Cr - 1.0) < 1e-9:
+        return NTU / (1.0 + NTU)
+    exp_term = math.exp(-NTU * (1.0 - Cr))
+    return (1.0 - exp_term) / (1.0 - Cr * exp_term)
 
 
 class EpsilonNTUModel(HeatExchangerModel):
@@ -106,12 +153,7 @@ class EpsilonNTUModel(HeatExchangerModel):
             return self._solve_fixed_heat_rate(req, bc)
 
         if isinstance(bc, SinkInletTempAndFlow):
-            raise UnsupportedHeatExchangerBoundaryConditionError(
-                "EpsilonNTUModel V1 does not implement SinkInletTempAndFlow BC.  "
-                "Detailed sink-side ε-NTU requires a PropertyBackend for primary "
-                "temperature lookup, which is not available inside a HX model.  "
-                "Use FixedHeatRate BC for V1."
-            )
+            return self._solve_sink_inlet(req, bc)
 
         if isinstance(bc, FixedWallTemp):
             raise UnsupportedHeatExchangerBoundaryConditionError(
@@ -161,6 +203,124 @@ class EpsilonNTUModel(HeatExchangerModel):
         # --- Outlet state ---
         h_out = req.primary_state_in.h + Q / req.primary_mdot
         P_out = req.primary_state_in.P - dP_primary
+        primary_state_out = FluidState(
+            P=P_out,
+            h=h_out,
+            identity=req.primary_state_in.identity,
+        )
+
+        return HXSolveResult(
+            primary_state_out=primary_state_out,
+            Q=Q,
+            dP_primary=dP_primary,
+            verdicts=tuple(verdicts),
+            htc_multiplier=req.htc_multiplier,
+            friction_multiplier=req.friction_multiplier,
+            raw_dP_primary=raw_dP,
+        )
+
+    # ------------------------------------------------------------------
+    # SinkInletTempAndFlow path
+    # ------------------------------------------------------------------
+
+    def _solve_sink_inlet(
+        self,
+        req: HXSolveRequest,
+        bc: SinkInletTempAndFlow,
+    ) -> HXSolveResult:
+        ctx = "EpsilonNTUModel._solve_sink_inlet"
+
+        # --- Require explicit primary temperature (checked first) ---
+        if req.primary_T_in is None:
+            raise ValueError(
+                "EpsilonNTUModel: HXSolveRequest.primary_T_in is required when "
+                "secondary_bc is SinkInletTempAndFlow.  "
+                "Supply the precomputed primary inlet temperature [K] from the caller."
+            )
+        primary_T_in = req.primary_T_in
+
+        # --- Require explicit primary thermal mode (no None-inference of phase change) ---
+        if req.primary_thermal_mode is None:
+            raise ValueError(
+                "EpsilonNTUModel: primary_thermal_mode is required for "
+                "SinkInletTempAndFlow.  "
+                "Specify PrimaryThermalMode.FINITE_CAPACITY or CONSTANT_TEMPERATURE."
+            )
+
+        # --- Require explicit UA computation mode (no implicit single-sided fallback) ---
+        if req.ua_computation_mode is None:
+            raise ValueError(
+                "EpsilonNTUModel: ua_computation_mode is required for "
+                "SinkInletTempAndFlow.  "
+                "Specify UAComputationMode.PRIMARY_ONLY or TWO_SIDED."
+            )
+
+        # --- Require explicit heat-transfer area ---
+        A_ht = _require_scalar(req.geom_scalars, "A_ht", ctx)
+        if A_ht <= 0.0:
+            raise ValueError(f"EpsilonNTUModel: geom_scalars['A_ht'] must be > 0; got {A_ht!r}")
+
+        verdicts: list[CorrelationOutput] = []
+
+        # --- UA computation: explicit mode, no implicit fallback ---
+        if req.ua_computation_mode is UAComputationMode.PRIMARY_ONLY:
+            # htc_primary required; validated at HXSolveRequest construction
+            htc_p_inp = self._build_htc_input(req)
+            raw_htc_p_out = req.htc_primary.evaluate(htc_p_inp)  # type: ignore[union-attr]
+            verdicts.append(raw_htc_p_out)
+            h_p_eff = req.htc_multiplier * raw_htc_p_out.value[0]
+            UA = h_p_eff * A_ht
+
+        else:  # TWO_SIDED
+            # Both htc_primary and htc_secondary required; validated at construction
+            htc_p_inp = self._build_htc_input(req)
+            raw_htc_p_out = req.htc_primary.evaluate(htc_p_inp)  # type: ignore[union-attr]
+            verdicts.append(raw_htc_p_out)
+
+            htc_s_inp = self._build_htc_input(req)
+            raw_htc_s_out = req.htc_secondary.evaluate(htc_s_inp)  # type: ignore[union-attr]
+            verdicts.append(raw_htc_s_out)
+
+            h_p_eff = req.htc_multiplier * raw_htc_p_out.value[0]
+            h_s_eff = req.htc_multiplier * raw_htc_s_out.value[0]
+            UA = 1.0 / (1.0 / (h_p_eff * A_ht) + 1.0 / (h_s_eff * A_ht))
+
+        # --- Heat-capacity rates: explicit thermal mode, no None-inference ---
+        C_secondary = bc.mdot_secondary * bc.cp_secondary
+
+        if req.primary_thermal_mode is PrimaryThermalMode.FINITE_CAPACITY:
+            # primary_cp required; validated at HXSolveRequest construction
+            C_primary = req.primary_mdot * req.primary_cp  # type: ignore[operator]
+            C_min = min(C_primary, C_secondary)
+            C_max = max(C_primary, C_secondary)
+            Cr = C_min / C_max
+        else:  # CONSTANT_TEMPERATURE
+            C_min = C_secondary
+            Cr = 0.0
+
+        # --- ε-NTU ---
+        NTU = UA / C_min
+        epsilon = _epsilon_counterflow(NTU, Cr)
+
+        # Q = heat added to primary fluid
+        #   T_secondary > T_primary  →  Q > 0  (primary absorbs heat — evaporator)
+        #   T_primary  > T_secondary →  Q < 0  (primary rejects heat — condenser)
+        Q = epsilon * C_min * (bc.T_in - primary_T_in)
+
+        # --- Outlet enthalpy ---
+        h_out = req.primary_state_in.h + Q / req.primary_mdot
+
+        # --- DP primary (identical path to FixedHeatRate) ---
+        raw_dP = 0.0
+        if req.dp_primary is not None:
+            dp_inp = self._build_dp_input(req)
+            raw_dp_out = req.dp_primary.evaluate(dp_inp)
+            verdicts.append(raw_dp_out)
+            raw_dP = raw_dp_out.value[0]
+
+        dP_primary = req.friction_multiplier * raw_dP
+        P_out = req.primary_state_in.P - dP_primary
+
         primary_state_out = FluidState(
             P=P_out,
             h=h_out,

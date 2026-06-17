@@ -11,8 +11,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-11-heat-exchanger-model` |
-| **Stage** | Phase 11 HeatExchangerModel, Evaporator, and Condenser foundation checkpoint complete; safe to merge as checkpoint and continue Phase 11 |
+| **Branch** | `phase-11b-hx-physics-continuation` |
+| **Stage** | Phase 11B sink-side epsilon-NTU checkpoint complete; safe to merge as checkpoint and continue Phase 11 |
 | **Completed phase** | **Phase 10 - Pump and Accumulator** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -28,15 +28,29 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 10 status** | **Complete. Pump map/command behavior, pump power/efficiency seam, shaft-speed/inertia named seam, accumulator `VolumePressureLaw` integration, PCA closure, `V_g` state seam, network pressure-reference wiring, and pump-driven accumulator-referenced loop acceptance shape are implemented at planned V1 fidelity.** |
 | **Phase 11 foundation audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 11 foundation status** | **Checkpoint complete. HeatExchangerModel contract/registry, secondary BC value objects, V1 `EpsilonNTUModel` fixed-heat-rate path, and Evaporator/Condenser component wrappers are implemented and tested. Full Phase 11 physics remains in progress.** |
-| **Branch status** | **Implemented on `phase-11-heat-exchanger-model`; safe to merge into `main` as a Phase 11 checkpoint.** |
+| **Phase 11B audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 11B status** | **Checkpoint complete. `EpsilonNTUModel` now supports `SinkInletTempAndFlow` with explicit `primary_T_in`, explicit `PrimaryThermalMode`, explicit `UAComputationMode`, explicit finite-capacity `primary_cp`, injected HTC/DP correlations, and tested heating/cooling sign convention.** |
+| **Branch status** | **Implemented on `phase-11b-hx-physics-continuation`; safe to merge into `main` as a Phase 11B checkpoint.** |
 | **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation after checkpoint merge** |
-| **Next immediate slice** | Continue Phase 11 with sink-side HX physics, LMTD/segmented strategies, migrated HTC/DP closures, and loop residual integration according to `IMPLEMENTATION_PLAN.md` |
-| **Working tree before this docs task** | Phase 11 foundation implementation present on `phase-11-heat-exchanger-model` |
-| **Test status** | 2235 passed, verified 2026-06-17 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
+| **Next immediate slice** | Continue Phase 11 with wrapper hardening, FixedWallTemp/AmbientCoupling decisions, LMTD/segmented strategies, migrated HTC/DP closures, and loop residual integration according to `IMPLEMENTATION_PLAN.md` |
+| **Working tree before this docs task** | Phase 11B sink-side epsilon-NTU implementation present on `phase-11b-hx-physics-continuation` |
+| **Test status** | 2301 passed, verified 2026-06-17 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
 | **Lint status** | `ruff check .` clean, verified 2026-06-17 |
 | **Format status** | `black --check src tests` clean, verified 2026-06-17; 113 files would be left unchanged |
 
-Phase 11 foundation checkpoint is complete and safe to merge as a checkpoint.
+Phase 11B sink-side epsilon-NTU checkpoint is complete and safe to merge as a checkpoint.
+
+- `SinkInletTempAndFlow` is now implemented in `EpsilonNTUModel` as a lumped counterflow epsilon-NTU heat balance.
+- `PrimaryThermalMode` is explicit: `FINITE_CAPACITY` requires explicit positive `primary_cp`; `CONSTANT_TEMPERATURE` forbids `primary_cp` and represents the isothermal/phase-change limit without inference from `None`.
+- `UAComputationMode` is explicit: `PRIMARY_ONLY` requires primary HTC; `TWO_SIDED` requires primary and secondary HTC and uses the series resistance formula.
+- `primary_T_in`, sink-side `T_in`, sink `mdot_secondary`, sink `cp_secondary`, `primary_mdot`, and `A_ht` are explicit and validated.
+- The sign convention is explicit and tested: `Q > 0` heats the primary side, `Q < 0` cools it, and `h_out = h_in + Q / primary_mdot`.
+- HTC/UA calibration affects UA, NTU, epsilon, and Q; friction calibration affects `dP_primary` and not energy balance.
+- Correlation verdicts from HTC and DP calls are propagated into `HXSolveResult`.
+- HX models still do not import CoolProp, construct PropertyBackend, resolve `CorrelationRegistry`, import Network/Solver, or store derived properties.
+- Components forward the new primary thermal and UA mode fields into `HXSolveRequest`; Condenser also forwards `htc_secondary`. Evaporator two-sided secondary-HTC forwarding remains a minor follow-up.
+
+Phase 11 foundation checkpoint remains complete and safe to merge as a checkpoint.
 
 - `HeatExchangerModelKind`, `HXSolveRequest`, `HXSolveResult`, secondary-fluid BC value objects, and `HeatExchangerModel` contract under `src/mpl_sim/hx_models/base.py`.
 - Separate `HeatExchangerModelRegistry` under `src/mpl_sim/hx_models/registry.py`.
@@ -158,6 +172,7 @@ Key authority statements:
 | **Phase 10 Pump and Accumulator foundation checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 10** |
 | **Phase 10 Pump and Accumulator final closeout** | **Complete; approved for merge and next phase** |
 | **Phase 11 HeatExchangerModel, Evaporator and Condenser foundation checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
+| **Phase 11B Sink-side epsilon-NTU checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 
 Closeout artifacts:
 
@@ -176,12 +191,13 @@ Closeout artifacts:
 - `docs/validation/audits/PHASE_10_PUMP_ACCUMULATOR_FINAL_AUDIT.md`
 - `docs/validation/audits/PHASE_10_PUMP_ACCUMULATOR_FINAL_CLOSEOUT_AUDIT.md`
 - `docs/validation/audits/PHASE_11_HEAT_EXCHANGER_MODEL_FOUNDATION_AUDIT.md`
+- `docs/validation/audits/PHASE_11B_SINK_SIDE_EPSILON_NTU_AUDIT.md`
 
 ---
 
 ## 4. Current Active Phase
 
-The current active phase after merging the `phase-11-heat-exchanger-model` checkpoint is:
+The current active phase after merging the `phase-11b-hx-physics-continuation` checkpoint is:
 
 **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation**, according to `IMPLEMENTATION_PLAN.md`.
 
@@ -196,7 +212,7 @@ The completed Phase 10 work should be carried forward as the pressure-reference 
 - reference-node wiring owned by Network;
 - pump-driven, accumulator-referenced loop acceptance shape.
 
-Phase 11 should continue from the completed foundation checkpoint. The contract/registry, fixed-heat-rate V1 path, and component wrappers are present; the remaining Phase 11 work is the physical HX continuation, not a new architecture pass. Dynamic simulation, controls, fitting, optimization, DOE generation, literature validation, and unplanned solver behavior changes remain deferred unless a future task explicitly changes scope.
+Phase 11 should continue from the completed Phase 11B checkpoint. The contract/registry, fixed-heat-rate V1 path, component wrappers, and sink-side epsilon-NTU model path are present; the remaining Phase 11 work is physical HX continuation and integration, not a new architecture pass. Dynamic simulation, controls, fitting, optimization, DOE generation, literature validation, and unplanned solver behavior changes remain deferred unless a future task explicitly changes scope.
 
 Phase boundaries to preserve:
 
@@ -212,10 +228,10 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Review and commit the Phase 11 foundation audit/status update.
-2. Merge `phase-11-heat-exchanger-model` into `main` as a checkpoint.
+1. Review and commit the Phase 11B sink-side epsilon-NTU audit/status update.
+2. Merge `phase-11b-hx-physics-continuation` into `main` as a checkpoint.
 3. Continue **Phase 11 - HeatExchangerModel, Evaporator and Condenser** after merge.
-4. Implement the next HX physics slices without changing frozen architecture docs.
+4. Implement the next HX physics/integration slices without changing frozen architecture docs.
 5. Preserve the completed Phase 10 boundary: Pump and Accumulator remain local and physics-light; Network owns pressure-reference wiring; law evaluation stays out of Network.
 6. Preserve the Phase 9 boundary: schema/results/validation primitives remain data-only and physics-free.
 7. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
@@ -227,7 +243,7 @@ Phase boundaries to preserve:
 Recommended commit message:
 
 ```text
-docs: audit phase 11 heat exchanger foundation
+docs: audit phase 11b sink-side epsilon ntu
 ```
 
 ---
@@ -257,7 +273,7 @@ These rules are operational forms of the frozen decisions. Violating any is a re
 
 ## 7. Current Known Blockers and Deferred Work
 
-None block merging the Phase 11 foundation checkpoint.
+None block merging the Phase 11B sink-side epsilon-NTU checkpoint.
 
 | Item | What it affects | Resolution path |
 |---|---|---|
@@ -270,7 +286,10 @@ None block merging the Phase 11 foundation checkpoint.
 | Physical residual assembly not yet implemented | Future solver integration | Add only when explicitly planned, keeping adapters separate from solver core |
 | Newton and finite-difference Jacobian not yet implemented | Future solver strategy work | Introduce only when explicitly planned |
 | Pressure solving and flow solving not yet implemented | Future loop solving work | Implement through generic residual/update contracts, not by coupling solver to components |
-| Full sink-side HX BC evaluation not implemented | Phase 11 continuation | Add `SinkInletTempAndFlow`, `FixedWallTemp`, and `AmbientCoupling` evaluation only through HX model strategies |
+| Evaporator two-sided secondary HTC forwarding not yet exposed | Minor Phase 11 wrapper hardening | Add an `htc_secondary` input/forwarding path if evaporator two-sided UA is required through the component wrapper |
+| Component-level sink-side wrapper tests are not yet complete | Phase 11 test hardening | Add component tests for `primary_T_in`, `primary_cp`, `PrimaryThermalMode`, `UAComputationMode`, and relevant correlation forwarding |
+| Full sink-side HX BC evaluation not complete | Phase 11 continuation | `SinkInletTempAndFlow` is implemented; add `FixedWallTemp` and `AmbientCoupling` evaluation only through HX model strategies if they enter scope |
+| HTC input/output positive validation can be hardened | Phase 11 model hardening | Add explicit checks for invalid HTC input scalars and non-positive HTC outputs before UA calculation |
 | Numeric LMTD and segmented-march strategies not implemented | Phase 11 continuation | Implement as `HeatExchangerModel` strategies, not correlations |
 | Boiling/condensation HTC and two-phase DP closure migrations not implemented | Phase 11 continuation | Port under the correlation contract with envelopes and no globals/hacks |
 | Full loop residual integration with Evaporator and Condenser not implemented | Phase 11 continuation | Integrate through component/local residual adapters while keeping Solver physics-free |
@@ -293,10 +312,11 @@ Before any coding task, read in order:
 
 Rules for the next implementation session:
 
-- The Phase 11 HeatExchangerModel, Evaporator, and Condenser foundation checkpoint is safe to merge.
-- The branch `phase-11-heat-exchanger-model` is safe to merge into `main` as a checkpoint.
+- The Phase 11B sink-side epsilon-NTU checkpoint is safe to merge.
+- The branch `phase-11b-hx-physics-continuation` is safe to merge into `main` as a checkpoint.
 - Phase 10 is complete.
 - Phase 11 is not complete; continue Phase 11 heat-exchanger work according to `IMPLEMENTATION_PLAN.md`.
+- `SinkInletTempAndFlow` is implemented in `EpsilonNTUModel`; continue with wrapper hardening, remaining HX BCs/strategies, correlation migrations, and loop integration.
 - Do not reopen Phase 9 unless a new task explicitly requests a Phase 9 fix.
 - Keep schema/results/validation serialization data-only and physics-free.
 - Keep solver core generic and physics-free.
@@ -317,6 +337,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-17 |
 | **Updated by** | Codex |
-| **Status note** | Phase 11 HeatExchangerModel, Evaporator, and Condenser foundation checkpoint approved for merge as checkpoint; continue Phase 11 after merge |
+| **Status note** | Phase 11B sink-side epsilon-NTU checkpoint approved for merge as checkpoint; continue Phase 11 after merge |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
