@@ -20,6 +20,11 @@ Exports:
   Concrete strategies:
     EpsilonNTUModel
     LMTDModel
+    SegmentedMarchModel
+
+  Cell-profile value objects (SegmentedMarchModel):
+    SegmentedCellRecord
+    SegmentedProfile
 
 Architectural constraints:
   - MUST NOT import from network/ or solvers/.
@@ -46,6 +51,11 @@ from mpl_sim.hx_models.registry import (
     HeatExchangerModelRegistry,
     create_empty_hx_model_registry,
 )
+from mpl_sim.hx_models.segmented import (
+    SegmentedCellRecord,
+    SegmentedMarchModel,
+    SegmentedProfile,
+)
 
 __all__ = [
     # Kind
@@ -69,4 +79,8 @@ __all__ = [
     # Concrete strategies
     "EpsilonNTUModel",
     "LMTDModel",
+    "SegmentedMarchModel",
+    # Cell-profile value objects
+    "SegmentedCellRecord",
+    "SegmentedProfile",
 ]

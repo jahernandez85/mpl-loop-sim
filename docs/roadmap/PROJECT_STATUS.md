@@ -11,8 +11,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-11e-lmtd-hx-model-foundation` |
-| **Stage** | Phase 11E LMTD HX model foundation checkpoint complete; safe to merge as checkpoint and continue Phase 11 |
+| **Branch** | `phase-11f-segmented-hx-model-foundation` |
+| **Stage** | Phase 11F segmented HX model foundation checkpoint complete; safe to merge as checkpoint and continue Phase 11 |
 | **Completed phase** | **Phase 10 - Pump and Accumulator** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -36,15 +36,32 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11D status** | **Checkpoint complete. `EpsilonNTUModel` now supports `FixedWallTemp` and `AmbientCoupling` with explicit primary inlet temperature, explicit wall/ambient inputs, correct heating/cooling sign convention, tested enthalpy balance, and preserved correlation/calibration boundaries.** |
 | **Phase 11E audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 11E status** | **Checkpoint complete. `LMTDModel` is implemented as a limited foundation supporting `FixedWallTemp` and `AmbientCoupling`; `SinkInletTempAndFlow` and `FixedHeatRate` remain explicitly unsupported in `LMTDModel`.** |
-| **Branch status** | **Implemented on `phase-11e-lmtd-hx-model-foundation`; safe to merge into `main` as a Phase 11E checkpoint.** |
+| **Phase 11F audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 11F status** | **Checkpoint complete. `SegmentedMarchModel` is implemented as a limited foundation supporting only `FixedHeatRate`; segment-wise secondary coupling and local HTC/UA solving remain deferred.** |
+| **Branch status** | **Implemented on `phase-11f-segmented-hx-model-foundation`; safe to merge into `main` as a Phase 11F checkpoint.** |
 | **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation after checkpoint merge** |
-| **Next immediate slice** | Continue Phase 11 with full two-stream LMTD, segmented strategies, migrated HTC/DP closures, and loop residual integration according to `IMPLEMENTATION_PLAN.md` |
-| **Working tree before this docs task** | Phase 11E LMTD HX model foundation implementation present on `phase-11e-lmtd-hx-model-foundation` |
-| **Test status** | 2490 passed, verified 2026-06-17 with `pytest`; targeted `pytest tests/hx_models tests/components` passed 1090 tests; pytest emitted a `.pytest_cache` permission warning |
+| **Next immediate slice** | Continue Phase 11 with segment-wise secondary coupling decisions, local HTC/UA solving, migrated HTC/DP closures, moving-boundary strategy work, and loop residual integration according to `IMPLEMENTATION_PLAN.md` |
+| **Working tree before this docs task** | Phase 11F segmented HX model foundation implementation present on `phase-11f-segmented-hx-model-foundation` |
+| **Test status** | 2547 passed, verified 2026-06-17 with `pytest`; targeted `pytest tests/hx_models tests/components` passed 1147 tests; pytest emitted a `.pytest_cache` permission warning |
 | **Lint status** | `ruff check src tests` clean, verified 2026-06-17. |
-| **Format status** | `black --check --no-cache --verbose src tests` passed, with 118 files unchanged |
+| **Format status** | `black --check --no-cache --verbose src tests` passed, with 120 files unchanged |
 
-Phase 11E LMTD HX model foundation checkpoint is complete and safe to merge as a checkpoint.
+Phase 11F segmented HX model foundation checkpoint is complete and safe to merge as a checkpoint.
+
+- New `SegmentedMarchModel` is implemented under `src/mpl_sim/hx_models/segmented.py`.
+- `SegmentedMarchModel.kind()` returns `HeatExchangerModelKind.SEGMENTED_MARCH`.
+- `SegmentedMarchModel` is exported from `mpl_sim.hx_models` and can be registered/resolved through `HeatExchangerModelRegistry`.
+- `SegmentedCellRecord` and `SegmentedProfile` are immutable diagnostic value objects exported from `mpl_sim.hx_models`.
+- Supported in this checkpoint: `FixedHeatRate`.
+- Explicitly unsupported in this checkpoint: `SinkInletTempAndFlow`, `FixedWallTemp`, and `AmbientCoupling`.
+- `FixedHeatRate` is split evenly over explicit `UNIFORM` `n_cells`, with per-cell `h_out = h_in + Q_cell / primary_mdot`.
+- Optional primary DP is handled cell-wise through injected `dp_primary`; `raw_dP_primary` is the pre-calibration sum of raw cell DP outputs.
+- `friction_multiplier` affects DP and pressure only, not heat rate or enthalpy.
+- `HXSolveResult.zone_profile` carries the diagnostic `SegmentedProfile`; it is not stored in `SystemState` or attached to Ports.
+- `SegmentedMarchModel` does not import CoolProp, construct or call `PropertyBackend`, import Network/Solver, or resolve `CorrelationRegistry`.
+- Phase 11 remains incomplete; segment-wise secondary coupling, local HTC/UA solving, moving-boundary modeling, migrated boiling/condensation HTC and two-phase DP closures, loop residual integration, validation harnesses, DOE, dynamics, controls, fitting, and optimization remain deferred.
+
+Phase 11E LMTD HX model foundation checkpoint remains complete and safe to merge as a checkpoint.
 
 - New `LMTDModel` is implemented under `src/mpl_sim/hx_models/lmtd.py`.
 - `LMTDModel.kind()` returns `HeatExchangerModelKind.LMTD`.
@@ -226,6 +243,7 @@ Key authority statements:
 | **Phase 11C HX wrapper and input hardening checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 | **Phase 11D HX boundary-condition expansion checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 | **Phase 11E LMTD HX model foundation checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
+| **Phase 11F segmented HX model foundation checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 
 Closeout artifacts:
 
@@ -248,12 +266,13 @@ Closeout artifacts:
 - `docs/validation/audits/PHASE_11C_HX_WRAPPER_INPUT_HARDENING_AUDIT.md`
 - `docs/validation/audits/PHASE_11D_HX_BOUNDARY_CONDITION_EXPANSION_AUDIT.md`
 - `docs/validation/audits/PHASE_11E_LMTD_HX_MODEL_FOUNDATION_AUDIT.md`
+- `docs/validation/audits/PHASE_11F_SEGMENTED_HX_MODEL_FOUNDATION_AUDIT.md`
 
 ---
 
 ## 4. Current Active Phase
 
-The current active phase after merging the `phase-11e-lmtd-hx-model-foundation` checkpoint is:
+The current active phase after merging the `phase-11f-segmented-hx-model-foundation` checkpoint is:
 
 **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation**, according to `IMPLEMENTATION_PLAN.md`.
 
@@ -268,7 +287,7 @@ The completed Phase 10 work should be carried forward as the pressure-reference 
 - reference-node wiring owned by Network;
 - pump-driven, accumulator-referenced loop acceptance shape.
 
-Phase 11 should continue from the completed Phase 11E checkpoint. The contract/registry, fixed-heat-rate V1 path, component wrappers, sink-side epsilon-NTU model path, wrapper sink-side forwarding, input/output hardening, fixed-wall-temperature path, ambient-coupling path, and limited LMTD foundation for fixed-wall/ambient conditions are present; the remaining Phase 11 work is physical HX continuation and integration, not a new architecture pass. Dynamic simulation, controls, fitting, optimization, DOE generation, literature validation, and unplanned solver behavior changes remain deferred unless a future task explicitly changes scope.
+Phase 11 should continue from the completed Phase 11F checkpoint. The contract/registry, fixed-heat-rate V1 path, component wrappers, sink-side epsilon-NTU model path, wrapper sink-side forwarding, input/output hardening, fixed-wall-temperature path, ambient-coupling path, limited LMTD foundation for fixed-wall/ambient conditions, and limited segmented-march foundation for `FixedHeatRate` are present; the remaining Phase 11 work is physical HX continuation and integration, not a new architecture pass. Dynamic simulation, controls, fitting, optimization, DOE generation, literature validation, and unplanned solver behavior changes remain deferred unless a future task explicitly changes scope.
 
 Phase boundaries to preserve:
 
@@ -284,8 +303,8 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Review and commit the Phase 11E LMTD HX model foundation audit/status update.
-2. Merge `phase-11e-lmtd-hx-model-foundation` into `main` as a checkpoint.
+1. Review and commit the Phase 11F segmented HX model foundation audit/status update.
+2. Merge `phase-11f-segmented-hx-model-foundation` into `main` as a checkpoint.
 3. Continue **Phase 11 - HeatExchangerModel, Evaporator and Condenser** after merge.
 4. Implement the next HX physics/integration slices without changing frozen architecture docs.
 5. Preserve the completed Phase 10 boundary: Pump and Accumulator remain local and physics-light; Network owns pressure-reference wiring; law evaluation stays out of Network.
@@ -294,7 +313,7 @@ Phase boundaries to preserve:
 8. Preserve the Phase 7 boundary: Network owns topology and assembly/reference wiring only.
 9. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
 10. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
-11. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests` before reporting the next implementation task complete. For Phase 11E specifically, `ruff check src tests` was used because the required audit scope was source and tests.
+11. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests` before reporting the next implementation task complete. For Phase 11F specifically, `ruff check src tests` was used because the required audit scope was source and tests.
 
 Recommended commit message:
 
@@ -329,7 +348,7 @@ These rules are operational forms of the frozen decisions. Violating any is a re
 
 ## 7. Current Known Blockers and Deferred Work
 
-None block merging the Phase 11E LMTD HX model foundation checkpoint.
+None block merging the Phase 11F segmented HX model foundation checkpoint.
 
 | Item | What it affects | Resolution path |
 |---|---|---|
@@ -342,7 +361,7 @@ None block merging the Phase 11E LMTD HX model foundation checkpoint.
 | Physical residual assembly not yet implemented | Future solver integration | Add only when explicitly planned, keeping adapters separate from solver core |
 | Newton and finite-difference Jacobian not yet implemented | Future solver strategy work | Introduce only when explicitly planned |
 | Pressure solving and flow solving not yet implemented | Future loop solving work | Implement through generic residual/update contracts, not by coupling solver to components |
-| Full two-stream LMTD and segmented-march strategies not implemented | Phase 11 continuation | Build on the Phase 11E `LMTDModel` foundation; implement as `HeatExchangerModel` strategies, not correlations |
+| Full two-stream LMTD and full segmented-march strategies not implemented | Phase 11 continuation | Build on the Phase 11E `LMTDModel` foundation and Phase 11F `SegmentedMarchModel` foundation; implement as `HeatExchangerModel` strategies, not correlations |
 | Presentation artifact lint/noise remains on this branch lineage | Docs cleanup | Handle `docs/presentations` separately in `chore/remove-presentation-artifacts` or a docs cleanup branch |
 | Boiling/condensation HTC and two-phase DP closure migrations not implemented | Phase 11 continuation | Port under the correlation contract with envelopes and no globals/hacks |
 | Full loop residual integration with Evaporator and Condenser not implemented | Phase 11 continuation | Integrate through component/local residual adapters while keeping Solver physics-free |
@@ -365,11 +384,11 @@ Before any coding task, read in order:
 
 Rules for the next implementation session:
 
-- The Phase 11E LMTD HX model foundation checkpoint is safe to merge.
-- The branch `phase-11e-lmtd-hx-model-foundation` is safe to merge into `main` as a checkpoint.
+- The Phase 11F segmented HX model foundation checkpoint is safe to merge.
+- The branch `phase-11f-segmented-hx-model-foundation` is safe to merge into `main` as a checkpoint.
 - Phase 10 is complete.
 - Phase 11 is not complete; continue Phase 11 heat-exchanger work according to `IMPLEMENTATION_PLAN.md`.
-- `FixedHeatRate`, `SinkInletTempAndFlow`, `FixedWallTemp`, and `AmbientCoupling` are implemented in `EpsilonNTUModel`; Phase 11C completed wrapper sink-side forwarding and input/output hardening; Phase 11D completed fixed-wall and ambient boundary-condition support; Phase 11E added limited `LMTDModel` support for `FixedWallTemp` and `AmbientCoupling` while keeping `SinkInletTempAndFlow` and `FixedHeatRate` explicitly unsupported in `LMTDModel`. Continue with full HX strategies, correlation migrations, and loop integration.
+- `FixedHeatRate`, `SinkInletTempAndFlow`, `FixedWallTemp`, and `AmbientCoupling` are implemented in `EpsilonNTUModel`; Phase 11C completed wrapper sink-side forwarding and input/output hardening; Phase 11D completed fixed-wall and ambient boundary-condition support; Phase 11E added limited `LMTDModel` support for `FixedWallTemp` and `AmbientCoupling` while keeping `SinkInletTempAndFlow` and `FixedHeatRate` explicitly unsupported in `LMTDModel`; Phase 11F added limited `SegmentedMarchModel` support for `FixedHeatRate` while keeping segment-wise secondary coupling and local HTC/UA solving deferred. Continue with full HX strategies, correlation migrations, and loop integration.
 - Do not reopen Phase 9 unless a new task explicitly requests a Phase 9 fix.
 - Keep schema/results/validation serialization data-only and physics-free.
 - Keep solver core generic and physics-free.
@@ -378,7 +397,7 @@ Rules for the next implementation session:
 - Keep Pipe local; do not add network or solver behavior to Pipe.
 - Keep Pump and Accumulator local; do not add network or solver behavior to either component.
 - Preserve separation among geometry, discretization, correlations, calibration, components, network, solvers, schema, and results.
-- Continue Pump and Accumulator only for focused fixes or hardening; continue Phase 11 from the Phase 11E HX checkpoint. Keep dynamic controls, fitting, optimization, DOE, literature validation, Newton/Jacobian expansion, and transient solving deferred unless explicitly requested.
+- Continue Pump and Accumulator only for focused fixes or hardening; continue Phase 11 from the Phase 11F HX checkpoint. Keep dynamic controls, fitting, optimization, DOE, literature validation, Newton/Jacobian expansion, and transient solving deferred unless explicitly requested.
 - Run `pytest`, appropriate scoped lint, and `black --check src tests` before reporting any implementation task complete. Keep scoped audit commands tied to the requested branch surface.
 - Do not include `Co-Authored-By` lines unless explicitly requested.
 
@@ -390,6 +409,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-17 |
 | **Updated by** | Codex |
-| **Status note** | Phase 11E LMTD HX model foundation checkpoint approved for merge as checkpoint; continue Phase 11 after merge |
+| **Status note** | Phase 11F segmented HX model foundation checkpoint approved for merge as checkpoint; continue Phase 11 after merge |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
