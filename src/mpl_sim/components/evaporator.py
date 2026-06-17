@@ -64,6 +64,7 @@ class EvaporatorHXInput:
     geom_scalars        : flat scalar bag for correlation inputs
                           (e.g. "G", "D_h", "roughness", "L_cell", "rho", "mu")
     htc_primary         : optional injected primary-side HTC correlation
+    htc_secondary       : optional injected secondary-side HTC correlation
     dp_primary          : optional injected primary-side DP correlation
     htc_multiplier      : calibration multiplier for HTC output; default 1.0
     friction_multiplier : calibration multiplier for DP output; default 1.0
@@ -76,6 +77,7 @@ class EvaporatorHXInput:
     discretization: DiscretizationSpec
     geom_scalars: Mapping[str, float] = ()  # type: ignore[assignment]
     htc_primary: Correlation | None = None
+    htc_secondary: Correlation | None = None
     dp_primary: Correlation | None = None
     htc_multiplier: float = 1.0
     friction_multiplier: float = 1.0
@@ -195,6 +197,7 @@ class EvaporatorComponent(Component):
             discretization=inp.discretization,
             geom_scalars=inp.geom_scalars,
             htc_primary=inp.htc_primary,
+            htc_secondary=inp.htc_secondary,
             dp_primary=inp.dp_primary,
             htc_multiplier=inp.htc_multiplier,
             friction_multiplier=inp.friction_multiplier,

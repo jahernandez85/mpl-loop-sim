@@ -48,6 +48,8 @@ from mpl_sim.hx_models.base import (
     HeatExchangerModelKind,
     HXSolveRequest,
     HXSolveResult,
+    PrimaryThermalMode,
+    UAComputationMode,
 )
 
 # ---------------------------------------------------------------------------
@@ -409,6 +411,131 @@ class TestNoStoredDerivedState:
         cond.evaluate_heat_exchanger(_make_input())
         assert cond.component_id is cid_before
         assert cond.geometry is geom_before
+
+
+# ---------------------------------------------------------------------------
+# Forwarding: all HXSolveRequest fields must reach the model
+# ---------------------------------------------------------------------------
+
+
+class TestCondenserForwarding:
+    """Verifies evaluate_heat_exchanger forwards every CondenserHXInput field
+    into HXSolveRequest without loss or substitution.
+    Uses FixedHeatRate BC so HXSolveRequest imposes no extra field requirements."""
+
+    def _rec(self) -> _RecordingModel:
+        return _RecordingModel()
+
+    def _base_inp(self, rec: _RecordingModel, **kwargs) -> CondenserHXInput:  # type: ignore[no-untyped-def]
+        return CondenserHXInput(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.06,
+            secondary_bc=FixedHeatRate(Q=-500.0),
+            model=rec,
+            discretization=_DISC,
+            **kwargs,
+        )
+
+    def test_forwards_primary_t_in(self) -> None:
+        cond = _make_condenser()
+        rec = self._rec()
+        inp = self._base_inp(rec, primary_T_in=340.0)
+        cond.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.primary_T_in == 340.0
+
+    def test_forwards_primary_cp(self) -> None:
+        cond = _make_condenser()
+        rec = self._rec()
+        htc = _FakeHTCCorr()
+        inp = self._base_inp(
+            rec,
+            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+            primary_cp=2500.0,
+            ua_computation_mode=UAComputationMode.PRIMARY_ONLY,
+            htc_primary=htc,
+        )
+        cond.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.primary_cp == 2500.0
+
+    def test_forwards_primary_thermal_mode(self) -> None:
+        cond = _make_condenser()
+        rec = self._rec()
+        htc = _FakeHTCCorr()
+        inp = self._base_inp(
+            rec,
+            primary_thermal_mode=PrimaryThermalMode.CONSTANT_TEMPERATURE,
+            ua_computation_mode=UAComputationMode.PRIMARY_ONLY,
+            htc_primary=htc,
+        )
+        cond.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.primary_thermal_mode is PrimaryThermalMode.CONSTANT_TEMPERATURE
+
+    def test_forwards_ua_computation_mode(self) -> None:
+        cond = _make_condenser()
+        rec = self._rec()
+        htc_p = _FakeHTCCorr()
+        htc_s = _FakeHTCCorr()
+        inp = self._base_inp(
+            rec,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            htc_primary=htc_p,
+            htc_secondary=htc_s,
+        )
+        cond.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.ua_computation_mode is UAComputationMode.TWO_SIDED
+
+    def test_forwards_htc_secondary(self) -> None:
+        cond = _make_condenser()
+        rec = self._rec()
+        htc_p = _FakeHTCCorr()
+        htc_s = _FakeHTCCorr()
+        inp = self._base_inp(
+            rec,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            htc_primary=htc_p,
+            htc_secondary=htc_s,
+        )
+        cond.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.htc_secondary is htc_s
+
+    def test_forwards_htc_primary(self) -> None:
+        cond = _make_condenser()
+        rec = self._rec()
+        htc_p = _FakeHTCCorr()
+        inp = self._base_inp(rec, htc_primary=htc_p)
+        cond.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.htc_primary is htc_p
+
+    def test_forwards_dp_primary(self) -> None:
+        cond = _make_condenser()
+        rec = self._rec()
+        dp = _FakeDPCorr()
+        inp = self._base_inp(rec, dp_primary=dp)
+        cond.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.dp_primary is dp
+
+    def test_forwards_htc_multiplier(self) -> None:
+        cond = _make_condenser()
+        rec = self._rec()
+        inp = self._base_inp(rec, htc_multiplier=1.4)
+        cond.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert math.isclose(rec.last_req.htc_multiplier, 1.4)
+
+    def test_forwards_friction_multiplier(self) -> None:
+        cond = _make_condenser()
+        rec = self._rec()
+        inp = self._base_inp(rec, friction_multiplier=0.9)
+        cond.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert math.isclose(rec.last_req.friction_multiplier, 0.9)
 
 
 # ---------------------------------------------------------------------------
