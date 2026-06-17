@@ -11,8 +11,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-11c-hx-wrapper-and-input-hardening` |
-| **Stage** | Phase 11C HX wrapper and input-hardening checkpoint complete; safe to merge as checkpoint and continue Phase 11 |
+| **Branch** | `phase-11d-hx-boundary-condition-expansion` |
+| **Stage** | Phase 11D HX boundary-condition expansion checkpoint complete; safe to merge as checkpoint and continue Phase 11 |
 | **Completed phase** | **Phase 10 - Pump and Accumulator** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -32,15 +32,32 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11B status** | **Checkpoint complete. `EpsilonNTUModel` now supports `SinkInletTempAndFlow` with explicit `primary_T_in`, explicit `PrimaryThermalMode`, explicit `UAComputationMode`, explicit finite-capacity `primary_cp`, injected HTC/DP correlations, and tested heating/cooling sign convention.** |
 | **Phase 11C audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 11C status** | **Checkpoint complete. `EvaporatorHXInput` exposes and forwards `htc_secondary`; Evaporator/Condenser wrapper tests verify sink-side HX field forwarding; `EpsilonNTUModel` rejects invalid geometry/correlation scalars and invalid HTC/DP outputs without silent fallback.** |
-| **Branch status** | **Implemented on `phase-11c-hx-wrapper-and-input-hardening`; safe to merge into `main` as a Phase 11C checkpoint.** |
+| **Phase 11D audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 11D status** | **Checkpoint complete. `EpsilonNTUModel` now supports `FixedWallTemp` and `AmbientCoupling` with explicit primary inlet temperature, explicit wall/ambient inputs, correct heating/cooling sign convention, tested enthalpy balance, and preserved correlation/calibration boundaries.** |
+| **Branch status** | **Implemented on `phase-11d-hx-boundary-condition-expansion`; safe to merge into `main` as a Phase 11D checkpoint.** |
 | **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation after checkpoint merge** |
-| **Next immediate slice** | Continue Phase 11 with FixedWallTemp/AmbientCoupling decisions, LMTD/segmented strategies, migrated HTC/DP closures, and loop residual integration according to `IMPLEMENTATION_PLAN.md` |
-| **Working tree before this docs task** | Phase 11C HX wrapper/input-hardening implementation present on `phase-11c-hx-wrapper-and-input-hardening` |
-| **Test status** | 2363 passed, verified 2026-06-17 with `pytest`; targeted `pytest tests/hx_models tests/components` passed 963 tests; pytest emitted a `.pytest_cache` permission warning |
-| **Lint status** | `ruff check src tests` clean, verified 2026-06-17. `ruff check .` was intentionally not used for Phase 11C because unrelated `docs/presentations/generate_mpl_presentation.py` lint noise is outside scope. |
-| **Format status** | Exact `black --check src tests` timed out in this environment; diagnostic `black --check --no-cache --verbose src tests` passed, with 114 files unchanged |
+| **Next immediate slice** | Continue Phase 11 with LMTD/segmented strategies, migrated HTC/DP closures, and loop residual integration according to `IMPLEMENTATION_PLAN.md` |
+| **Working tree before this docs task** | Phase 11D HX boundary-condition expansion implementation present on `phase-11d-hx-boundary-condition-expansion` |
+| **Test status** | 2418 passed, verified 2026-06-17 with `pytest`; targeted `pytest tests/hx_models tests/components` passed 1018 tests; pytest emitted a `.pytest_cache` permission warning |
+| **Lint status** | `ruff check src tests` clean, verified 2026-06-17. |
+| **Format status** | `black --check --no-cache --verbose src tests` passed, with 116 files unchanged |
 
-Phase 11C HX wrapper and input-hardening checkpoint is complete and safe to merge as a checkpoint.
+Phase 11D HX boundary-condition expansion checkpoint is complete and safe to merge as a checkpoint.
+
+- `EpsilonNTUModel` now supports all declared `SecondaryFluidBC` variants: `FixedHeatRate`, `SinkInletTempAndFlow`, `FixedWallTemp`, and `AmbientCoupling`.
+- `FixedWallTemp` requires explicit `primary_T_in`, explicit finite positive `A_ht`, and injected `htc_primary`.
+- `FixedWallTemp` computes `Q = htc_multiplier * h_primary * A_ht * (T_wall - primary_T_in)`, with `Q > 0` heating the primary side and `Q < 0` cooling it.
+- `FixedWallTemp` rejects invalid HTC outputs before computing UA, propagates HTC/DP verdicts, and keeps `friction_multiplier` limited to DP.
+- `AmbientCoupling` requires explicit `primary_T_in` and uses `UA_ambient` and `T_ambient` directly for `Q = UA_ambient * (T_ambient - primary_T_in)`.
+- `AmbientCoupling` does not require `A_ht` or `htc_primary` for energy calculation.
+- `AmbientCoupling` deliberately does not apply `htc_multiplier` to `UA_ambient`; this calibration boundary is tested.
+- Both new paths test heating/cooling sign convention and `h_out = h_in + Q / primary_mdot`.
+- `UnsupportedHeatExchangerBoundaryConditionError` remains only as a future-proof guard for unrecognized BC objects.
+- No hidden defaults were added for water cp, heat-transfer area, hydraulic diameter, density, viscosity, primary temperature, wall temperature, ambient temperature, ambient UA, HTC, or DP.
+- HX models and wrappers still do not import CoolProp, construct PropertyBackend, import Network/Solver, or resolve `CorrelationRegistry`.
+- Phase 11 remains incomplete; LMTD, segmented march, moving boundary, migrated HTC/DP closures, loop residual integration, validation harnesses, DOE, dynamics, controls, fitting, and optimization remain deferred.
+
+Phase 11C HX wrapper and input-hardening checkpoint remains complete and safe to merge as a checkpoint.
 
 - `EvaporatorHXInput` now exposes `htc_secondary`.
 - `EvaporatorComponent` forwards `htc_secondary` into `HXSolveRequest`, so `UAComputationMode.TWO_SIDED` can be exercised through the wrapper when both HTC correlations are supplied.
@@ -189,6 +206,7 @@ Key authority statements:
 | **Phase 11 HeatExchangerModel, Evaporator and Condenser foundation checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 | **Phase 11B Sink-side epsilon-NTU checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 | **Phase 11C HX wrapper and input hardening checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
+| **Phase 11D HX boundary-condition expansion checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 
 Closeout artifacts:
 
@@ -209,12 +227,13 @@ Closeout artifacts:
 - `docs/validation/audits/PHASE_11_HEAT_EXCHANGER_MODEL_FOUNDATION_AUDIT.md`
 - `docs/validation/audits/PHASE_11B_SINK_SIDE_EPSILON_NTU_AUDIT.md`
 - `docs/validation/audits/PHASE_11C_HX_WRAPPER_INPUT_HARDENING_AUDIT.md`
+- `docs/validation/audits/PHASE_11D_HX_BOUNDARY_CONDITION_EXPANSION_AUDIT.md`
 
 ---
 
 ## 4. Current Active Phase
 
-The current active phase after merging the `phase-11c-hx-wrapper-and-input-hardening` checkpoint is:
+The current active phase after merging the `phase-11d-hx-boundary-condition-expansion` checkpoint is:
 
 **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation**, according to `IMPLEMENTATION_PLAN.md`.
 
@@ -229,7 +248,7 @@ The completed Phase 10 work should be carried forward as the pressure-reference 
 - reference-node wiring owned by Network;
 - pump-driven, accumulator-referenced loop acceptance shape.
 
-Phase 11 should continue from the completed Phase 11C checkpoint. The contract/registry, fixed-heat-rate V1 path, component wrappers, sink-side epsilon-NTU model path, wrapper sink-side forwarding, and input/output hardening are present; the remaining Phase 11 work is physical HX continuation and integration, not a new architecture pass. Dynamic simulation, controls, fitting, optimization, DOE generation, literature validation, and unplanned solver behavior changes remain deferred unless a future task explicitly changes scope.
+Phase 11 should continue from the completed Phase 11D checkpoint. The contract/registry, fixed-heat-rate V1 path, component wrappers, sink-side epsilon-NTU model path, wrapper sink-side forwarding, input/output hardening, fixed-wall-temperature path, and ambient-coupling path are present; the remaining Phase 11 work is physical HX continuation and integration, not a new architecture pass. Dynamic simulation, controls, fitting, optimization, DOE generation, literature validation, and unplanned solver behavior changes remain deferred unless a future task explicitly changes scope.
 
 Phase boundaries to preserve:
 
@@ -245,8 +264,8 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Review and commit the Phase 11C HX wrapper/input-hardening audit/status update.
-2. Merge `phase-11c-hx-wrapper-and-input-hardening` into `main` as a checkpoint.
+1. Review and commit the Phase 11D HX boundary-condition expansion audit/status update.
+2. Merge `phase-11d-hx-boundary-condition-expansion` into `main` as a checkpoint.
 3. Continue **Phase 11 - HeatExchangerModel, Evaporator and Condenser** after merge.
 4. Implement the next HX physics/integration slices without changing frozen architecture docs.
 5. Preserve the completed Phase 10 boundary: Pump and Accumulator remain local and physics-light; Network owns pressure-reference wiring; law evaluation stays out of Network.
@@ -255,12 +274,12 @@ Phase boundaries to preserve:
 8. Preserve the Phase 7 boundary: Network owns topology and assembly/reference wiring only.
 9. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
 10. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
-11. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests` before reporting the next implementation task complete. For Phase 11C specifically, `ruff check src tests` was used because unrelated `docs/presentations` lint/noise is outside scope.
+11. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests` before reporting the next implementation task complete. For Phase 11D specifically, `ruff check src tests` was used because the required audit scope was source and tests.
 
 Recommended commit message:
 
 ```text
-docs: audit phase 11c hx wrapper input hardening
+docs: audit phase 11d hx boundary condition expansion
 ```
 
 ---
@@ -290,7 +309,7 @@ These rules are operational forms of the frozen decisions. Violating any is a re
 
 ## 7. Current Known Blockers and Deferred Work
 
-None block merging the Phase 11C HX wrapper/input-hardening checkpoint.
+None block merging the Phase 11D HX boundary-condition expansion checkpoint.
 
 | Item | What it affects | Resolution path |
 |---|---|---|
@@ -303,7 +322,6 @@ None block merging the Phase 11C HX wrapper/input-hardening checkpoint.
 | Physical residual assembly not yet implemented | Future solver integration | Add only when explicitly planned, keeping adapters separate from solver core |
 | Newton and finite-difference Jacobian not yet implemented | Future solver strategy work | Introduce only when explicitly planned |
 | Pressure solving and flow solving not yet implemented | Future loop solving work | Implement through generic residual/update contracts, not by coupling solver to components |
-| Full sink-side HX BC evaluation not complete | Phase 11 continuation | `SinkInletTempAndFlow` is implemented; add `FixedWallTemp` and `AmbientCoupling` evaluation only through HX model strategies if they enter scope |
 | Numeric LMTD and segmented-march strategies not implemented | Phase 11 continuation | Implement as `HeatExchangerModel` strategies, not correlations |
 | Presentation artifact lint/noise remains on this branch lineage | Docs cleanup | Handle `docs/presentations` separately in `chore/remove-presentation-artifacts` or a docs cleanup branch |
 | Boiling/condensation HTC and two-phase DP closure migrations not implemented | Phase 11 continuation | Port under the correlation contract with envelopes and no globals/hacks |
@@ -327,11 +345,11 @@ Before any coding task, read in order:
 
 Rules for the next implementation session:
 
-- The Phase 11C HX wrapper/input-hardening checkpoint is safe to merge.
-- The branch `phase-11c-hx-wrapper-and-input-hardening` is safe to merge into `main` as a checkpoint.
+- The Phase 11D HX boundary-condition expansion checkpoint is safe to merge.
+- The branch `phase-11d-hx-boundary-condition-expansion` is safe to merge into `main` as a checkpoint.
 - Phase 10 is complete.
 - Phase 11 is not complete; continue Phase 11 heat-exchanger work according to `IMPLEMENTATION_PLAN.md`.
-- `SinkInletTempAndFlow` is implemented in `EpsilonNTUModel`; Phase 11C completed wrapper sink-side forwarding and input/output hardening; continue with remaining HX BCs/strategies, correlation migrations, and loop integration.
+- `FixedHeatRate`, `SinkInletTempAndFlow`, `FixedWallTemp`, and `AmbientCoupling` are implemented in `EpsilonNTUModel`; Phase 11C completed wrapper sink-side forwarding and input/output hardening; Phase 11D completed fixed-wall and ambient boundary-condition support; continue with remaining HX strategies, correlation migrations, and loop integration.
 - Do not reopen Phase 9 unless a new task explicitly requests a Phase 9 fix.
 - Keep schema/results/validation serialization data-only and physics-free.
 - Keep solver core generic and physics-free.
@@ -340,8 +358,8 @@ Rules for the next implementation session:
 - Keep Pipe local; do not add network or solver behavior to Pipe.
 - Keep Pump and Accumulator local; do not add network or solver behavior to either component.
 - Preserve separation among geometry, discretization, correlations, calibration, components, network, solvers, schema, and results.
-- Continue Pump and Accumulator only for focused fixes or hardening; continue Phase 11 from the HX foundation checkpoint. Keep dynamic controls, fitting, optimization, DOE, literature validation, Newton/Jacobian expansion, and transient solving deferred unless explicitly requested.
-- Run `pytest`, appropriate scoped lint, and `black --check src tests` before reporting any implementation task complete. Do not treat unrelated `docs/presentations` lint/noise as Phase 11C scope.
+- Continue Pump and Accumulator only for focused fixes or hardening; continue Phase 11 from the Phase 11D HX checkpoint. Keep dynamic controls, fitting, optimization, DOE, literature validation, Newton/Jacobian expansion, and transient solving deferred unless explicitly requested.
+- Run `pytest`, appropriate scoped lint, and `black --check src tests` before reporting any implementation task complete. Keep scoped audit commands tied to the requested branch surface.
 - Do not include `Co-Authored-By` lines unless explicitly requested.
 
 ---
@@ -352,6 +370,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-17 |
 | **Updated by** | Codex |
-| **Status note** | Phase 11C HX wrapper/input-hardening checkpoint approved for merge as checkpoint; continue Phase 11 after merge |
+| **Status note** | Phase 11D HX boundary-condition expansion checkpoint approved for merge as checkpoint; continue Phase 11 after merge |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*

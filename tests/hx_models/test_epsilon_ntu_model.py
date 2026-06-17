@@ -1,4 +1,4 @@
-"""Tests for EpsilonNTUModel — Phase 11B.
+"""Tests for EpsilonNTUModel — Phase 11B/11D.
 
 Verifies:
   - EpsilonNTUModel returns HXSolveResult for FixedHeatRate BC
@@ -12,10 +12,11 @@ Verifies:
   - Calibration (htc_multiplier) is threaded but does not alter Q
   - EpsilonNTUModel does not resolve a registry internally
   - EpsilonNTUModel does not import Network, Solver, or CoolProp
-  - SinkInletTempAndFlow without primary_T_in raises ValueError (now supported)
-  - FixedWallTemp raises UnsupportedHeatExchangerBoundaryConditionError (V1)
-  - AmbientCoupling raises UnsupportedHeatExchangerBoundaryConditionError (V1)
+  - SinkInletTempAndFlow without primary_T_in raises ValueError at construction
   - Missing required geom_scalars keys raise ValueError with clear messages
+
+Note: FixedWallTemp and AmbientCoupling are now supported — see
+test_epsilon_ntu_fixed_wall_temp.py and test_epsilon_ntu_ambient_coupling.py.
 """
 
 from __future__ import annotations
@@ -43,14 +44,11 @@ from mpl_sim.correlations.contract import (
 )
 from mpl_sim.discretization.primitives import DiscretizationMode, DiscretizationSpec
 from mpl_sim.hx_models.base import (
-    AmbientCoupling,
     FixedHeatRate,
-    FixedWallTemp,
     HeatExchangerModelKind,
     HXSolveRequest,
     HXSolveResult,
     SinkInletTempAndFlow,
-    UnsupportedHeatExchangerBoundaryConditionError,
 )
 from mpl_sim.hx_models.epsilon_ntu import EpsilonNTUModel
 
@@ -441,9 +439,6 @@ class TestCalibrationHTCMultiplier:
 
 
 class TestUnsupportedBCs:
-    def _model(self) -> EpsilonNTUModel:
-        return EpsilonNTUModel()
-
     def test_sink_inlet_without_primary_t_in_raises_value_error(self) -> None:
         """SinkInletTempAndFlow with missing primary_T_in raises ValueError at construction."""
         bc = SinkInletTempAndFlow(T_in=300.0, mdot_secondary=0.1, cp_secondary=4000.0)
@@ -456,30 +451,6 @@ class TestUnsupportedBCs:
                 discretization=_DISC,
                 primary_T_in=None,
             )
-
-    def test_fixed_wall_temp_raises(self) -> None:
-        model = self._model()
-        req = HXSolveRequest(
-            primary_state_in=_STATE_IN,
-            primary_mdot=0.05,
-            secondary_bc=FixedWallTemp(T_wall=350.0),
-            geometry=object(),
-            discretization=_DISC,
-        )
-        with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError):
-            model.solve(req)
-
-    def test_ambient_coupling_raises(self) -> None:
-        model = self._model()
-        req = HXSolveRequest(
-            primary_state_in=_STATE_IN,
-            primary_mdot=0.05,
-            secondary_bc=AmbientCoupling(T_ambient=298.0, UA_ambient=5.0),
-            geometry=object(),
-            discretization=_DISC,
-        )
-        with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError):
-            model.solve(req)
 
 
 # ---------------------------------------------------------------------------
