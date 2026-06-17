@@ -19,6 +19,7 @@ Exports:
 
   Concrete strategies:
     EpsilonNTUModel
+    LMTDModel
 
 Architectural constraints:
   - MUST NOT import from network/ or solvers/.
@@ -40,6 +41,7 @@ from mpl_sim.hx_models.base import (
     UnsupportedHeatExchangerBoundaryConditionError,
 )
 from mpl_sim.hx_models.epsilon_ntu import EpsilonNTUModel
+from mpl_sim.hx_models.lmtd import LMTDModel
 from mpl_sim.hx_models.registry import (
     HeatExchangerModelRegistry,
     create_empty_hx_model_registry,
@@ -66,4 +68,5 @@ __all__ = [
     "create_empty_hx_model_registry",
     # Concrete strategies
     "EpsilonNTUModel",
+    "LMTDModel",
 ]
