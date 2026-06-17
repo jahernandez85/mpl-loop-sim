@@ -197,6 +197,10 @@ class EpsilonNTUModel(HeatExchangerModel):
             raw_dp_out = req.dp_primary.evaluate(dp_inp)
             verdicts.append(raw_dp_out)
             raw_dP = raw_dp_out.value[0]
+            if not math.isfinite(raw_dP):
+                raise ValueError(
+                    f"EpsilonNTUModel: DP correlation output must be finite; got {raw_dP!r}"
+                )
 
         dP_primary = req.friction_multiplier * raw_dP
 
@@ -268,7 +272,13 @@ class EpsilonNTUModel(HeatExchangerModel):
             htc_p_inp = self._build_htc_input(req)
             raw_htc_p_out = req.htc_primary.evaluate(htc_p_inp)  # type: ignore[union-attr]
             verdicts.append(raw_htc_p_out)
-            h_p_eff = req.htc_multiplier * raw_htc_p_out.value[0]
+            h_p_raw = raw_htc_p_out.value[0]
+            if not math.isfinite(h_p_raw) or h_p_raw <= 0.0:
+                raise ValueError(
+                    f"EpsilonNTUModel: primary HTC output must be finite and > 0 "
+                    f"(UAComputationMode.PRIMARY_ONLY); got {h_p_raw!r}"
+                )
+            h_p_eff = req.htc_multiplier * h_p_raw
             UA = h_p_eff * A_ht
 
         else:  # TWO_SIDED
@@ -276,13 +286,25 @@ class EpsilonNTUModel(HeatExchangerModel):
             htc_p_inp = self._build_htc_input(req)
             raw_htc_p_out = req.htc_primary.evaluate(htc_p_inp)  # type: ignore[union-attr]
             verdicts.append(raw_htc_p_out)
+            h_p_raw = raw_htc_p_out.value[0]
+            if not math.isfinite(h_p_raw) or h_p_raw <= 0.0:
+                raise ValueError(
+                    f"EpsilonNTUModel: primary HTC output must be finite and > 0 "
+                    f"(UAComputationMode.TWO_SIDED); got {h_p_raw!r}"
+                )
 
             htc_s_inp = self._build_htc_input(req)
             raw_htc_s_out = req.htc_secondary.evaluate(htc_s_inp)  # type: ignore[union-attr]
             verdicts.append(raw_htc_s_out)
+            h_s_raw = raw_htc_s_out.value[0]
+            if not math.isfinite(h_s_raw) or h_s_raw <= 0.0:
+                raise ValueError(
+                    f"EpsilonNTUModel: secondary HTC output must be finite and > 0 "
+                    f"(UAComputationMode.TWO_SIDED); got {h_s_raw!r}"
+                )
 
-            h_p_eff = req.htc_multiplier * raw_htc_p_out.value[0]
-            h_s_eff = req.htc_multiplier * raw_htc_s_out.value[0]
+            h_p_eff = req.htc_multiplier * h_p_raw
+            h_s_eff = req.htc_multiplier * h_s_raw
             UA = 1.0 / (1.0 / (h_p_eff * A_ht) + 1.0 / (h_s_eff * A_ht))
 
         # --- Heat-capacity rates: explicit thermal mode, no None-inference ---
@@ -317,6 +339,10 @@ class EpsilonNTUModel(HeatExchangerModel):
             raw_dp_out = req.dp_primary.evaluate(dp_inp)
             verdicts.append(raw_dp_out)
             raw_dP = raw_dp_out.value[0]
+            if not math.isfinite(raw_dP):
+                raise ValueError(
+                    f"EpsilonNTUModel: DP correlation output must be finite; got {raw_dP!r}"
+                )
 
         dP_primary = req.friction_multiplier * raw_dP
         P_out = req.primary_state_in.P - dP_primary
@@ -344,11 +370,20 @@ class EpsilonNTUModel(HeatExchangerModel):
     def _build_htc_input(self, req: HXSolveRequest) -> HTCInput:
         gs = req.geom_scalars
         ctx = "EpsilonNTUModel._build_htc_input"
+        G = _require_scalar(gs, "G", ctx)
+        if G <= 0.0:
+            raise ValueError(f"EpsilonNTUModel: geom_scalars['G'] must be > 0; got {G!r}")
+        x_val = _require_scalar(gs, "x", ctx)
+        if not (0.0 <= x_val <= 1.0):
+            raise ValueError(f"EpsilonNTUModel: geom_scalars['x'] must be in [0, 1]; got {x_val!r}")
+        D_h = _require_scalar(gs, "D_h", ctx)
+        if D_h <= 0.0:
+            raise ValueError(f"EpsilonNTUModel: geom_scalars['D_h'] must be > 0; got {D_h!r}")
         return HTCInput(
             state=(req.primary_state_in,),
-            G=_require_scalar(gs, "G", ctx),
-            x=(_require_scalar(gs, "x", ctx),),
-            D_h=_require_scalar(gs, "D_h", ctx),
+            G=G,
+            x=(x_val,),
+            D_h=D_h,
             geom_scalars=gs,
         )
 
@@ -361,12 +396,21 @@ class EpsilonNTUModel(HeatExchangerModel):
             raise ValueError(f"EpsilonNTUModel: geom_scalars['rho'] must be > 0; got {rho!r}")
         if mu <= 0:
             raise ValueError(f"EpsilonNTUModel: geom_scalars['mu'] must be > 0; got {mu!r}")
+        G = _require_scalar(gs, "G", ctx)
+        if G <= 0.0:
+            raise ValueError(f"EpsilonNTUModel: geom_scalars['G'] must be > 0; got {G!r}")
+        D_h = _require_scalar(gs, "D_h", ctx)
+        if D_h <= 0.0:
+            raise ValueError(f"EpsilonNTUModel: geom_scalars['D_h'] must be > 0; got {D_h!r}")
+        L_cell = _require_scalar(gs, "L_cell", ctx)
+        if L_cell <= 0.0:
+            raise ValueError(f"EpsilonNTUModel: geom_scalars['L_cell'] must be > 0; got {L_cell!r}")
         return SinglePhaseDPInput(
             state=(req.primary_state_in,),
-            G=_require_scalar(gs, "G", ctx),
-            D_h=_require_scalar(gs, "D_h", ctx),
+            G=G,
+            D_h=D_h,
             roughness=gs.get("roughness", 0.0),
-            L_cell=_require_scalar(gs, "L_cell", ctx),
+            L_cell=L_cell,
             rho=rho,
             mu=mu,
         )

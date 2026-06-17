@@ -46,6 +46,8 @@ from mpl_sim.hx_models.base import (
     HeatExchangerModelKind,
     HXSolveRequest,
     HXSolveResult,
+    PrimaryThermalMode,
+    UAComputationMode,
 )
 
 # ---------------------------------------------------------------------------
@@ -157,6 +159,7 @@ def _make_input(
     mdot: float = 0.05,
     model: HeatExchangerModel | None = None,
     htc_primary: Correlation | None = None,
+    htc_secondary: Correlation | None = None,
     dp_primary: Correlation | None = None,
     htc_multiplier: float = 1.0,
     friction_multiplier: float = 1.0,
@@ -169,6 +172,7 @@ def _make_input(
         discretization=_DISC,
         geom_scalars={"rho": 1200.0, "mu": 2e-4},
         htc_primary=htc_primary,
+        htc_secondary=htc_secondary,
         dp_primary=dp_primary,
         htc_multiplier=htc_multiplier,
         friction_multiplier=friction_multiplier,
@@ -367,6 +371,131 @@ class TestNoStoredDerivedState:
         evap.evaluate_heat_exchanger(_make_input())
         assert evap.component_id is cid_before
         assert evap.geometry is geom_before
+
+
+# ---------------------------------------------------------------------------
+# Forwarding: all HXSolveRequest fields must reach the model
+# ---------------------------------------------------------------------------
+
+
+class TestEvaporatorForwarding:
+    """Verifies evaluate_heat_exchanger forwards every EvaporatorHXInput field
+    into HXSolveRequest without loss or substitution.
+    Uses FixedHeatRate BC so HXSolveRequest imposes no extra field requirements."""
+
+    def _rec(self) -> _RecordingModel:
+        return _RecordingModel()
+
+    def _base_inp(self, rec: _RecordingModel, **kwargs) -> EvaporatorHXInput:  # type: ignore[no-untyped-def]
+        return EvaporatorHXInput(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.05,
+            secondary_bc=FixedHeatRate(Q=500.0),
+            model=rec,
+            discretization=_DISC,
+            **kwargs,
+        )
+
+    def test_forwards_primary_t_in(self) -> None:
+        evap = _make_evaporator()
+        rec = self._rec()
+        inp = self._base_inp(rec, primary_T_in=320.0)
+        evap.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.primary_T_in == 320.0
+
+    def test_forwards_primary_cp(self) -> None:
+        evap = _make_evaporator()
+        rec = self._rec()
+        htc = _FakeHTCCorr()
+        inp = self._base_inp(
+            rec,
+            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+            primary_cp=2000.0,
+            ua_computation_mode=UAComputationMode.PRIMARY_ONLY,
+            htc_primary=htc,
+        )
+        evap.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.primary_cp == 2000.0
+
+    def test_forwards_primary_thermal_mode(self) -> None:
+        evap = _make_evaporator()
+        rec = self._rec()
+        htc = _FakeHTCCorr()
+        inp = self._base_inp(
+            rec,
+            primary_thermal_mode=PrimaryThermalMode.CONSTANT_TEMPERATURE,
+            ua_computation_mode=UAComputationMode.PRIMARY_ONLY,
+            htc_primary=htc,
+        )
+        evap.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.primary_thermal_mode is PrimaryThermalMode.CONSTANT_TEMPERATURE
+
+    def test_forwards_ua_computation_mode(self) -> None:
+        evap = _make_evaporator()
+        rec = self._rec()
+        htc_p = _FakeHTCCorr()
+        htc_s = _FakeHTCCorr()
+        inp = self._base_inp(
+            rec,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            htc_primary=htc_p,
+            htc_secondary=htc_s,
+        )
+        evap.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.ua_computation_mode is UAComputationMode.TWO_SIDED
+
+    def test_forwards_htc_secondary(self) -> None:
+        evap = _make_evaporator()
+        rec = self._rec()
+        htc_p = _FakeHTCCorr()
+        htc_s = _FakeHTCCorr()
+        inp = self._base_inp(
+            rec,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            htc_primary=htc_p,
+            htc_secondary=htc_s,
+        )
+        evap.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.htc_secondary is htc_s
+
+    def test_forwards_htc_primary(self) -> None:
+        evap = _make_evaporator()
+        rec = self._rec()
+        htc_p = _FakeHTCCorr()
+        inp = self._base_inp(rec, htc_primary=htc_p)
+        evap.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.htc_primary is htc_p
+
+    def test_forwards_dp_primary(self) -> None:
+        evap = _make_evaporator()
+        rec = self._rec()
+        dp = _FakeDPCorr()
+        inp = self._base_inp(rec, dp_primary=dp)
+        evap.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert rec.last_req.dp_primary is dp
+
+    def test_forwards_htc_multiplier(self) -> None:
+        evap = _make_evaporator()
+        rec = self._rec()
+        inp = self._base_inp(rec, htc_multiplier=1.7)
+        evap.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert math.isclose(rec.last_req.htc_multiplier, 1.7)
+
+    def test_forwards_friction_multiplier(self) -> None:
+        evap = _make_evaporator()
+        rec = self._rec()
+        inp = self._base_inp(rec, friction_multiplier=0.6)
+        evap.evaluate_heat_exchanger(inp)
+        assert rec.last_req is not None
+        assert math.isclose(rec.last_req.friction_multiplier, 0.6)
 
 
 # ---------------------------------------------------------------------------
