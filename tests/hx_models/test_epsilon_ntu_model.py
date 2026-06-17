@@ -12,7 +12,7 @@ Verifies:
   - Calibration (htc_multiplier) is threaded but does not alter Q
   - EpsilonNTUModel does not resolve a registry internally
   - EpsilonNTUModel does not import Network, Solver, or CoolProp
-  - SinkInletTempAndFlow raises UnsupportedHeatExchangerBoundaryConditionError (V1)
+  - SinkInletTempAndFlow without primary_T_in raises ValueError (now supported)
   - FixedWallTemp raises UnsupportedHeatExchangerBoundaryConditionError (V1)
   - AmbientCoupling raises UnsupportedHeatExchangerBoundaryConditionError (V1)
   - Missing required geom_scalars keys raise ValueError with clear messages
@@ -436,7 +436,7 @@ class TestCalibrationHTCMultiplier:
 
 
 # ---------------------------------------------------------------------------
-# Unsupported BCs raise UnsupportedHeatExchangerBoundaryConditionError
+# BC error handling
 # ---------------------------------------------------------------------------
 
 
@@ -444,18 +444,18 @@ class TestUnsupportedBCs:
     def _model(self) -> EpsilonNTUModel:
         return EpsilonNTUModel()
 
-    def test_sink_inlet_raises(self) -> None:
-        model = self._model()
+    def test_sink_inlet_without_primary_t_in_raises_value_error(self) -> None:
+        """SinkInletTempAndFlow with missing primary_T_in raises ValueError at construction."""
         bc = SinkInletTempAndFlow(T_in=300.0, mdot_secondary=0.1, cp_secondary=4000.0)
-        req = HXSolveRequest(
-            primary_state_in=_STATE_IN,
-            primary_mdot=0.05,
-            secondary_bc=bc,
-            geometry=object(),
-            discretization=_DISC,
-        )
-        with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError):
-            model.solve(req)
+        with pytest.raises(ValueError, match="primary_T_in"):
+            HXSolveRequest(
+                primary_state_in=_STATE_IN,
+                primary_mdot=0.05,
+                secondary_bc=bc,
+                geometry=object(),
+                discretization=_DISC,
+                primary_T_in=None,
+            )
 
     def test_fixed_wall_temp_raises(self) -> None:
         model = self._model()

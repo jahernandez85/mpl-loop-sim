@@ -39,7 +39,9 @@ from mpl_sim.hx_models.base import (
     HeatExchangerModel,
     HXSolveRequest,
     HXSolveResult,
+    PrimaryThermalMode,
     SecondaryFluidBC,
+    UAComputationMode,
 )
 
 # ---------------------------------------------------------------------------
@@ -77,6 +79,10 @@ class CondenserHXInput:
     dp_primary: Correlation | None = None
     htc_multiplier: float = 1.0
     friction_multiplier: float = 1.0
+    primary_T_in: float | None = None
+    primary_cp: float | None = None
+    primary_thermal_mode: PrimaryThermalMode | None = None
+    ua_computation_mode: UAComputationMode | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.geom_scalars, Mapping):
@@ -190,5 +196,9 @@ class CondenserComponent(Component):
             dp_primary=inp.dp_primary,
             htc_multiplier=inp.htc_multiplier,
             friction_multiplier=inp.friction_multiplier,
+            primary_T_in=inp.primary_T_in,
+            primary_cp=inp.primary_cp,
+            primary_thermal_mode=inp.primary_thermal_mode,
+            ua_computation_mode=inp.ua_computation_mode,
         )
         return inp.model.solve(req)

@@ -1,7 +1,9 @@
-"""HeatExchangerModel contract primitives — Phase 11A.
+"""HeatExchangerModel contract primitives — Phase 11A/B.
 
 Defines:
   HeatExchangerModelKind  — closed kind enumeration
+  PrimaryThermalMode      — explicit primary-side thermal assumption for ε-NTU
+  UAComputationMode       — explicit UA computation mode for ε-NTU
   SecondaryFluidBC family — discriminated BCs for the secondary side
   HXSolveRequest          — immutable solve request passed to a HX model
   HXSolveResult           — immutable result returned by a HX model
@@ -47,6 +49,37 @@ class HeatExchangerModelKind(Enum):
     LMTD = auto()
     SEGMENTED_MARCH = auto()
     MOVING_BOUNDARY = auto()
+
+
+# ---------------------------------------------------------------------------
+# PrimaryThermalMode / UAComputationMode
+# ---------------------------------------------------------------------------
+
+
+class PrimaryThermalMode(Enum):
+    """Explicit primary-side thermal assumption for ε-NTU calculations.
+
+    FINITE_CAPACITY      — primary stream has a finite single-phase heat-capacity
+                           rate; primary_cp must be supplied in HXSolveRequest.
+    CONSTANT_TEMPERATURE — primary stream undergoes isothermal phase change;
+                           C_primary → ∞, Cr = 0; primary_cp must be None.
+    """
+
+    FINITE_CAPACITY = auto()
+    CONSTANT_TEMPERATURE = auto()
+
+
+class UAComputationMode(Enum):
+    """Explicit mode for computing the overall UA in ε-NTU calculations.
+
+    TWO_SIDED    — series thermal resistance: 1/UA = 1/(h_p·A) + 1/(h_s·A);
+                   htc_primary and htc_secondary must both be present.
+    PRIMARY_ONLY — UA = h_primary · A_ht; secondary HTC not used for UA;
+                   htc_primary must be present.
+    """
+
+    TWO_SIDED = auto()
+    PRIMARY_ONLY = auto()
 
 
 # ---------------------------------------------------------------------------
@@ -170,11 +203,24 @@ class HXSolveRequest:
     dp_primary         : optional injected DP correlation (primary side)
     htc_multiplier     : calibration multiplier applied to primary HTC output; >= 0; default 1.0
     friction_multiplier: calibration multiplier applied to DP/friction output; >= 0; default 1.0
+    primary_T_in           : optional precomputed primary-side inlet temperature [K]
+                             required by SinkInletTempAndFlow BC; must be finite and > 0
+    primary_cp             : optional precomputed primary-side specific heat [J/kg/K]
+                             required when primary_thermal_mode is FINITE_CAPACITY
+    primary_thermal_mode   : explicit primary-side thermal assumption for ε-NTU;
+                             required for SinkInletTempAndFlow BC
+    ua_computation_mode    : explicit UA computation mode for ε-NTU;
+                             required for SinkInletTempAndFlow BC
 
     Validation
     ----------
     - primary_mdot must be finite and strictly positive.
     - htc_multiplier and friction_multiplier must be finite and >= 0.
+    - primary_T_in, if supplied, must be finite and > 0.
+    - primary_cp, if supplied, must be finite and > 0.
+    - FINITE_CAPACITY mode requires primary_cp to be explicitly supplied.
+    - TWO_SIDED mode requires htc_primary and htc_secondary to be supplied.
+    - PRIMARY_ONLY mode requires htc_primary to be supplied.
     - geom_scalars is converted to an immutable MappingProxyType on construction.
     """
 
@@ -189,6 +235,10 @@ class HXSolveRequest:
     dp_primary: Correlation | None = None
     htc_multiplier: float = 1.0
     friction_multiplier: float = 1.0
+    primary_T_in: float | None = None
+    primary_cp: float | None = None
+    primary_thermal_mode: PrimaryThermalMode | None = None
+    ua_computation_mode: UAComputationMode | None = None
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.primary_mdot) or self.primary_mdot <= 0:
@@ -205,6 +255,62 @@ class HXSolveRequest:
                 f"HXSolveRequest.friction_multiplier must be finite and >= 0; "
                 f"got {self.friction_multiplier!r}"
             )
+        if self.primary_T_in is not None:
+            if not math.isfinite(self.primary_T_in) or self.primary_T_in <= 0:
+                raise ValueError(
+                    f"HXSolveRequest.primary_T_in must be finite and > 0; "
+                    f"got {self.primary_T_in!r}"
+                )
+        if self.primary_cp is not None:
+            if not math.isfinite(self.primary_cp) or self.primary_cp <= 0:
+                raise ValueError(
+                    f"HXSolveRequest.primary_cp must be finite and > 0; " f"got {self.primary_cp!r}"
+                )
+        if self.primary_thermal_mode is PrimaryThermalMode.FINITE_CAPACITY:
+            if self.primary_cp is None:
+                raise ValueError(
+                    "HXSolveRequest: primary_cp is required when primary_thermal_mode "
+                    "is PrimaryThermalMode.FINITE_CAPACITY"
+                )
+        if self.ua_computation_mode is UAComputationMode.TWO_SIDED:
+            if self.htc_primary is None:
+                raise ValueError(
+                    "HXSolveRequest: htc_primary is required when ua_computation_mode "
+                    "is UAComputationMode.TWO_SIDED"
+                )
+            if self.htc_secondary is None:
+                raise ValueError(
+                    "HXSolveRequest: htc_secondary is required when ua_computation_mode "
+                    "is UAComputationMode.TWO_SIDED"
+                )
+        if self.ua_computation_mode is UAComputationMode.PRIMARY_ONLY:
+            if self.htc_primary is None:
+                raise ValueError(
+                    "HXSolveRequest: htc_primary is required when ua_computation_mode "
+                    "is UAComputationMode.PRIMARY_ONLY"
+                )
+        if self.primary_thermal_mode is PrimaryThermalMode.CONSTANT_TEMPERATURE:
+            if self.primary_cp is not None:
+                raise ValueError(
+                    "HXSolveRequest: primary_cp must be None when primary_thermal_mode "
+                    "is PrimaryThermalMode.CONSTANT_TEMPERATURE"
+                )
+        if isinstance(self.secondary_bc, SinkInletTempAndFlow):
+            if self.primary_T_in is None:
+                raise ValueError(
+                    "HXSolveRequest: primary_T_in is required when secondary_bc is "
+                    "SinkInletTempAndFlow"
+                )
+            if self.primary_thermal_mode is None:
+                raise ValueError(
+                    "HXSolveRequest: primary_thermal_mode is required when secondary_bc is "
+                    "SinkInletTempAndFlow"
+                )
+            if self.ua_computation_mode is None:
+                raise ValueError(
+                    "HXSolveRequest: ua_computation_mode is required when secondary_bc is "
+                    "SinkInletTempAndFlow"
+                )
         object.__setattr__(self, "geom_scalars", MappingProxyType(dict(self.geom_scalars)))
 
 
