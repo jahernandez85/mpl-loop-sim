@@ -1,4 +1,4 @@
-"""EpsilonNTU heat-exchanger model — Phase 11B.
+"""EpsilonNTU heat-exchanger model — Phase 11B/11D.
 
 Implements a minimal lumped ε-NTU strategy for V1.
 
@@ -7,7 +7,10 @@ Scope (V1):
     pressure are derived from injected correlations.
   - Handles SinkInletTempAndFlow BC: lumped ε-NTU calculation with explicit
     primary thermal mode and UA computation mode — no hidden assumptions.
-  - FixedWallTemp and AmbientCoupling BCs remain declared seams.
+  - Handles FixedWallTemp BC: lumped wall-temperature conductance path;
+    requires primary_T_in, A_ht, and htc_primary from the caller.
+  - Handles AmbientCoupling BC: UA_ambient drives Q directly; primary_T_in
+    required; no HTC correlation needed for the energy balance.
   - Calls injected htc_primary, htc_secondary, and dp_primary through the
     Correlation contract.
   - Applies htc_multiplier at the UA seam and friction_multiplier to DP output.
@@ -42,11 +45,14 @@ UA computation mode (SinkInletTempAndFlow only — explicit, no fallback):
   TWO_SIDED    — 1/UA = 1/(h_p·A) + 1/(h_s·A); both HTCs required
 
 Required geom_scalars keys:
-  _build_htc_input  : "G", "D_h", "x"
-  _build_dp_input   : "G", "D_h", "L_cell", "rho", "mu"
-                      "roughness" is optional (defaults to 0.0 — smooth pipe)
-  _solve_sink_inlet : "A_ht" (heat-transfer area [m²]) — plus HTC/DP keys when
-                      those correlations are injected.
+  _build_htc_input       : "G", "D_h", "x"
+  _build_dp_input        : "G", "D_h", "L_cell", "rho", "mu"
+                           "roughness" is optional (defaults to 0.0 — smooth pipe)
+  _solve_sink_inlet      : "A_ht" (heat-transfer area [m²]) — plus HTC/DP keys
+  _solve_fixed_wall_temp : "A_ht" — plus "G", "D_h", "x" for htc_primary input
+                           and "G", "D_h", "L_cell", "rho", "mu" if dp_primary
+  _solve_ambient_coupling: none for energy; "G", "D_h", "L_cell", "rho", "mu"
+                           if dp_primary is supplied
 
 Architectural constraints:
   - No import of CoolProp, properties/, components/, network/, or solvers/.
@@ -136,8 +142,8 @@ class EpsilonNTUModel(HeatExchangerModel):
     def solve(self, req: HXSolveRequest) -> HXSolveResult:
         """Solve the heat-exchanger problem described by *req*.
 
-        V1 supports FixedHeatRate BC only.  Other BCs raise
-        UnsupportedHeatExchangerBoundaryConditionError.
+        Supported secondary BCs: FixedHeatRate, SinkInletTempAndFlow,
+        FixedWallTemp, AmbientCoupling.
 
         Parameters
         ----------
@@ -156,20 +162,14 @@ class EpsilonNTUModel(HeatExchangerModel):
             return self._solve_sink_inlet(req, bc)
 
         if isinstance(bc, FixedWallTemp):
-            raise UnsupportedHeatExchangerBoundaryConditionError(
-                "EpsilonNTUModel V1 does not implement FixedWallTemp BC.  "
-                "Wall-temperature-driven Q requires a primary-side HTC and "
-                "wall area that are not yet wired for this BC in V1."
-            )
+            return self._solve_fixed_wall_temp(req, bc)
 
         if isinstance(bc, AmbientCoupling):
-            raise UnsupportedHeatExchangerBoundaryConditionError(
-                "EpsilonNTUModel V1 does not implement AmbientCoupling BC.  "
-                "Ambient coupling requires a primary-side temperature, which "
-                "needs a PropertyBackend not available inside a HX model."
-            )
+            return self._solve_ambient_coupling(req, bc)
 
-        raise ValueError(f"EpsilonNTUModel: unrecognised secondary BC type {type(bc)!r}")
+        raise UnsupportedHeatExchangerBoundaryConditionError(
+            f"EpsilonNTUModel: unrecognised secondary BC type {type(bc)!r}"
+        )
 
     # ------------------------------------------------------------------
     # FixedHeatRate path
@@ -333,6 +333,153 @@ class EpsilonNTUModel(HeatExchangerModel):
         h_out = req.primary_state_in.h + Q / req.primary_mdot
 
         # --- DP primary (identical path to FixedHeatRate) ---
+        raw_dP = 0.0
+        if req.dp_primary is not None:
+            dp_inp = self._build_dp_input(req)
+            raw_dp_out = req.dp_primary.evaluate(dp_inp)
+            verdicts.append(raw_dp_out)
+            raw_dP = raw_dp_out.value[0]
+            if not math.isfinite(raw_dP):
+                raise ValueError(
+                    f"EpsilonNTUModel: DP correlation output must be finite; got {raw_dP!r}"
+                )
+
+        dP_primary = req.friction_multiplier * raw_dP
+        P_out = req.primary_state_in.P - dP_primary
+
+        primary_state_out = FluidState(
+            P=P_out,
+            h=h_out,
+            identity=req.primary_state_in.identity,
+        )
+
+        return HXSolveResult(
+            primary_state_out=primary_state_out,
+            Q=Q,
+            dP_primary=dP_primary,
+            verdicts=tuple(verdicts),
+            htc_multiplier=req.htc_multiplier,
+            friction_multiplier=req.friction_multiplier,
+            raw_dP_primary=raw_dP,
+        )
+
+    # ------------------------------------------------------------------
+    # FixedWallTemp path
+    # ------------------------------------------------------------------
+
+    def _solve_fixed_wall_temp(
+        self,
+        req: HXSolveRequest,
+        bc: FixedWallTemp,
+    ) -> HXSolveResult:
+        ctx = "EpsilonNTUModel._solve_fixed_wall_temp"
+
+        # Require explicit primary inlet temperature — caller must supply it.
+        if req.primary_T_in is None:
+            raise ValueError(
+                "EpsilonNTUModel: HXSolveRequest.primary_T_in is required when "
+                "secondary_bc is FixedWallTemp.  "
+                "Supply the precomputed primary inlet temperature [K] from the caller."
+            )
+        primary_T_in = req.primary_T_in
+
+        # Require heat-transfer area for UA = h_primary * A_ht.
+        A_ht = _require_scalar(req.geom_scalars, "A_ht", ctx)
+        if A_ht <= 0.0:
+            raise ValueError(f"EpsilonNTUModel: geom_scalars['A_ht'] must be > 0; got {A_ht!r}")
+
+        # Require primary HTC correlation — it is the only thermal resistance here.
+        if req.htc_primary is None:
+            raise ValueError(
+                "EpsilonNTUModel: htc_primary is required when secondary_bc is "
+                "FixedWallTemp.  The primary-side HTC is needed to compute "
+                "UA = h_primary * A_ht."
+            )
+
+        verdicts: list[CorrelationOutput] = []
+
+        # UA = htc_multiplier * h_primary_raw * A_ht  (calibration seam)
+        htc_inp = self._build_htc_input(req)
+        raw_htc_out = req.htc_primary.evaluate(htc_inp)
+        verdicts.append(raw_htc_out)
+        h_p_raw = raw_htc_out.value[0]
+        if not math.isfinite(h_p_raw) or h_p_raw <= 0.0:
+            raise ValueError(
+                f"EpsilonNTUModel: primary HTC output must be finite and > 0 "
+                f"(FixedWallTemp); got {h_p_raw!r}"
+            )
+
+        h_p_eff = req.htc_multiplier * h_p_raw
+        UA = h_p_eff * A_ht
+
+        # Q > 0: primary gains heat (T_wall > T_primary_in)
+        # Q < 0: primary rejects heat (T_wall < T_primary_in)
+        Q = UA * (bc.T_wall - primary_T_in)
+
+        h_out = req.primary_state_in.h + Q / req.primary_mdot
+
+        # DP path — identical pattern to FixedHeatRate and SinkInletTempAndFlow.
+        raw_dP = 0.0
+        if req.dp_primary is not None:
+            dp_inp = self._build_dp_input(req)
+            raw_dp_out = req.dp_primary.evaluate(dp_inp)
+            verdicts.append(raw_dp_out)
+            raw_dP = raw_dp_out.value[0]
+            if not math.isfinite(raw_dP):
+                raise ValueError(
+                    f"EpsilonNTUModel: DP correlation output must be finite; got {raw_dP!r}"
+                )
+
+        dP_primary = req.friction_multiplier * raw_dP
+        P_out = req.primary_state_in.P - dP_primary
+
+        primary_state_out = FluidState(
+            P=P_out,
+            h=h_out,
+            identity=req.primary_state_in.identity,
+        )
+
+        return HXSolveResult(
+            primary_state_out=primary_state_out,
+            Q=Q,
+            dP_primary=dP_primary,
+            verdicts=tuple(verdicts),
+            htc_multiplier=req.htc_multiplier,
+            friction_multiplier=req.friction_multiplier,
+            raw_dP_primary=raw_dP,
+        )
+
+    # ------------------------------------------------------------------
+    # AmbientCoupling path
+    # ------------------------------------------------------------------
+
+    def _solve_ambient_coupling(
+        self,
+        req: HXSolveRequest,
+        bc: AmbientCoupling,
+    ) -> HXSolveResult:
+        # Require explicit primary inlet temperature — caller must supply it.
+        if req.primary_T_in is None:
+            raise ValueError(
+                "EpsilonNTUModel: HXSolveRequest.primary_T_in is required when "
+                "secondary_bc is AmbientCoupling.  "
+                "Supply the precomputed primary inlet temperature [K] from the caller."
+            )
+        primary_T_in = req.primary_T_in
+
+        verdicts: list[CorrelationOutput] = []
+
+        # UA_ambient is the explicit overall conductance supplied by the caller.
+        # htc_multiplier is NOT applied to UA_ambient — there is no primary-side
+        # HTC correlation here, and UA_ambient is already the calibrated physical
+        # input rather than a raw correlation output.
+        # Q > 0: ambient hotter than primary (primary absorbs heat)
+        # Q < 0: ambient colder than primary (primary rejects heat)
+        Q = bc.UA_ambient * (bc.T_ambient - primary_T_in)
+
+        h_out = req.primary_state_in.h + Q / req.primary_mdot
+
+        # DP path — optional; identical pattern to other BC paths.
         raw_dP = 0.0
         if req.dp_primary is not None:
             dp_inp = self._build_dp_input(req)
