@@ -1,4 +1,4 @@
-"""Components package -- Phase 10F/10H: Pump map/command seams and accumulator VPL added.
+"""Components package -- Phase 11D: Evaporator and Condenser foundations added.
 
 Exports:
   Component contract primitives:
@@ -22,6 +22,12 @@ Exports:
     AccumulatorComponent, AccumulatorOperatingPoint, AccumulatorPressureSummary,
     VolumePressureLawBinding, AccumulatorVolumePressureSummary
 
+  Evaporator (Phase 11C):
+    EvaporatorComponent, EvaporatorHXInput
+
+  Condenser (Phase 11D):
+    CondenserComponent, CondenserHXInput
+
 Architectural constraints:
   - MUST NOT import from network/ or solvers/.
   - MUST NOT import CoolProp.
@@ -41,6 +47,8 @@ from mpl_sim.components.base import (
     ComponentKind,
     ComponentPort,
 )
+from mpl_sim.components.condenser import CondenserComponent, CondenserHXInput
+from mpl_sim.components.evaporator import EvaporatorComponent, EvaporatorHXInput
 from mpl_sim.components.pipe import (
     Pipe,
     PipeAccelerationInput,
@@ -103,4 +111,10 @@ __all__ = [
     "AccumulatorPressureSummary",
     "VolumePressureLawBinding",
     "AccumulatorVolumePressureSummary",
+    # Evaporator Phase 11C
+    "EvaporatorComponent",
+    "EvaporatorHXInput",
+    # Condenser Phase 11D
+    "CondenserComponent",
+    "CondenserHXInput",
 ]

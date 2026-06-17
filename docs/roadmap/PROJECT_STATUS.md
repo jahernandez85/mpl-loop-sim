@@ -11,8 +11,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-10b-pump-map-accumulator-law` |
-| **Stage** | Phase 10 Pump and Accumulator final closeout complete; safe to merge and advance after merge |
+| **Branch** | `phase-11-heat-exchanger-model` |
+| **Stage** | Phase 11 HeatExchangerModel, Evaporator, and Condenser foundation checkpoint complete; safe to merge as checkpoint and continue Phase 11 |
 | **Completed phase** | **Phase 10 - Pump and Accumulator** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -26,15 +26,31 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 9 status** | **Complete. Result primitives, schema primitives, canonical serialization, validation invariant primitives, and safe serialization adapters are complete.** |
 | **Phase 10 final audit verdict** | **APPROVED FOR MERGE AND NEXT PHASE** |
 | **Phase 10 status** | **Complete. Pump map/command behavior, pump power/efficiency seam, shaft-speed/inertia named seam, accumulator `VolumePressureLaw` integration, PCA closure, `V_g` state seam, network pressure-reference wiring, and pump-driven accumulator-referenced loop acceptance shape are implemented at planned V1 fidelity.** |
-| **Branch status** | **Implemented on `phase-10b-pump-map-accumulator-law`; safe to merge into `main`.** |
-| **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser after Phase 10 merge** |
-| **Next immediate slice** | Start Phase 11 with HeatExchangerModel interface/registry strategy work, then Evaporator and Condenser according to `IMPLEMENTATION_PLAN.md` |
-| **Working tree before this docs task** | Phase 10 completion implementation present on `phase-10b-pump-map-accumulator-law` |
-| **Test status** | 1983 passed, verified 2026-06-16 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
-| **Lint status** | `ruff check .` clean, verified 2026-06-16 |
-| **Format status** | `black --check src tests` clean, verified 2026-06-16; 99 files would be left unchanged |
+| **Phase 11 foundation audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 11 foundation status** | **Checkpoint complete. HeatExchangerModel contract/registry, secondary BC value objects, V1 `EpsilonNTUModel` fixed-heat-rate path, and Evaporator/Condenser component wrappers are implemented and tested. Full Phase 11 physics remains in progress.** |
+| **Branch status** | **Implemented on `phase-11-heat-exchanger-model`; safe to merge into `main` as a Phase 11 checkpoint.** |
+| **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation after checkpoint merge** |
+| **Next immediate slice** | Continue Phase 11 with sink-side HX physics, LMTD/segmented strategies, migrated HTC/DP closures, and loop residual integration according to `IMPLEMENTATION_PLAN.md` |
+| **Working tree before this docs task** | Phase 11 foundation implementation present on `phase-11-heat-exchanger-model` |
+| **Test status** | 2235 passed, verified 2026-06-17 with `pytest`; pytest emitted a `.pytest_cache` permission warning |
+| **Lint status** | `ruff check .` clean, verified 2026-06-17 |
+| **Format status** | `black --check src tests` clean, verified 2026-06-17; 113 files would be left unchanged |
 
-Phase 10 is complete and safe to merge.
+Phase 11 foundation checkpoint is complete and safe to merge as a checkpoint.
+
+- `HeatExchangerModelKind`, `HXSolveRequest`, `HXSolveResult`, secondary-fluid BC value objects, and `HeatExchangerModel` contract under `src/mpl_sim/hx_models/base.py`.
+- Separate `HeatExchangerModelRegistry` under `src/mpl_sim/hx_models/registry.py`.
+- V1 `EpsilonNTUModel` under `src/mpl_sim/hx_models/epsilon_ntu.py`, supporting `FixedHeatRate` only and explicitly rejecting unsupported BCs.
+- Required HX model physical scalars are explicit and finite; no hidden `D_h`, `rho`, `mu`, `L_cell`, `G`, or `x` defaults remain.
+- Optional missing `roughness` is documented and tested as a smooth-wall assumption.
+- `EvaporatorComponent` and `CondenserComponent` wrappers under `src/mpl_sim/components/`, with value-free inlet/outlet ports and local delegation to injected HX models.
+- HX model slots are separate from HTC/DP correlation slots.
+- Components and HX models avoid Network, Solver, PropertyBackend construction, and direct CoolProp calls.
+- Tests cover HX contract, registry separation, unsupported BCs, missing physical scalars, optional roughness, component boundaries, and architecture-boundary searches.
+
+This checkpoint changed Phase 11 source/tests and documentation only. It did not modify Pump, Accumulator, Network pressure-reference wiring, Solver behavior, schemas/results/validation primitives, property backends, calibration primitives, or frozen architecture documents.
+
+Phase 10 remains complete and already safe to merge.
 
 - Pump component foundation under `src/mpl_sim/components/pump.py`.
 - Pump prescribed pressure-rise seam: `delta_p = delta_p_setpoint * pressure_rise_multiplier`.
@@ -68,7 +84,7 @@ The following remain deferred unless explicitly planned in Phase 11 or later:
 - NPSH checks;
 - optimization and fitting;
 - dynamic simulation and controls;
-- Evaporator, Condenser, `HeatExchangerModel`, heat transfer, phase change, and two-phase pressure drop until Phase 11+ work begins.
+- full sink-side Evaporator/Condenser heat-exchanger physics, phase change, migrated HTC/DP closures, and two-phase pressure drop until Phase 11 continuation work completes.
 
 ---
 
@@ -141,6 +157,7 @@ Key authority statements:
 | **Phase 9 final audit** | **Complete; approved for merge and next phase** |
 | **Phase 10 Pump and Accumulator foundation checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 10** |
 | **Phase 10 Pump and Accumulator final closeout** | **Complete; approved for merge and next phase** |
+| **Phase 11 HeatExchangerModel, Evaporator and Condenser foundation checkpoint** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 
 Closeout artifacts:
 
@@ -158,14 +175,15 @@ Closeout artifacts:
 - `docs/validation/audits/PHASE_9_SCHEMA_RESULTS_FINAL_AUDIT.md`
 - `docs/validation/audits/PHASE_10_PUMP_ACCUMULATOR_FINAL_AUDIT.md`
 - `docs/validation/audits/PHASE_10_PUMP_ACCUMULATOR_FINAL_CLOSEOUT_AUDIT.md`
+- `docs/validation/audits/PHASE_11_HEAT_EXCHANGER_MODEL_FOUNDATION_AUDIT.md`
 
 ---
 
 ## 4. Current Active Phase
 
-The current active phase after merging `phase-10b-pump-map-accumulator-law` is:
+The current active phase after merging the `phase-11-heat-exchanger-model` checkpoint is:
 
-**Phase 11 - HeatExchangerModel, Evaporator and Condenser**, according to `IMPLEMENTATION_PLAN.md`.
+**Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation**, according to `IMPLEMENTATION_PLAN.md`.
 
 The completed Phase 10 work should be carried forward as the pressure-reference and pump-drive foundation:
 
@@ -178,14 +196,14 @@ The completed Phase 10 work should be carried forward as the pressure-reference 
 - reference-node wiring owned by Network;
 - pump-driven, accumulator-referenced loop acceptance shape.
 
-Phase 11 should now begin with `HeatExchangerModel`, Evaporator, and Condenser only. Dynamic simulation, controls, fitting, optimization, DOE generation, literature validation, and unplanned solver behavior changes remain deferred unless a future task explicitly changes scope.
+Phase 11 should continue from the completed foundation checkpoint. The contract/registry, fixed-heat-rate V1 path, and component wrappers are present; the remaining Phase 11 work is the physical HX continuation, not a new architecture pass. Dynamic simulation, controls, fitting, optimization, DOE generation, literature validation, and unplanned solver behavior changes remain deferred unless a future task explicitly changes scope.
 
 Phase boundaries to preserve:
 
 - Do not turn Network into a solver.
 - Do not make Pipe, Pump, or Accumulator network-aware or solver-aware.
 - Keep Pump and Accumulator local and preserve their completed Phase 10 seams.
-- Implement Evaporator, Condenser, `HeatExchangerModel`, and heat-exchanger components only inside the Phase 11 plan.
+- Continue Evaporator, Condenser, `HeatExchangerModel`, and heat-exchanger component work only inside the Phase 11 plan.
 - Do not implement dynamic controls, fitting, optimization, or unplanned solver behavior in Phase 11.
 - Do not move pressure, enthalpy, mass flow, derived properties, or solver vectors onto component or Port objects.
 - Keep `SystemState` as the only owner of numerical values.
@@ -194,21 +212,22 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Review and commit the Phase 10 final closeout audit.
-2. Merge `phase-10b-pump-map-accumulator-law` into `main`.
-3. Start **Phase 11 - HeatExchangerModel, Evaporator and Condenser** after merge.
-4. Preserve the completed Phase 10 boundary: Pump and Accumulator remain local and physics-light; Network owns pressure-reference wiring; law evaluation stays out of Network.
-5. Preserve the Phase 9 boundary: schema/results/validation primitives remain data-only and physics-free.
-6. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
-7. Preserve the Phase 7 boundary: Network owns topology and assembly/reference wiring only.
-8. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
-9. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
-10. Run `pytest`, `ruff check .`, and `black --check src tests` before reporting the next implementation task complete.
+1. Review and commit the Phase 11 foundation audit/status update.
+2. Merge `phase-11-heat-exchanger-model` into `main` as a checkpoint.
+3. Continue **Phase 11 - HeatExchangerModel, Evaporator and Condenser** after merge.
+4. Implement the next HX physics slices without changing frozen architecture docs.
+5. Preserve the completed Phase 10 boundary: Pump and Accumulator remain local and physics-light; Network owns pressure-reference wiring; law evaluation stays out of Network.
+6. Preserve the Phase 9 boundary: schema/results/validation primitives remain data-only and physics-free.
+7. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
+8. Preserve the Phase 7 boundary: Network owns topology and assembly/reference wiring only.
+9. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
+10. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
+11. Run `pytest`, `ruff check .`, and `black --check src tests` before reporting the next implementation task complete.
 
 Recommended commit message:
 
 ```text
-docs: close out phase 10 pump and accumulator
+docs: audit phase 11 heat exchanger foundation
 ```
 
 ---
@@ -238,7 +257,7 @@ These rules are operational forms of the frozen decisions. Violating any is a re
 
 ## 7. Current Known Blockers and Deferred Work
 
-None block merging the Phase 10 final closeout.
+None block merging the Phase 11 foundation checkpoint.
 
 | Item | What it affects | Resolution path |
 |---|---|---|
@@ -251,8 +270,11 @@ None block merging the Phase 10 final closeout.
 | Physical residual assembly not yet implemented | Future solver integration | Add only when explicitly planned, keeping adapters separate from solver core |
 | Newton and finite-difference Jacobian not yet implemented | Future solver strategy work | Introduce only when explicitly planned |
 | Pressure solving and flow solving not yet implemented | Future loop solving work | Implement through generic residual/update contracts, not by coupling solver to components |
-| Evaporator, Condenser, and HeatExchangerModel absent | Phase 11 | Implement next according to `IMPLEMENTATION_PLAN.md` |
-| Heat transfer, phase change, and two-phase pressure drop absent | Phase 11+ | Keep deferred until the planned phases |
+| Full sink-side HX BC evaluation not implemented | Phase 11 continuation | Add `SinkInletTempAndFlow`, `FixedWallTemp`, and `AmbientCoupling` evaluation only through HX model strategies |
+| Numeric LMTD and segmented-march strategies not implemented | Phase 11 continuation | Implement as `HeatExchangerModel` strategies, not correlations |
+| Boiling/condensation HTC and two-phase DP closure migrations not implemented | Phase 11 continuation | Port under the correlation contract with envelopes and no globals/hacks |
+| Full loop residual integration with Evaporator and Condenser not implemented | Phase 11 continuation | Integrate through component/local residual adapters while keeping Solver physics-free |
+| Heat transfer, phase change, and two-phase pressure drop incomplete | Phase 11+ | Continue in planned Phase 11 slices; do not fake Phase 12 validation |
 | 29 property CSV files missing | Future `TabulatedPropertyBackend`; `sigma_e`/`eps_r` | Data recovery task; does not block CoolProp-backed V1 path |
 | Literature validation data must be lifted and pinned | Literature tests | Phase 12 validation-data task |
 | Full artifact metadata for content-hash canonicalization rule | Future tuple/result artifacts | Phase 9 implements sorted-key compact JSON + SHA-256; record the rule in full artifact metadata when those artifacts are added |
@@ -271,10 +293,10 @@ Before any coding task, read in order:
 
 Rules for the next implementation session:
 
-- The Phase 10 Pump and Accumulator final closeout is safe to merge.
-- The branch `phase-10b-pump-map-accumulator-law` is safe to merge into `main`.
+- The Phase 11 HeatExchangerModel, Evaporator, and Condenser foundation checkpoint is safe to merge.
+- The branch `phase-11-heat-exchanger-model` is safe to merge into `main` as a checkpoint.
 - Phase 10 is complete.
-- After merge, start Phase 11 heat-exchanger work according to `IMPLEMENTATION_PLAN.md`.
+- Phase 11 is not complete; continue Phase 11 heat-exchanger work according to `IMPLEMENTATION_PLAN.md`.
 - Do not reopen Phase 9 unless a new task explicitly requests a Phase 9 fix.
 - Keep schema/results/validation serialization data-only and physics-free.
 - Keep solver core generic and physics-free.
@@ -283,7 +305,7 @@ Rules for the next implementation session:
 - Keep Pipe local; do not add network or solver behavior to Pipe.
 - Keep Pump and Accumulator local; do not add network or solver behavior to either component.
 - Preserve separation among geometry, discretization, correlations, calibration, components, network, solvers, schema, and results.
-- Continue Pump and Accumulator only for focused fixes or hardening; start Phase 11 with `HeatExchangerModel`, Evaporator, and Condenser. Keep dynamic controls, fitting, optimization, DOE, literature validation, Newton/Jacobian expansion, and transient solving deferred unless explicitly requested.
+- Continue Pump and Accumulator only for focused fixes or hardening; continue Phase 11 from the HX foundation checkpoint. Keep dynamic controls, fitting, optimization, DOE, literature validation, Newton/Jacobian expansion, and transient solving deferred unless explicitly requested.
 - Run `pytest`, `ruff check .`, and `black --check src tests` before reporting any implementation task complete.
 - Do not include `Co-Authored-By` lines unless explicitly requested.
 
@@ -293,8 +315,8 @@ Rules for the next implementation session:
 
 | Field | Value |
 |---|---|
-| **Date** | 2026-06-16 |
+| **Date** | 2026-06-17 |
 | **Updated by** | Codex |
-| **Status note** | Phase 10 Pump and Accumulator final closeout approved for merge and next phase; documentation-only audit closeout with no source/test changes |
+| **Status note** | Phase 11 HeatExchangerModel, Evaporator, and Condenser foundation checkpoint approved for merge as checkpoint; continue Phase 11 after merge |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
