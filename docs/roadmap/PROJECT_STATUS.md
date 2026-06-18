@@ -12,7 +12,7 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
 | **Branch** | `phase-11m-two-phase-htc-migration-foundation` |
-| **Stage** | Phase 11M two-phase HTC correlation migration (foundation); Phase 11 remains open |
+| **Stage** | Phase 11N explicit q_flux plumbing for HTC injection; Phase 11 remains open |
 | **Completed phase** | **Phase 10 - Pump and Accumulator** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -52,15 +52,32 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11L status** | **Checkpoint complete. Single-phase HTC correlations migrated under `src/mpl_sim/correlations`: `DittusBoelterHTC` and `GnielinskiHTC` are implemented, exported, and tested. Both implement `CorrelationRole.HTC`, require explicit `Re`, `Pr`, `k` via `HTCInput.geom_scalars` and `D_h` from `HTCInput.D_h`, return `CorrelationOutput.value[0]` = h [W/m²/K], and carry `ValidityVerdict` + `ClosureMetadata`. `DittusBoelterHTC` additionally requires explicit `n` for the Pr exponent. Neither correlation calls CoolProp, PropertyBackend, or uses hidden defaults. Boiling HTC, condensation HTC, and two-phase DP remain deferred.** |
 | **Phase 11M audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 11M status** | **Checkpoint complete. `ShahBoilingHTC` and `YanCondensationHTC` are implemented, exported, and tested under the current `CorrelationRole.HTC` contract with explicit scalar inputs, one-element HTC outputs, validity verdicts, metadata, and no property lookup or hidden defaults. Existing HX builders forward all `geom_scalars`, so `YanCondensationHTC` is directly injectable when callers provide its required scalars. `ShahBoilingHTC` HX injection remains deferred because current builders do not populate `HTCInput.q_flux`. Remaining two-phase HTC closures, two-phase DP, moving boundary, and full-loop integration remain deferred.** |
+| **Phase 11N audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 11N status** | **Checkpoint complete. `HXSolveRequest.q_flux_primary: float | None` adds strict explicit primary-side heat-flux validation and all three HX strategies pass it unchanged to primary `HTCInput.q_flux`. Epsilon-NTU and segmented two-sided paths explicitly keep secondary `HTCInput.q_flux=None`. `ShahBoilingHTC` is injectable through EpsilonNTU, LMTD, and Segmented fixed-wall paths when all required scalars and q-flux are supplied. No Q/A inference, abs(), clipping, or hidden fallback exists. `YanCondensationHTC` remains injectable and q-flux-independent. Two-phase DP, remaining HTC closures, moving boundary, and full-loop integration remain deferred.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **V1 HX model foundation now includes all four secondary BC classes in limited segmented form, but roadmap-defined correlation migrations, counterflow/phase-change segmented coupling, moving boundary, and full-loop convergence acceptance remain incomplete.** |
-| **Branch status** | **Implemented and audited on `phase-11m-two-phase-htc-migration-foundation`; safe to merge into `main` as a Phase 11M checkpoint.** |
+| **Branch status** | **Implemented and audited on `phase-11n-explicit-q-flux-htc-plumbing`; approved for merge as a Phase 11N checkpoint.** |
 | **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation** |
-| **Next immediate slice** | Continue Phase 11 with two-phase-DP migration, explicit Shah `q_flux` plumbing if HX-level boiling injection is scheduled, counterflow or justified phase-change coupling, Scenario-bound HX behavior, and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
-| **Working tree before this audit** | Phase 11M implementation present in the two correlation source/export paths, one focused test file, and `PROJECT_STATUS.md` |
-| **Test status** | 3001 passed, verified 2026-06-18 with `pytest`; `test_single_phase_htc.py` includes 82 tests; `test_two_phase_htc.py` includes 97 tests |
+| **Next immediate slice** | Continue Phase 11 with two-phase-DP migration, counterflow or justified phase-change coupling, Scenario-bound HX behavior, and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
+| **Working tree before this audit** | Phase 11N implementation: `HXSolveRequest.q_flux_primary` field in `base.py`, three HX input builder updates, one focused test file, and `PROJECT_STATUS.md` |
+| **Test status** | 3047 passed, verified 2026-06-18 with `pytest`; `test_hx_q_flux_plumbing.py` includes 46 tests |
 | **Lint status** | `ruff check src tests` clean, verified 2026-06-18. |
-| **Format status** | `black --check --no-cache src tests` passed, with 129 files unchanged |
+| **Format status** | `black --check --no-cache src tests` passed, with 130 files unchanged |
+
+Phase 11N explicit q_flux plumbing is complete and approved as a checkpoint.
+
+- `HXSolveRequest.q_flux_primary: float | None = None` added in `src/mpl_sim/hx_models/base.py`. Validation: finite and strictly positive when supplied; zero, negative, NaN, and infinite values raise `ValueError`.
+- All three HX model input builders updated to thread the field through:
+  - `EpsilonNTUModel._build_htc_input` passes `q_flux=req.q_flux_primary`
+  - `LMTDModel._build_htc_input` passes `q_flux=req.q_flux_primary`
+  - `SegmentedMarchModel._build_htc_input_for_cell` passes `q_flux=req.q_flux_primary`
+- Epsilon-NTU and segmented two-sided secondary HTC builders explicitly pass `q_flux=None`; primary q-flux never leaks to secondary HTC.
+- `HTCInput.q_flux` already existed in the frozen correlation contract (no contract change).
+- `ShahBoilingHTC` can now be injected into all three HX models when the caller supplies all required property scalars plus an explicit positive heat flux in `q_flux_primary`.
+- `YanCondensationHTC` does not read `q_flux`; it remains injectable as before through explicit `geom_scalars`.
+- No automatic heat-flux inference, no `Q / A_ht` fallback, no hidden default. `q_flux_primary=None` (the default) leaves `HTCInput.q_flux=None`; correlations that require it will raise their own `ValueError`.
+- No CoolProp, no `PropertyBackend`, no `CorrelationRegistry` resolution inside HX models. `FluidState` remains pure `(P, h, identity)`.
+- New test file `tests/hx_models/test_hx_q_flux_plumbing.py` with 46 tests covering validation, passthrough, side isolation, Shah injection/failures/Q sensitivity/verdicts, Yan regression, and architecture boundaries.
 
 Phase 11M two-phase HTC correlation foundation is complete as a checkpoint.
 Phase 11L single-phase HTC correlation migration is complete as a checkpoint.
@@ -324,6 +341,7 @@ Key authority statements:
 | **Phase 11K HX closure integration inventory and adapter foundation checkpoint** | **Complete; safe to merge as Phase 11K checkpoint** |
 | **Phase 11L Single-phase HTC correlation migration checkpoint** | **Complete; safe to merge as Phase 11L checkpoint** |
 | **Phase 11M Two-phase HTC correlation migration foundation** | **Complete; approved for merge as checkpoint, continue Phase 11** |
+| **Phase 11N Explicit q_flux plumbing for HTC injection** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 
 Closeout artifacts:
 
@@ -383,24 +401,23 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-11m-two-phase-htc-migration-foundation` into `main` as a Phase 11M checkpoint.
+1. Merge `phase-11n-explicit-q-flux-htc-plumbing` into `main` as a Phase 11N checkpoint.
 2. Continue **Phase 11 - HeatExchangerModel, Evaporator and Condenser** after merge.
-3. Migrate remaining two-phase HTC closures if safe legacy sources exist (Phase 11N or later).
+3. Migrate remaining two-phase HTC closures if safe legacy sources exist.
 4. Migrate two-phase DP closures (MSH, Kim-Mudawar, Homogeneous) when safe legacy sources are confirmed.
-5. Add explicit `q_flux` plumbing to HX-built `HTCInput` if Shah boiling injection is scheduled; existing builders already forward liquid/vapor property scalars through `geom_scalars`.
-6. Complete meaningful segmented local HTC/secondary coupling and the full-loop convergence acceptance case.
-7. Repeat the Phase 11 final closeout audit before starting Phase 12.
-8. Preserve frozen architecture boundaries while completing the remaining work.
-9. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
-10. Preserve the Phase 7 boundary: Network owns topology and assembly/reference wiring only.
-11. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
-12. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
-13. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests` before reporting the next implementation task complete.
+5. Complete meaningful segmented local HTC/secondary coupling and the full-loop convergence acceptance case.
+6. Repeat the Phase 11 final closeout audit before starting Phase 12.
+7. Preserve frozen architecture boundaries while completing the remaining work.
+8. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
+9. Preserve the Phase 7 boundary: Network owns topology and assembly/reference wiring only.
+10. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
+11. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
+12. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests` before reporting the next implementation task complete.
 
 Recommended commit message:
 
 ```text
-test: consolidate HX model family contracts
+feat: add explicit q-flux plumbing for HTC correlations
 ```
 
 ---
@@ -445,10 +462,8 @@ None block merging the Phase 11F segmented HX model foundation checkpoint.
 | Pressure solving and flow solving not yet implemented | Future loop solving work | Implement through generic residual/update contracts, not by coupling solver to components |
 | Full two-stream LMTD and full segmented-march strategies not implemented | Phase 11 continuation | Build on the Phase 11E `LMTDModel` foundation and Phase 11F `SegmentedMarchModel` foundation; implement as `HeatExchangerModel` strategies, not correlations |
 | Presentation artifact lint/noise remains on this branch lineage | Docs cleanup | Handle `docs/presentations` separately in `chore/remove-presentation-artifacts` or a docs cleanup branch |
-| Remaining boiling HTC closures (Chen, Bennett-Chen, Gungor-Winterton, Kandlikar, Kim-Mudawar 2012) not migrated | Phase 11 continuation | Port under correlation contract; Chen blocked by CoolProp inside legacy function |
-| Remaining condensation HTC closures not migrated | Phase 11 continuation | Port under correlation contract when safe legacy sources confirmed |
+| Remaining boiling/condensation HTC closures not migrated | Phase 11 continuation | Chen blocked by CoolProp inside legacy function; Bennett-Chen, Gungor-Winterton, Kandlikar, Kim-Mudawar 2012 deferred until safe legacy sources confirmed |
 | Two-phase DP closure migrations not implemented | Phase 11 continuation | Port under the correlation contract with envelopes and no globals/hacks |
-| Shah boiling HTC HX injection not wired | Phase 11 continuation | Existing builders already forward property scalars through `geom_scalars`; add explicit `q_flux` plumbing to `HTCInput` if Shah HX injection is scheduled |
 | Full loop residual integration with Evaporator and Condenser not implemented | Phase 11 continuation | Integrate through component/local residual adapters while keeping Solver physics-free |
 | Heat transfer, phase change, and two-phase pressure drop incomplete | Phase 11+ | Continue in planned Phase 11 slices; do not fake Phase 12 validation |
 | 29 property CSV files missing | Future `TabulatedPropertyBackend`; `sigma_e`/`eps_r` | Data recovery task; does not block CoolProp-backed V1 path |
@@ -494,6 +509,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-18 |
 | **Updated by** | Codex |
-| **Status note** | Phase 11M approved as a checkpoint; ShahBoilingHTC and YanCondensationHTC are active under the correlation contract; Yan HX injection works through existing scalar forwarding, Shah HX injection awaits explicit q_flux plumbing; 3001 tests passing; Phase 11 remains open |
+| **Status note** | Phase 11N approved as a checkpoint on `phase-11n-explicit-q-flux-htc-plumbing`; explicit primary q-flux reaches primary HTC only; ShahBoilingHTC is injectable through all three applicable fixed-wall paths; Yan regression is green; 3047 tests passing; Phase 11 remains open |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*

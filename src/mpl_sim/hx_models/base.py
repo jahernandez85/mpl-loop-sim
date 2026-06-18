@@ -211,6 +211,12 @@ class HXSolveRequest:
                              required for SinkInletTempAndFlow BC
     ua_computation_mode    : explicit UA computation mode for ε-NTU;
                              required for SinkInletTempAndFlow BC
+    q_flux_primary         : optional explicit wall heat flux [W/m²] for the primary side;
+                             required by flux-dependent boiling HTC closures
+                             (e.g. ShahBoilingHTC); passed unchanged to HTCInput.q_flux;
+                             must be finite and > 0 if supplied; zero, negative, NaN,
+                             and infinite values are rejected; no abs(), no clipping,
+                             no hidden fallback
 
     Validation
     ----------
@@ -218,6 +224,7 @@ class HXSolveRequest:
     - htc_multiplier and friction_multiplier must be finite and >= 0.
     - primary_T_in, if supplied, must be finite and > 0.
     - primary_cp, if supplied, must be finite and > 0.
+    - q_flux_primary, if supplied, must be finite and strictly positive.
     - FINITE_CAPACITY mode requires primary_cp to be explicitly supplied.
     - TWO_SIDED mode requires htc_primary and htc_secondary to be supplied.
     - PRIMARY_ONLY mode requires htc_primary to be supplied.
@@ -239,6 +246,7 @@ class HXSolveRequest:
     primary_cp: float | None = None
     primary_thermal_mode: PrimaryThermalMode | None = None
     ua_computation_mode: UAComputationMode | None = None
+    q_flux_primary: float | None = None
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.primary_mdot) or self.primary_mdot <= 0:
@@ -265,6 +273,14 @@ class HXSolveRequest:
             if not math.isfinite(self.primary_cp) or self.primary_cp <= 0:
                 raise ValueError(
                     f"HXSolveRequest.primary_cp must be finite and > 0; " f"got {self.primary_cp!r}"
+                )
+        if self.q_flux_primary is not None:
+            if not math.isfinite(self.q_flux_primary) or self.q_flux_primary <= 0:
+                raise ValueError(
+                    f"HXSolveRequest.q_flux_primary must be finite and > 0 when supplied; "
+                    f"got {self.q_flux_primary!r}. "
+                    f"Zero, negative, NaN, and infinite values are not accepted. "
+                    f"Supply the correct positive heat flux."
                 )
         if self.primary_thermal_mode is PrimaryThermalMode.FINITE_CAPACITY:
             if self.primary_cp is None:
