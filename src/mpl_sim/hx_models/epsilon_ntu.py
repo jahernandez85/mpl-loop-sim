@@ -293,7 +293,7 @@ class EpsilonNTUModel(HeatExchangerModel):
                     f"(UAComputationMode.TWO_SIDED); got {h_p_raw!r}"
                 )
 
-            htc_s_inp = self._build_htc_input(req)
+            htc_s_inp = self._build_secondary_htc_input(req)
             raw_htc_s_out = req.htc_secondary.evaluate(htc_s_inp)  # type: ignore[union-attr]
             verdicts.append(raw_htc_s_out)
             h_s_raw = raw_htc_s_out.value[0]
@@ -533,6 +533,32 @@ class EpsilonNTUModel(HeatExchangerModel):
             D_h=D_h,
             geom_scalars=gs,
             q_flux=req.q_flux_primary,
+        )
+
+    def _build_secondary_htc_input(self, req: HXSolveRequest) -> HTCInput:
+        """Build HTCInput for the secondary-side HTC call.
+
+        Secondary HTC always receives q_flux=None; primary heat flux must not
+        reach the secondary-side correlation.
+        """
+        gs = req.geom_scalars
+        ctx = "EpsilonNTUModel._build_secondary_htc_input"
+        G = _require_scalar(gs, "G", ctx)
+        if G <= 0.0:
+            raise ValueError(f"EpsilonNTUModel: geom_scalars['G'] must be > 0; got {G!r}")
+        x_val = _require_scalar(gs, "x", ctx)
+        if not (0.0 <= x_val <= 1.0):
+            raise ValueError(f"EpsilonNTUModel: geom_scalars['x'] must be in [0, 1]; got {x_val!r}")
+        D_h = _require_scalar(gs, "D_h", ctx)
+        if D_h <= 0.0:
+            raise ValueError(f"EpsilonNTUModel: geom_scalars['D_h'] must be > 0; got {D_h!r}")
+        return HTCInput(
+            state=(req.primary_state_in,),
+            G=G,
+            x=(x_val,),
+            D_h=D_h,
+            geom_scalars=gs,
+            q_flux=None,
         )
 
     def _build_dp_input(self, req: HXSolveRequest) -> SinglePhaseDPInput:

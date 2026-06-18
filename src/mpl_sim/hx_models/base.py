@@ -280,7 +280,7 @@ class HXSolveRequest:
                     f"HXSolveRequest.q_flux_primary must be finite and > 0 when supplied; "
                     f"got {self.q_flux_primary!r}. "
                     f"Zero, negative, NaN, and infinite values are not accepted. "
-                    f"Do not use abs() or clipping — supply the correct positive heat flux."
+                    f"Supply the correct positive heat flux."
                 )
         if self.primary_thermal_mode is PrimaryThermalMode.FINITE_CAPACITY:
             if self.primary_cp is None:

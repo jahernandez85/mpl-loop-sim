@@ -17,7 +17,7 @@ Coverage:
     - LMTDModel: spy HTC correlation receives HTCInput.q_flux == q_flux_primary.
     - SegmentedMarchModel FixedWallTemp: every cell spy receives q_flux_primary.
     - SegmentedMarchModel SinkInletTempAndFlow: primary HTC spy receives q_flux_primary
-      once per cell; secondary HTC spy also receives q_flux_primary (same builder).
+      once per cell; secondary HTC spy receives q_flux=None (separate builder).
 
   No-q_flux paths still work:
     - EpsilonNTUModel FixedWallTemp without q_flux_primary passes None to HTCInput.
@@ -35,7 +35,9 @@ Coverage:
     - SegmentedMarchModel FixedWallTemp with ShahBoilingHTC but no q_flux_primary fails clearly.
 
   Secondary HTC isolation:
-    - Secondary HTC spy in SinkInletTempAndFlow receives q_flux_primary (same builder path).
+    - EpsilonNTUModel TWO_SIDED: secondary HTC spy receives q_flux=None;
+      primary HTC spy receives q_flux_primary.
+    - SegmentedMarchModel SinkInletTempAndFlow: secondary HTC spy receives q_flux=None.
     - Ambient coupling path does not call any HTC correlation regardless of q_flux_primary.
 
   Architecture:
@@ -74,7 +76,7 @@ from mpl_sim.correlations.contract import (
     ValidityStatus,
     ValidityVerdict,
 )
-from mpl_sim.correlations.two_phase_htc import ShahBoilingHTC
+from mpl_sim.correlations.two_phase_htc import ShahBoilingHTC, YanCondensationHTC
 from mpl_sim.discretization.primitives import DiscretizationMode, DiscretizationSpec
 from mpl_sim.hx_models.base import (
     AmbientCoupling,
@@ -163,6 +165,21 @@ _SHAH_GEOM_SCALARS = {
     "L_cell": 0.1,
 }
 
+_YAN_GEOM_SCALARS = {
+    "G": 200.0,
+    "D_h": 0.001,
+    "x": 0.4,
+    "A_ht": 0.01,
+    "rho_l": 1200.0,
+    "rho_v": 30.0,
+    "mu_l": 0.0002,
+    "k_l": 0.08,
+    "Pr_l": 4.5,
+    "rho": 1200.0,
+    "mu": 0.0002,
+    "L_cell": 0.1,
+}
+
 _Q_FLUX = 10_000.0  # W/m² — positive, finite
 
 
@@ -229,7 +246,7 @@ class TestHXSolveRequestQFluxValidation:
         with pytest.raises(ValueError) as exc_info:
             self._base_req(q_flux_primary=-1.0)
         msg = str(exc_info.value)
-        assert "abs()" in msg or "abs" in msg.lower()
+        assert "abs" not in msg.lower()
 
     def test_q_flux_primary_passed_unchanged(self):
         val = 12345.6789
@@ -287,6 +304,30 @@ class TestEpsilonNTUModelQFluxPassthrough:
         req = self._fixed_wall_req(q_flux_primary=None, htc=spy)
         result = EpsilonNTUModel().solve(req)
         assert math.isfinite(result.Q)
+
+    def test_two_sided_primary_gets_q_flux_secondary_gets_none(self):
+        spy_primary = _SpyHTCCorrelation(htc=500.0, name="spy_primary")
+        spy_secondary = _SpyHTCCorrelation(htc=400.0, name="spy_secondary")
+        req = HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.01,
+            secondary_bc=SinkInletTempAndFlow(T_in=300.0, mdot_secondary=0.02, cp_secondary=4200.0),
+            geometry=object(),
+            discretization=_LUMPED,
+            geom_scalars=_GEOM_SCALARS_SINGLE_PHASE,
+            htc_primary=spy_primary,
+            htc_secondary=spy_secondary,
+            primary_T_in=280.0,
+            primary_cp=1400.0,
+            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            q_flux_primary=_Q_FLUX,
+        )
+        EpsilonNTUModel().solve(req)
+        assert len(spy_primary.received_inputs) == 1
+        assert spy_primary.received_inputs[0].q_flux == _Q_FLUX
+        assert len(spy_secondary.received_inputs) == 1
+        assert spy_secondary.received_inputs[0].q_flux is None
 
 
 # ---------------------------------------------------------------------------
@@ -379,7 +420,7 @@ class TestSegmentedMarchModelQFluxPassthrough:
         for inp in spy.received_inputs:
             assert inp.q_flux is None
 
-    def test_sink_inlet_primary_htc_receives_q_flux_primary(self):
+    def test_sink_inlet_primary_gets_q_flux_secondary_gets_none(self):
         n = 2
         disc = DiscretizationSpec(mode=DiscretizationMode.UNIFORM, n_cells=n)
         spy_primary = _SpyHTCCorrelation(htc=500.0, name="spy_primary")
@@ -405,7 +446,7 @@ class TestSegmentedMarchModelQFluxPassthrough:
             assert inp.q_flux == _Q_FLUX
         assert len(spy_secondary.received_inputs) == n
         for inp in spy_secondary.received_inputs:
-            assert inp.q_flux == _Q_FLUX
+            assert inp.q_flux is None
 
     def test_ambient_coupling_does_not_require_q_flux(self):
         disc = DiscretizationSpec(mode=DiscretizationMode.UNIFORM, n_cells=2)
@@ -529,9 +570,142 @@ class TestShahBoilingHTCInjection:
         with pytest.raises(ValueError, match="q_flux"):
             SegmentedMarchModel().solve(req)
 
+    def test_shah_fails_clearly_when_h_fg_missing(self):
+        scalars = dict(_SHAH_GEOM_SCALARS)
+        del scalars["h_fg"]
+        req = HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.01,
+            secondary_bc=FixedWallTemp(T_wall=350.0),
+            geometry=object(),
+            discretization=_LUMPED,
+            geom_scalars=scalars,
+            htc_primary=ShahBoilingHTC(),
+            primary_T_in=280.0,
+            q_flux_primary=_Q_FLUX,
+        )
+        with pytest.raises((ValueError, KeyError)):
+            EpsilonNTUModel().solve(req)
+
+    def test_shah_fails_clearly_when_rho_l_missing(self):
+        scalars = dict(_SHAH_GEOM_SCALARS)
+        del scalars["rho_l"]
+        req = HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.01,
+            secondary_bc=FixedWallTemp(T_wall=350.0),
+            geometry=object(),
+            discretization=_LUMPED,
+            geom_scalars=scalars,
+            htc_primary=ShahBoilingHTC(),
+            primary_T_in=280.0,
+            q_flux_primary=_Q_FLUX,
+        )
+        with pytest.raises((ValueError, KeyError)):
+            EpsilonNTUModel().solve(req)
+
+    def test_shah_htc_sensitivity_q_changes_with_mass_flux(self):
+        """Shah HTC varies with G; different G produces different Q, proving correlation is live."""
+        scalars_low = dict(_SHAH_GEOM_SCALARS)
+        scalars_low["G"] = 100.0
+        scalars_high = dict(_SHAH_GEOM_SCALARS)
+        scalars_high["G"] = 600.0
+
+        def _req(scalars):
+            return HXSolveRequest(
+                primary_state_in=_STATE_IN,
+                primary_mdot=0.01,
+                secondary_bc=FixedWallTemp(T_wall=350.0),
+                geometry=object(),
+                discretization=_LUMPED,
+                geom_scalars=scalars,
+                htc_primary=ShahBoilingHTC(),
+                primary_T_in=280.0,
+                q_flux_primary=_Q_FLUX,
+            )
+
+        result_low = EpsilonNTUModel().solve(_req(scalars_low))
+        result_high = EpsilonNTUModel().solve(_req(scalars_high))
+        assert result_low.Q > 0.0
+        assert result_high.Q > 0.0
+        assert result_low.Q != pytest.approx(result_high.Q)
+
+    def test_shah_verdict_propagates_in_epsilon_ntu_result(self):
+        req = _shah_req_epsilon_ntu(q_flux_primary=_Q_FLUX)
+        result = EpsilonNTUModel().solve(req)
+        assert len(result.verdicts) >= 1
+        for v in result.verdicts:
+            assert hasattr(v, "value")
+            assert hasattr(v, "verdict")
+            assert hasattr(v, "metadata")
+        htc_values = [v.value[0] for v in result.verdicts if len(v.value) > 0]
+        assert any(h > 0 for h in htc_values)
+
 
 # ---------------------------------------------------------------------------
-# 6. Architecture boundary checks
+# 6. Yan regression coverage
+# ---------------------------------------------------------------------------
+
+
+class TestYanRegressionCoverage:
+    """YanCondensationHTC remains injectable through geom_scalars with or without q_flux_primary."""
+
+    def _yan_req(self, q_flux_primary=None) -> HXSolveRequest:
+        return HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.01,
+            secondary_bc=FixedWallTemp(T_wall=300.0),
+            geometry=object(),
+            discretization=_LUMPED,
+            geom_scalars=_YAN_GEOM_SCALARS,
+            htc_primary=YanCondensationHTC(),
+            primary_T_in=310.0,
+            q_flux_primary=q_flux_primary,
+        )
+
+    def test_yan_works_without_q_flux_primary(self):
+        result = EpsilonNTUModel().solve(self._yan_req(q_flux_primary=None))
+        assert math.isfinite(result.Q)
+
+    def test_yan_works_when_q_flux_primary_is_supplied(self):
+        result = EpsilonNTUModel().solve(self._yan_req(q_flux_primary=_Q_FLUX))
+        assert math.isfinite(result.Q)
+
+    def test_yan_q_flux_independence(self):
+        """YanCondensationHTC does not read q_flux; Q must be identical either way."""
+        result_none = EpsilonNTUModel().solve(self._yan_req(q_flux_primary=None))
+        result_set = EpsilonNTUModel().solve(self._yan_req(q_flux_primary=_Q_FLUX))
+        assert result_none.Q == pytest.approx(result_set.Q)
+
+    def test_yan_verdict_propagates(self):
+        result = EpsilonNTUModel().solve(self._yan_req(q_flux_primary=None))
+        assert len(result.verdicts) >= 1
+
+    def test_yan_as_secondary_receives_none_q_flux(self):
+        spy_primary = _SpyHTCCorrelation(htc=500.0, name="spy_primary")
+        yan_secondary = YanCondensationHTC()
+        req = HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.01,
+            secondary_bc=SinkInletTempAndFlow(T_in=300.0, mdot_secondary=0.02, cp_secondary=4200.0),
+            geometry=object(),
+            discretization=_LUMPED,
+            geom_scalars=_YAN_GEOM_SCALARS,
+            htc_primary=spy_primary,
+            htc_secondary=yan_secondary,
+            primary_T_in=280.0,
+            primary_cp=1400.0,
+            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            q_flux_primary=_Q_FLUX,
+        )
+        result = EpsilonNTUModel().solve(req)
+        assert math.isfinite(result.Q)
+        assert spy_primary.received_inputs[0].q_flux == _Q_FLUX
+
+
+# ---------------------------------------------------------------------------
+# 7. Architecture boundary checks
 # ---------------------------------------------------------------------------
 
 

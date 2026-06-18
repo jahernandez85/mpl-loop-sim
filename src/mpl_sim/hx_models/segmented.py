@@ -845,7 +845,7 @@ class SegmentedMarchModel(HeatExchangerModel):
                 )
 
             # --- Secondary HTC: one call per cell ---
-            htc_s_inp = self._build_htc_input_for_cell(req, cell_state)
+            htc_s_inp = self._build_secondary_htc_input_for_cell(req, cell_state)
             raw_htc_s_out = req.htc_secondary.evaluate(htc_s_inp)
             verdicts.append(raw_htc_s_out)
             h_s_raw = raw_htc_s_out.value[0]
@@ -952,6 +952,36 @@ class SegmentedMarchModel(HeatExchangerModel):
     # ------------------------------------------------------------------
     # HTC input builder
     # ------------------------------------------------------------------
+
+    def _build_secondary_htc_input_for_cell(
+        self, req: HXSolveRequest, cell_state: FluidState
+    ) -> HTCInput:
+        """Build HTCInput for the secondary-side HTC call in a segmented cell.
+
+        Secondary HTC always receives q_flux=None; primary heat flux must not
+        reach the secondary-side correlation.
+        """
+        gs = req.geom_scalars
+        ctx = "SegmentedMarchModel._build_secondary_htc_input_for_cell"
+        G = _require_scalar(gs, "G", ctx)
+        if G <= 0.0:
+            raise ValueError(f"SegmentedMarchModel: geom_scalars['G'] must be > 0; got {G!r}")
+        x_val = _require_scalar(gs, "x", ctx)
+        if not (0.0 <= x_val <= 1.0):
+            raise ValueError(
+                f"SegmentedMarchModel: geom_scalars['x'] must be in [0, 1]; got {x_val!r}"
+            )
+        D_h = _require_scalar(gs, "D_h", ctx)
+        if D_h <= 0.0:
+            raise ValueError(f"SegmentedMarchModel: geom_scalars['D_h'] must be > 0; got {D_h!r}")
+        return HTCInput(
+            state=(cell_state,),
+            G=G,
+            x=(x_val,),
+            D_h=D_h,
+            geom_scalars=gs,
+            q_flux=None,
+        )
 
     def _build_htc_input_for_cell(self, req: HXSolveRequest, cell_state: FluidState) -> HTCInput:
         gs = req.geom_scalars
