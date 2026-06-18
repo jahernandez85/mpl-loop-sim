@@ -11,8 +11,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-11i-segmented-ambient-coupling` |
-| **Stage** | Phase 11I segmented ambient coupling approved for merge as checkpoint; Phase 11 remains open |
+| **Branch** | `phase-11j-segmented-sink-coupling` |
+| **Stage** | Phase 11J segmented sink coupling approved for merge as checkpoint; Phase 11 remains open |
 | **Completed phase** | **Phase 10 - Pump and Accumulator** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -44,28 +44,30 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11H status** | **Checkpoint complete. `SegmentedMarchModel` now supports both `FixedHeatRate` and finite-capacity segmented `FixedWallTemp`, with explicit primary temperature/cp marching, per-cell injected HTC, optional per-cell injected DP, and diagnostic-only cell temperatures.** |
 | **Phase 11I audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 11I status** | **Checkpoint complete. `SegmentedMarchModel` now also supports finite-capacity segmented `AmbientCoupling` using prescribed `UA_ambient / n_cells`, explicit primary temperature/cp marching, no primary HTC call, optional per-cell injected DP, and diagnostic-only cell temperatures.** |
+| **Phase 11J audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 11J status** | **Checkpoint complete. `SegmentedMarchModel` now also supports finite-capacity co-current segmented `SinkInletTempAndFlow` with explicit primary/secondary capacities, two-sided per-cell HTC/UA, local epsilon-NTU marching, optional per-cell injected DP, and diagnostic-only primary/secondary temperatures.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
-| **Phase 11 status** | **V1 HX model foundation now includes finite-capacity segmented wall-HTC and prescribed-UA ambient coupling, but roadmap-defined correlation migrations, segmented sink and phase-change coupling, and full-loop convergence acceptance remain incomplete.** |
-| **Branch status** | **Implemented and audited on `phase-11i-segmented-ambient-coupling`; safe to merge into `main` as a Phase 11I checkpoint.** |
+| **Phase 11 status** | **V1 HX model foundation now includes all four secondary BC classes in limited segmented form, but roadmap-defined correlation migrations, counterflow/phase-change segmented coupling, moving boundary, and full-loop convergence acceptance remain incomplete.** |
+| **Branch status** | **Implemented and audited on `phase-11j-segmented-sink-coupling`; safe to merge into `main` as a Phase 11J checkpoint.** |
 | **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation** |
-| **Next immediate slice** | Continue Phase 11 with required boiling/condensation HTC and two-phase-DP migrations, segmented sink-side or justified phase-change coupling, Scenario-bound HX behavior, and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
-| **Working tree before this docs task** | Phase 11I implementation present on `phase-11i-segmented-ambient-coupling` in the expected five source/test files |
-| **Test status** | 2711 passed, verified 2026-06-18 with `pytest`; targeted `pytest tests/hx_models tests/components` passed 1311 tests |
+| **Next immediate slice** | Continue Phase 11 with required boiling/condensation HTC and two-phase-DP migrations, counterflow or justified phase-change coupling as needed, Scenario-bound HX behavior, and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
+| **Working tree before this docs task** | Phase 11J implementation present on `phase-11j-segmented-sink-coupling` in the expected six source/test files |
+| **Test status** | 2770 passed, verified 2026-06-18 with `pytest`; targeted `pytest tests/hx_models tests/components` passed 1370 tests |
 | **Lint status** | `ruff check src tests` clean, verified 2026-06-18. |
-| **Format status** | `black --check --no-cache --verbose src tests` passed, with 123 files unchanged |
+| **Format status** | `black --check --no-cache --verbose src tests` passed, with 124 files unchanged |
 
-Phase 11I segmented ambient coupling is approved and safe to merge as a checkpoint.
+Phase 11J segmented sink coupling is approved and safe to merge as a checkpoint.
 The Phase 11 final closeout assessment is checkpoint-only: Phase 11 remains open.
 
-- `SegmentedMarchModel` supports `FixedHeatRate`, finite-capacity segmented `FixedWallTemp`, and finite-capacity segmented `AmbientCoupling`.
-- The ambient path requires explicit `primary_T_in`, finite positive `primary_cp`, `PrimaryThermalMode.FINITE_CAPACITY`, finite positive `UA_ambient`, and finite ambient temperature.
-- Ambient conductance is prescribed and divided uniformly as `UA_cell = UA_ambient / n_cells`; `htc_primary` is neither required nor called, and `htc_multiplier` does not alter ambient energy transfer.
-- Each ambient cell computes local heat rate, outlet enthalpy, and diagnostic outlet temperature, then optionally calls primary DP once using the current cell-inlet `FluidState`.
-- `PrimaryThermalMode.CONSTANT_TEMPERATURE` is rejected as deferred for segmented ambient coupling; no phase-change behavior is inferred.
-- `SegmentedCellRecord` / `SegmentedProfile` remain immutable diagnostics. Cell `T_in` and `T_out` are not stored in `FluidState`, on Ports, or in `SystemState`.
+- `SegmentedMarchModel` now supports all four secondary BC classes in limited form: `FixedHeatRate`, finite-capacity segmented `FixedWallTemp`, finite-capacity segmented `AmbientCoupling`, and finite-capacity co-current segmented `SinkInletTempAndFlow`.
+- The segmented sink path is explicitly co-current/parallel flow; both stream inlets enter cell 0. Counterflow is not claimed and remains deferred.
+- The sink path requires explicit `primary_T_in`, finite positive `primary_cp`, `PrimaryThermalMode.FINITE_CAPACITY`, finite positive secondary inlet temperature/mass flow/cp, finite positive `A_ht`, both injected HTC correlations, and `UAComputationMode.TWO_SIDED`.
+- Each sink cell evaluates primary HTC then secondary HTC, assembles two-sided `UA_cell`, applies co-current epsilon-NTU, and marches primary enthalpy plus diagnostic primary/secondary temperatures.
+- `UAComputationMode.PRIMARY_ONLY` and `PrimaryThermalMode.CONSTANT_TEMPERATURE` are rejected clearly; no single-sided fallback or phase-change behavior is inferred.
+- `SegmentedCellRecord` / `SegmentedProfile` remain immutable diagnostics. Cell primary and secondary temperatures are not stored in `FluidState`, on Ports, or in `SystemState`.
 - `friction_multiplier` affects DP and pressure only; `raw_dP_primary` remains pre-calibration.
-- Segmented `SinkInletTempAndFlow`, phase-change wall/ambient coupling, boiling/condensation HTC and two-phase-DP closure migrations, moving boundary, and full-loop integration remain deferred.
-- Required validation passed on 2026-06-18: 2711 full tests, 1311 targeted HX/component tests, Ruff clean, and Black clean across 123 files.
+- Counterflow segmented sink coupling, phase-change segmented coupling, boiling/condensation HTC and two-phase-DP closure migrations, moving boundary, and full-loop integration remain deferred.
+- Required validation passed on 2026-06-18: 2770 full tests, 1370 targeted HX/component tests, Ruff clean, and Black clean across 124 files.
 
 Phase 11G HX model consolidation remains complete.
 
