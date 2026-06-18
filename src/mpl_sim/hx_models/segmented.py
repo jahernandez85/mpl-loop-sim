@@ -973,4 +973,5 @@ class SegmentedMarchModel(HeatExchangerModel):
             x=(x_val,),
             D_h=D_h,
             geom_scalars=gs,
+            q_flux=req.q_flux_primary,
         )
