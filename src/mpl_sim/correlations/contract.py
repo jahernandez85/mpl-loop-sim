@@ -334,7 +334,25 @@ class SinglePhaseDPInput:
 
 @dataclass(frozen=True)
 class TwoPhaseDPInput:
-    """Input manifest for TWO_PHASE_DP closures."""
+    """Input manifest for TWO_PHASE_DP closures.
+
+    Required by every two-phase DP correlation:
+        state   : cell state(s); length >= 1  (vector-first)
+        G       : mass flux [kg/m²s]
+        x       : local quality profile across the cell; must be finite in [0, 1]
+        D_h     : hydraulic diameter [m]
+        L_cell  : cell length [m] (caller's integration length; closure returns gradient)
+
+    Optional explicit fluid-property scalars (required by specific formulas):
+        rho_l   : liquid density [kg/m³]
+        rho_v   : vapor density [kg/m³]
+        mu_l    : liquid dynamic viscosity [Pa·s]
+        mu_v    : vapor dynamic viscosity [Pa·s]
+
+    Fluid properties are NOT derived from state here; they must be supplied
+    explicitly by the caller.  Correlations that need them will raise
+    ValueError when any required field is None.
+    """
 
     state: tuple[FluidState, ...]
     G: float
@@ -342,6 +360,10 @@ class TwoPhaseDPInput:
     D_h: float
     L_cell: float
     regime: FlowRegimeVerdict | None = None
+    rho_l: float | None = None
+    rho_v: float | None = None
+    mu_l: float | None = None
+    mu_v: float | None = None
 
 
 @dataclass(frozen=True)
