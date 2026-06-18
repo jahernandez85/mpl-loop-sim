@@ -11,8 +11,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-11g-hx-model-consolidation` |
-| **Stage** | Phase 11G HX model consolidation approved for merge as checkpoint; Phase 11 final closeout assessed and remains open |
+| **Branch** | `phase-11h-segmented-wall-htc-coupling` |
+| **Stage** | Phase 11H segmented wall-HTC coupling approved for merge as checkpoint; Phase 11 remains open |
 | **Completed phase** | **Phase 10 - Pump and Accumulator** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -40,18 +40,31 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11F status** | **Checkpoint complete. `SegmentedMarchModel` is implemented as a limited foundation supporting only `FixedHeatRate`; segment-wise secondary coupling and local HTC/UA solving remain deferred.** |
 | **Phase 11G audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 11G status** | **Checkpoint complete. Cross-model family contract tests added (`test_hx_model_family_contracts.py`); import-boundary coverage extended to `lmtd.py` and `segmented.py`; no new physics added.** |
+| **Phase 11H audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 11H status** | **Checkpoint complete. `SegmentedMarchModel` now supports both `FixedHeatRate` and finite-capacity segmented `FixedWallTemp`, with explicit primary temperature/cp marching, per-cell injected HTC, optional per-cell injected DP, and diagnostic-only cell temperatures.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
-| **Phase 11 status** | **V1 HX model foundation is coherent and tested, but roadmap-defined correlation migrations, meaningful segmented HTC/secondary coupling, and full-loop convergence acceptance remain incomplete.** |
-| **Branch status** | **Implemented on `phase-11g-hx-model-consolidation`; safe to merge into `main` as a Phase 11G checkpoint.** |
+| **Phase 11 status** | **V1 HX model foundation now includes finite-capacity segmented wall-HTC coupling, but roadmap-defined correlation migrations, segmented sink/ambient and phase-change coupling, and full-loop convergence acceptance remain incomplete.** |
+| **Branch status** | **Implemented and audited on `phase-11h-segmented-wall-htc-coupling`; safe to merge into `main` as a Phase 11H checkpoint.** |
 | **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation** |
-| **Next immediate slice** | Continue Phase 11 with required boiling/condensation HTC and two-phase-DP migrations, meaningful segmented local HTC/secondary coupling, Scenario-bound HX behavior, and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
-| **Working tree before this docs task** | Phase 11G HX model consolidation present on `phase-11g-hx-model-consolidation` |
-| **Test status** | 2601 passed, verified 2026-06-17 with `pytest`; targeted `pytest tests/hx_models tests/components` passed 1201 tests; `pytest tests/hx_models/test_hx_model_family_contracts.py` passed 54 tests |
-| **Lint status** | `ruff check src tests` clean, verified 2026-06-17. |
-| **Format status** | `black --check --no-cache --verbose src tests` passed, with 121 files unchanged |
+| **Next immediate slice** | Continue Phase 11 with required boiling/condensation HTC and two-phase-DP migrations, segmented secondary/ambient or justified phase-change coupling, Scenario-bound HX behavior, and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
+| **Working tree before this docs task** | Phase 11H implementation present on `phase-11h-segmented-wall-htc-coupling` in the expected four source/test files |
+| **Test status** | 2660 passed, verified 2026-06-18 with `pytest`; targeted `pytest tests/hx_models tests/components` passed 1260 tests |
+| **Lint status** | `ruff check src tests` clean, verified 2026-06-18. |
+| **Format status** | `black --check --no-cache --verbose src tests` passed, with 122 files unchanged |
 
-Phase 11G HX model consolidation is approved and safe to merge as a checkpoint.
+Phase 11H segmented wall-HTC coupling is approved and safe to merge as a checkpoint.
 The Phase 11 final closeout assessment is checkpoint-only: Phase 11 remains open.
+
+- `SegmentedMarchModel` retains the existing `FixedHeatRate` path and now also supports finite-capacity segmented `FixedWallTemp`.
+- The wall-coupling path requires explicit `primary_T_in`, finite positive `primary_cp`, `PrimaryThermalMode.FINITE_CAPACITY`, finite positive `A_ht`, and injected `htc_primary`.
+- Each cell consumes the current cell-inlet `FluidState`, calls primary HTC once, computes explicit local `A_cell`, `UA_cell`, `Q_cell`, outlet enthalpy, and diagnostic outlet temperature, then optionally calls primary DP once.
+- `PrimaryThermalMode.CONSTANT_TEMPERATURE` is rejected as deferred for segmented wall coupling; no phase-change behavior is inferred.
+- `SegmentedCellRecord` / `SegmentedProfile` remain immutable diagnostics. Cell `T_in` and `T_out` are not stored in `FluidState`, on Ports, or in `SystemState`.
+- `htc_multiplier` affects local UA and heat transfer only; `friction_multiplier` affects DP and pressure only; `raw_dP_primary` remains pre-calibration.
+- Segmented `SinkInletTempAndFlow`, segmented `AmbientCoupling`, phase-change wall coupling, boiling/condensation HTC and two-phase-DP closure migrations, moving boundary, and full-loop integration remain deferred.
+- Required validation passed on 2026-06-18: 2660 full tests, 1260 targeted HX/component tests, Ruff clean, and Black clean across 122 files.
+
+Phase 11G HX model consolidation remains complete.
 
 - New focused test file `tests/hx_models/test_hx_model_family_contracts.py` added (54 tests).
 - Cross-model contracts verified: all three implemented models (`EpsilonNTUModel`, `LMTDModel`, `SegmentedMarchModel`) subclass `HeatExchangerModel`, return their correct and distinct `HeatExchangerModelKind`, and are registerable/resolvable through `HeatExchangerModelRegistry`.
