@@ -33,8 +33,8 @@ Verifies:
     - Non-finite DP output raises ValueError
     - DP does not affect enthalpy balance
 
-  Unsupported BCs:
-    - SinkInletTempAndFlow raises UnsupportedHeatExchangerBoundaryConditionError
+  Unsupported BCs / supported in later phases:
+    - SinkInletTempAndFlow is now supported (Phase 11J); PRIMARY_ONLY raises ValueError
     - FixedWallTemp and AmbientCoupling are covered by their focused test modules
 
   Architecture:
@@ -664,12 +664,13 @@ class TestDPPath:
 
 
 # ---------------------------------------------------------------------------
-# Unsupported BCs
+# SinkInletTempAndFlow — supported in Phase 11J; PRIMARY_ONLY rejected
 # ---------------------------------------------------------------------------
 
 
-class TestUnsupportedBCs:
-    def test_sink_inlet_raises_unsupported(self) -> None:
+class TestSinkInletBCBehavior:
+    def test_sink_inlet_primary_only_raises_value_error(self) -> None:
+        """PRIMARY_ONLY is not supported for segmented sink; TWO_SIDED is required."""
         from mpl_sim.hx_models.base import PrimaryThermalMode, UAComputationMode
 
         model = SegmentedMarchModel()
@@ -683,12 +684,13 @@ class TestUnsupportedBCs:
             primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
             ua_computation_mode=UAComputationMode.PRIMARY_ONLY,
             primary_cp=4200.0,
-            htc_primary=_FakeDPCorrelation(),  # satisfies PRIMARY_ONLY requirement
+            htc_primary=_FakeDPCorrelation(),
         )
-        with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError):
+        with pytest.raises(ValueError, match="PRIMARY_ONLY"):
             model.solve(req)
 
-    def test_sink_inlet_error_is_unsupported_not_generic(self) -> None:
+    def test_sink_inlet_not_rejected_as_unsupported(self) -> None:
+        """SinkInletTempAndFlow must not raise UnsupportedHeatExchangerBoundaryConditionError."""
         from mpl_sim.hx_models.base import PrimaryThermalMode, UAComputationMode
 
         model = SegmentedMarchModel()
@@ -702,15 +704,17 @@ class TestUnsupportedBCs:
             primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
             ua_computation_mode=UAComputationMode.PRIMARY_ONLY,
             primary_cp=4200.0,
-            htc_primary=_FakeDPCorrelation(),  # satisfies PRIMARY_ONLY requirement
+            htc_primary=_FakeDPCorrelation(),
         )
-        exc = None
         try:
             model.solve(req)
-        except UnsupportedHeatExchangerBoundaryConditionError as e:
-            exc = e
-        assert exc is not None
-        assert isinstance(exc, NotImplementedError)
+        except UnsupportedHeatExchangerBoundaryConditionError:
+            pytest.fail(
+                "SegmentedMarchModel raised UnsupportedHeatExchangerBoundaryConditionError "
+                "for SinkInletTempAndFlow; this BC is supported in Phase 11J"
+            )
+        except ValueError:
+            pass  # expected — PRIMARY_ONLY not supported
 
 
 # ---------------------------------------------------------------------------

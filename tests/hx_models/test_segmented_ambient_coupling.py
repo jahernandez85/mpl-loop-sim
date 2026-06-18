@@ -40,9 +40,6 @@ Verifies:
     - htc_primary field in each record is None
     - Last record P_out, h_out, T_out are consistent with result
 
-  Unsupported BCs:
-    - SinkInletTempAndFlow remains unsupported with deferred message
-
   Architecture:
     - No CoolProp
     - No PropertyBackend
@@ -84,9 +81,6 @@ from mpl_sim.hx_models.base import (
     AmbientCoupling,
     HXSolveRequest,
     PrimaryThermalMode,
-    SinkInletTempAndFlow,
-    UAComputationMode,
-    UnsupportedHeatExchangerBoundaryConditionError,
 )
 from mpl_sim.hx_models.segmented import (
     SegmentedMarchModel,
@@ -760,47 +754,6 @@ class TestProfile:
         assert isinstance(profile, SegmentedProfile)
         for i, rec in enumerate(profile.cells):
             assert rec.cell_index == i
-
-
-# ---------------------------------------------------------------------------
-# Unsupported BCs remain deferred
-# ---------------------------------------------------------------------------
-
-
-class TestUnsupportedBCsRemainDeferred:
-    def test_sink_inlet_remains_unsupported(self) -> None:
-        model = SegmentedMarchModel()
-        req = HXSolveRequest(
-            primary_state_in=_STATE_IN,
-            primary_mdot=_MDOT,
-            secondary_bc=SinkInletTempAndFlow(T_in=310.0, mdot_secondary=0.1, cp_secondary=4200.0),
-            geometry=object(),
-            discretization=_DISC_3,
-            primary_T_in=300.0,
-            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
-            ua_computation_mode=UAComputationMode.PRIMARY_ONLY,
-            primary_cp=4200.0,
-            htc_primary=_RecordingHTCCorrelation(),
-        )
-        with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError):
-            model.solve(req)
-
-    def test_sink_inlet_error_mentions_deferred(self) -> None:
-        model = SegmentedMarchModel()
-        req = HXSolveRequest(
-            primary_state_in=_STATE_IN,
-            primary_mdot=_MDOT,
-            secondary_bc=SinkInletTempAndFlow(T_in=310.0, mdot_secondary=0.1, cp_secondary=4200.0),
-            geometry=object(),
-            discretization=_DISC_3,
-            primary_T_in=300.0,
-            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
-            ua_computation_mode=UAComputationMode.PRIMARY_ONLY,
-            primary_cp=4200.0,
-            htc_primary=_RecordingHTCCorrelation(),
-        )
-        with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError, match="[Dd]eferred"):
-            model.solve(req)
 
 
 # ---------------------------------------------------------------------------

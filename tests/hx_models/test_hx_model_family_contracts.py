@@ -10,7 +10,8 @@ Verifies:
   - HeatExchangerModelRegistry can register/resolve all implemented models
   - HeatExchangerModelRegistry remains separate from CorrelationRegistry
   - HX strategies do not appear in CorrelationRole
-  - Unsupported BCs in LMTDModel and SegmentedMarchModel remain explicitly unsupported
+  - Unsupported BCs in LMTDModel remain explicitly unsupported
+  - SinkInletTempAndFlow is now supported in SegmentedMarchModel (Phase 11J)
   - EpsilonNTUModel FixedHeatRate path remains supported
   - MOVING_BOUNDARY is a declared seam only — no accidental implementation
   - lmtd.py and segmented.py do not import forbidden layers (filling gap in
@@ -295,11 +296,23 @@ class TestLMTDModelUnsupportedBCs:
 
 
 class TestSegmentedMarchModelUnsupportedBCs:
-    def test_segmented_rejects_sink_inlet_temp_and_flow(self) -> None:
+    def test_segmented_does_not_reject_sink_inlet_as_unsupported(self) -> None:
+        """SinkInletTempAndFlow is supported in Phase 11J.
+
+        The model must not raise UnsupportedHeatExchangerBoundaryConditionError;
+        it may raise ValueError for LUMPED mode or unsupported PRIMARY_ONLY inputs.
+        """
         bc = SinkInletTempAndFlow(T_in=350.0, mdot_secondary=0.1, cp_secondary=4180.0)
         req = _lumped_request(bc)
-        with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError):
+        try:
             SegmentedMarchModel().solve(req)
+        except UnsupportedHeatExchangerBoundaryConditionError:
+            pytest.fail(
+                "SegmentedMarchModel raised UnsupportedHeatExchangerBoundaryConditionError "
+                "for SinkInletTempAndFlow; this BC is supported in Phase 11J"
+            )
+        except ValueError:
+            pass  # expected — LUMPED mode or PRIMARY_ONLY not supported
 
     def test_segmented_does_not_reject_fixed_wall_temp_as_unsupported(self) -> None:
         """FixedWallTemp is now supported in Phase 11H.
