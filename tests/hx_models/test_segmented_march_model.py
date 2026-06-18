@@ -35,8 +35,7 @@ Verifies:
 
   Unsupported BCs:
     - SinkInletTempAndFlow raises UnsupportedHeatExchangerBoundaryConditionError
-    - FixedWallTemp raises UnsupportedHeatExchangerBoundaryConditionError
-    - AmbientCoupling raises UnsupportedHeatExchangerBoundaryConditionError
+    - FixedWallTemp and AmbientCoupling are covered by their focused test modules
 
   Architecture:
     - segmented.py does not import CoolProp
@@ -75,7 +74,6 @@ from mpl_sim.correlations.contract import (
 )
 from mpl_sim.discretization.primitives import DiscretizationMode, DiscretizationSpec
 from mpl_sim.hx_models.base import (
-    AmbientCoupling,
     FixedHeatRate,
     HeatExchangerModelKind,
     HXSolveRequest,
@@ -690,18 +688,6 @@ class TestUnsupportedBCs:
         with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError):
             model.solve(req)
 
-    def test_ambient_coupling_raises_unsupported(self) -> None:
-        model = SegmentedMarchModel()
-        req = HXSolveRequest(
-            primary_state_in=_STATE_IN,
-            primary_mdot=_MDOT,
-            secondary_bc=AmbientCoupling(T_ambient=298.0, UA_ambient=10.0),
-            geometry=object(),
-            discretization=_DISC_UNIFORM_3,
-        )
-        with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError):
-            model.solve(req)
-
     def test_sink_inlet_error_is_unsupported_not_generic(self) -> None:
         from mpl_sim.hx_models.base import PrimaryThermalMode, UAComputationMode
 
@@ -725,18 +711,6 @@ class TestUnsupportedBCs:
             exc = e
         assert exc is not None
         assert isinstance(exc, NotImplementedError)
-
-    def test_ambient_coupling_error_mentions_deferred(self) -> None:
-        model = SegmentedMarchModel()
-        req = HXSolveRequest(
-            primary_state_in=_STATE_IN,
-            primary_mdot=_MDOT,
-            secondary_bc=AmbientCoupling(T_ambient=298.0, UA_ambient=10.0),
-            geometry=object(),
-            discretization=_DISC_UNIFORM_3,
-        )
-        with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError, match="[Dd]eferred"):
-            model.solve(req)
 
 
 # ---------------------------------------------------------------------------

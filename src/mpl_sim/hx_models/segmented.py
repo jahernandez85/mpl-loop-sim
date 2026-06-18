@@ -1,8 +1,8 @@
-"""SegmentedMarchModel heat-exchanger model — Phase 11F/11H.
+"""SegmentedMarchModel heat-exchanger model — Phase 11F/11H/11I.
 
 Implements a segmented forward-march strategy.
 
-Supported BCs (Phase 11F/11H):
+Supported BCs (Phase 11F/11H/11I):
   - FixedHeatRate: Q is prescribed; enthalpy is marched cell-by-cell over
     n_cells equal segments.
   - FixedWallTemp: Wall temperature is prescribed; the primary stream is marched
@@ -10,8 +10,13 @@ Supported BCs (Phase 11F/11H):
     correlation and the local primary temperature.  Requires explicit
     PrimaryThermalMode.FINITE_CAPACITY, primary_T_in, primary_cp, A_ht, and
     htc_primary.
+  - AmbientCoupling: Ambient temperature and conductance are prescribed.  The
+    primary stream is marched cell by cell using prescribed UA_ambient divided
+    equally over n_cells.  No primary HTC correlation is required or called.
+    Requires explicit PrimaryThermalMode.FINITE_CAPACITY, primary_T_in, and
+    primary_cp.
 
-Common to both paths:
+Common to all paths:
   - Requires DiscretizationSpec with mode=UNIFORM and explicit n_cells >= 1.
   - Rejects LUMPED and MOVING_BOUNDARY modes with a clear ValueError.
   - Calls the injected dp_primary correlation once per cell (cell-wise DP march)
@@ -38,16 +43,21 @@ FixedWallTemp cell energy march:
   h_{i+1} = h_i + Q_cell / primary_mdot
   T_{i+1} = T_i + Q_cell / (primary_mdot * primary_cp)
 
-Cell pressure march (when dp_primary is supplied — both paths):
+AmbientCoupling cell energy march:
+  UA_cell = UA_ambient / n_cells   (htc_multiplier does NOT apply)
+  Q_cell  = UA_cell * (T_ambient - T_cell_in)
+  h_{i+1} = h_i + Q_cell / primary_mdot
+  T_{i+1} = T_i + Q_cell / (primary_mdot * primary_cp)
+
+Cell pressure march (when dp_primary is supplied — all paths):
   raw_dP_cell_i = dp_primary.evaluate(cell_i_inlet_state)
   dP_cell_i     = friction_multiplier * raw_dP_cell_i
   P_{i+1}       = P_i - dP_cell_i
   dP_primary    = friction_multiplier * sum(raw_dP_cell_i)
 
-Unsupported BCs (Phase 11H):
+Unsupported BCs (Phase 11I):
   - SinkInletTempAndFlow: raises UnsupportedHeatExchangerBoundaryConditionError.
-  - AmbientCoupling:      raises UnsupportedHeatExchangerBoundaryConditionError.
-  Segment-wise secondary-fluid coupling and ambient coupling are deferred.
+  Segment-wise secondary-fluid coupling is deferred.
 
 Architectural constraints:
   - No import of CoolProp, properties/, components/, network/, or solvers/.
@@ -55,6 +65,7 @@ Architectural constraints:
   - No CorrelationRegistry resolution.
   - No modification of any input object.
   - Cell temperatures stored only in zone_profile diagnostics; never in FluidState.
+  - htc_multiplier does not affect AmbientCoupling: UA_ambient is already prescribed.
 """
 
 from __future__ import annotations
@@ -107,7 +118,8 @@ class SegmentedCellRecord:
     P_out       : primary pressure at cell outlet [Pa]
     T_in        : primary temperature at cell inlet [K]; None for FixedHeatRate path
     T_out       : primary temperature at cell outlet [K]; None for FixedHeatRate path
-    htc_primary : raw primary HTC output for this cell [W/(m²·K)]; None for FixedHeatRate path
+    htc_primary : raw primary HTC output for this cell [W/(m²·K)];
+                  None for FixedHeatRate and AmbientCoupling paths
     UA_cell     : effective UA for this cell [W/K]; None for FixedHeatRate path
     """
 
@@ -186,13 +198,13 @@ def _require_n_cells(disc: DiscretizationSpec) -> int:
 
 
 class SegmentedMarchModel(HeatExchangerModel):
-    """Segmented forward-march heat-exchanger strategy — Phase 11F/11H.
+    """Segmented forward-march heat-exchanger strategy — Phase 11F/11H/11I.
 
     Stateless strategy object.  Two calls with equal HXSolveRequest objects
     return equivalent results.
 
-    Supported BCs: FixedHeatRate, FixedWallTemp.
-    Unsupported:   SinkInletTempAndFlow, AmbientCoupling.
+    Supported BCs: FixedHeatRate, FixedWallTemp, AmbientCoupling.
+    Unsupported:   SinkInletTempAndFlow.
 
     DP handling: cell-wise.  dp_primary (if supplied) is called once per cell
     with the cell inlet state; raw DP values are summed; friction_multiplier
@@ -211,7 +223,7 @@ class SegmentedMarchModel(HeatExchangerModel):
     def solve(self, req: HXSolveRequest) -> HXSolveResult:
         """Solve the heat-exchanger problem described by *req*.
 
-        Supported secondary BCs: FixedHeatRate, FixedWallTemp.
+        Supported secondary BCs: FixedHeatRate, FixedWallTemp, AmbientCoupling.
 
         Parameters
         ----------
@@ -225,9 +237,9 @@ class SegmentedMarchModel(HeatExchangerModel):
         ------
         ValueError
             If discretization mode is not UNIFORM, n_cells is missing/invalid,
-            or a required FixedWallTemp input is absent or invalid.
+            or a required input is absent or invalid for the active BC.
         UnsupportedHeatExchangerBoundaryConditionError
-            For SinkInletTempAndFlow and AmbientCoupling BCs.
+            For SinkInletTempAndFlow BC.
         """
         bc = req.secondary_bc
 
@@ -237,16 +249,13 @@ class SegmentedMarchModel(HeatExchangerModel):
         if isinstance(bc, FixedWallTemp):
             return self._solve_fixed_wall_temp(req, bc)
 
+        if isinstance(bc, AmbientCoupling):
+            return self._solve_ambient_coupling(req, bc)
+
         if isinstance(bc, SinkInletTempAndFlow):
             raise UnsupportedHeatExchangerBoundaryConditionError(
                 "SegmentedMarchModel does not support SinkInletTempAndFlow.  "
                 "Segment-wise secondary-fluid coupling and local UA solving are deferred."
-            )
-
-        if isinstance(bc, AmbientCoupling):
-            raise UnsupportedHeatExchangerBoundaryConditionError(
-                "SegmentedMarchModel does not support AmbientCoupling.  "
-                "Segment-wise ambient coupling is deferred."
             )
 
         raise UnsupportedHeatExchangerBoundaryConditionError(
@@ -371,6 +380,132 @@ class SegmentedMarchModel(HeatExchangerModel):
             L_cell=L_cell,
             rho=rho,
             mu=mu,
+        )
+
+    # ------------------------------------------------------------------
+    # AmbientCoupling path
+    # ------------------------------------------------------------------
+
+    def _solve_ambient_coupling(
+        self,
+        req: HXSolveRequest,
+        bc: AmbientCoupling,
+    ) -> HXSolveResult:
+        n_cells = _require_n_cells(req.discretization)
+
+        # --- Require explicit primary inlet temperature ---
+        if req.primary_T_in is None:
+            raise ValueError(
+                "SegmentedMarchModel: HXSolveRequest.primary_T_in is required when "
+                "secondary_bc is AmbientCoupling.  "
+                "Supply the precomputed primary inlet temperature [K] from the caller."
+            )
+
+        # --- Require FINITE_CAPACITY; CONSTANT_TEMPERATURE is deferred ---
+        if req.primary_thermal_mode is PrimaryThermalMode.CONSTANT_TEMPERATURE:
+            raise ValueError(
+                "SegmentedMarchModel: PrimaryThermalMode.CONSTANT_TEMPERATURE is not "
+                "supported for AmbientCoupling segmented coupling.  "
+                "Phase-change segmented ambient coupling is deferred."
+            )
+        if req.primary_thermal_mode is not PrimaryThermalMode.FINITE_CAPACITY:
+            raise ValueError(
+                "SegmentedMarchModel: primary_thermal_mode must be "
+                "PrimaryThermalMode.FINITE_CAPACITY for AmbientCoupling segmented "
+                f"coupling; got {req.primary_thermal_mode!r}."
+            )
+
+        # --- Require explicit primary_cp ---
+        if req.primary_cp is None:
+            raise ValueError(
+                "SegmentedMarchModel: HXSolveRequest.primary_cp is required when "
+                "secondary_bc is AmbientCoupling with FINITE_CAPACITY thermal mode.  "
+                "Supply the precomputed primary-side specific heat [J/kg/K]."
+            )
+
+        # UA_ambient is already prescribed; htc_multiplier does NOT apply here.
+        UA_cell = bc.UA_ambient / n_cells
+
+        verdicts: list[CorrelationOutput] = []
+        cell_records: list[SegmentedCellRecord] = []
+
+        h_current = req.primary_state_in.h
+        P_current = req.primary_state_in.P
+        T_current = req.primary_T_in
+        raw_dP_total = 0.0
+        Q_total = 0.0
+
+        for i in range(n_cells):
+            h_in = h_current
+            P_in = P_current
+            T_in = T_current
+
+            Q_cell = UA_cell * (bc.T_ambient - T_in)
+            h_out = h_in + Q_cell / req.primary_mdot
+            T_out = T_in + Q_cell / (req.primary_mdot * req.primary_cp)
+
+            # --- DP: one call per cell ---
+            raw_dP_cell = 0.0
+            dP_cell = 0.0
+            if req.dp_primary is not None:
+                cell_state = FluidState(
+                    P=P_in,
+                    h=h_in,
+                    identity=req.primary_state_in.identity,
+                )
+                dp_inp = self._build_dp_input(req, cell_state)
+                raw_dp_out = req.dp_primary.evaluate(dp_inp)
+                verdicts.append(raw_dp_out)
+                raw_dP_cell = raw_dp_out.value[0]
+                if not math.isfinite(raw_dP_cell):
+                    raise ValueError(
+                        f"SegmentedMarchModel: DP correlation output must be finite "
+                        f"for cell {i}; got {raw_dP_cell!r}"
+                    )
+                dP_cell = req.friction_multiplier * raw_dP_cell
+
+            P_out = P_in - dP_cell
+            raw_dP_total += raw_dP_cell
+            Q_total += Q_cell
+
+            cell_records.append(
+                SegmentedCellRecord(
+                    cell_index=i,
+                    Q_cell=Q_cell,
+                    h_in=h_in,
+                    h_out=h_out,
+                    raw_dP_cell=raw_dP_cell,
+                    dP_cell=dP_cell,
+                    P_in=P_in,
+                    P_out=P_out,
+                    T_in=T_in,
+                    T_out=T_out,
+                    htc_primary=None,
+                    UA_cell=UA_cell,
+                )
+            )
+
+            h_current = h_out
+            P_current = P_out
+            T_current = T_out
+
+        dP_primary = req.friction_multiplier * raw_dP_total
+        primary_state_out = FluidState(
+            P=P_current,
+            h=h_current,
+            identity=req.primary_state_in.identity,
+        )
+        profile = SegmentedProfile(cells=tuple(cell_records))
+
+        return HXSolveResult(
+            primary_state_out=primary_state_out,
+            Q=Q_total,
+            dP_primary=dP_primary,
+            verdicts=tuple(verdicts),
+            htc_multiplier=req.htc_multiplier,
+            friction_multiplier=req.friction_multiplier,
+            raw_dP_primary=raw_dP_total,
+            zone_profile=profile,
         )
 
     # ------------------------------------------------------------------
