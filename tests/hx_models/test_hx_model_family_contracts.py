@@ -301,10 +301,22 @@ class TestSegmentedMarchModelUnsupportedBCs:
         with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError):
             SegmentedMarchModel().solve(req)
 
-    def test_segmented_rejects_fixed_wall_temp(self) -> None:
+    def test_segmented_does_not_reject_fixed_wall_temp_as_unsupported(self) -> None:
+        """FixedWallTemp is now supported in Phase 11H.
+        The model must not raise UnsupportedHeatExchangerBoundaryConditionError;
+        it may raise ValueError for missing required inputs (LUMPED mode or missing
+        primary_T_in / primary_cp / A_ht / htc_primary).
+        """
         req = _lumped_request(FixedWallTemp(T_wall=350.0))
-        with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError):
+        try:
             SegmentedMarchModel().solve(req)
+        except UnsupportedHeatExchangerBoundaryConditionError:
+            pytest.fail(
+                "SegmentedMarchModel raised UnsupportedHeatExchangerBoundaryConditionError "
+                "for FixedWallTemp; this BC is supported in Phase 11H"
+            )
+        except ValueError:
+            pass  # expected — LUMPED mode or missing FixedWallTemp required inputs
 
     def test_segmented_rejects_ambient_coupling(self) -> None:
         req = _lumped_request(AmbientCoupling(T_ambient=300.0, UA_ambient=50.0))

@@ -77,7 +77,6 @@ from mpl_sim.discretization.primitives import DiscretizationMode, Discretization
 from mpl_sim.hx_models.base import (
     AmbientCoupling,
     FixedHeatRate,
-    FixedWallTemp,
     HeatExchangerModelKind,
     HXSolveRequest,
     SinkInletTempAndFlow,
@@ -691,18 +690,6 @@ class TestUnsupportedBCs:
         with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError):
             model.solve(req)
 
-    def test_fixed_wall_temp_raises_unsupported(self) -> None:
-        model = SegmentedMarchModel()
-        req = HXSolveRequest(
-            primary_state_in=_STATE_IN,
-            primary_mdot=_MDOT,
-            secondary_bc=FixedWallTemp(T_wall=350.0),
-            geometry=object(),
-            discretization=_DISC_UNIFORM_3,
-        )
-        with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError):
-            model.solve(req)
-
     def test_ambient_coupling_raises_unsupported(self) -> None:
         model = SegmentedMarchModel()
         req = HXSolveRequest(
@@ -738,18 +725,6 @@ class TestUnsupportedBCs:
             exc = e
         assert exc is not None
         assert isinstance(exc, NotImplementedError)
-
-    def test_fixed_wall_temp_error_mentions_deferred(self) -> None:
-        model = SegmentedMarchModel()
-        req = HXSolveRequest(
-            primary_state_in=_STATE_IN,
-            primary_mdot=_MDOT,
-            secondary_bc=FixedWallTemp(T_wall=350.0),
-            geometry=object(),
-            discretization=_DISC_UNIFORM_3,
-        )
-        with pytest.raises(UnsupportedHeatExchangerBoundaryConditionError, match="[Dd]eferred"):
-            model.solve(req)
 
     def test_ambient_coupling_error_mentions_deferred(self) -> None:
         model = SegmentedMarchModel()
