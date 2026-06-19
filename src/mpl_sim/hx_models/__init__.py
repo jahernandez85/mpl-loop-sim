@@ -8,6 +8,9 @@ Exports:
     SinkInletTempAndFlow, FixedWallTemp, FixedHeatRate, AmbientCoupling
     SecondaryFluidBC  (union type alias)
 
+  Flow arrangement (Phase 11S):
+    FlowArrangement  — CO_CURRENT | COUNTERFLOW
+
   Request / result:
     HXSolveRequest, HXSolveResult
 
@@ -37,6 +40,7 @@ from mpl_sim.hx_models.base import (
     AmbientCoupling,
     FixedHeatRate,
     FixedWallTemp,
+    FlowArrangement,
     HeatExchangerModel,
     HeatExchangerModelKind,
     HXSolveRequest,
@@ -66,6 +70,8 @@ __all__ = [
     "FixedHeatRate",
     "AmbientCoupling",
     "SecondaryFluidBC",
+    # Flow arrangement (Phase 11S)
+    "FlowArrangement",
     # Request / result
     "HXSolveRequest",
     "HXSolveResult",

@@ -82,6 +82,26 @@ class UAComputationMode(Enum):
     PRIMARY_ONLY = auto()
 
 
+class FlowArrangement(Enum):
+    """Explicit flow arrangement for segmented two-stream HX coupling.
+
+    CO_CURRENT  — parallel flow; both stream inlets are at cell 0.
+                  This is the existing default behavior for SinkInletTempAndFlow.
+    COUNTERFLOW — opposing flow; primary inlet at cell 0, secondary inlet
+                  at cell n-1 (the opposite end).
+
+    Note: COUNTERFLOW in SegmentedMarchModel is implemented as a one-pass
+    approximation only.  A fully coupled nonlinear counterflow solution requires
+    iteration; that iteration is deferred.  See SegmentedMarchModel docstring.
+
+    Only applies to SinkInletTempAndFlow BC in SegmentedMarchModel.
+    Ignored by EpsilonNTUModel and LMTDModel.
+    """
+
+    CO_CURRENT = auto()
+    COUNTERFLOW = auto()
+
+
 # ---------------------------------------------------------------------------
 # SecondaryFluidBC family
 # ---------------------------------------------------------------------------
@@ -223,6 +243,13 @@ class HXSolveRequest:
                              SinglePhaseDPInput and treats value[0] as Pa directly
                              (existing single-phase behaviour).  Ignored when dp_primary
                              is None.  No auto-detection by correlation class is performed.
+    flow_arrangement       : optional explicit flow arrangement for SinkInletTempAndFlow BC
+                             in SegmentedMarchModel.  None (default) preserves existing
+                             co-current behavior.  FlowArrangement.CO_CURRENT reproduces
+                             that behavior explicitly.  FlowArrangement.COUNTERFLOW uses
+                             a one-pass approximation (primary inlet at cell 0, secondary
+                             inlet at cell n-1); not a fully coupled converged solution.
+                             Ignored by EpsilonNTUModel and LMTDModel.
 
     Validation
     ----------
@@ -254,6 +281,7 @@ class HXSolveRequest:
     ua_computation_mode: UAComputationMode | None = None
     q_flux_primary: float | None = None
     dp_primary_is_two_phase: bool = False
+    flow_arrangement: FlowArrangement | None = None
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.primary_mdot) or self.primary_mdot <= 0:
