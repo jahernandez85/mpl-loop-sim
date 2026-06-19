@@ -1,4 +1,4 @@
-"""Components package -- Phase 11D: Evaporator and Condenser foundations added.
+"""Components package -- Phase 11R: Evaporator/Condenser scenario bindings added.
 
 Exports:
   Component contract primitives:
@@ -22,11 +22,11 @@ Exports:
     AccumulatorComponent, AccumulatorOperatingPoint, AccumulatorPressureSummary,
     VolumePressureLawBinding, AccumulatorVolumePressureSummary
 
-  Evaporator (Phase 11C):
-    EvaporatorComponent, EvaporatorHXInput
+  Evaporator (Phase 11C / Phase 11R):
+    EvaporatorComponent, EvaporatorHXInput, EvaporatorScenarioBinding
 
-  Condenser (Phase 11D):
-    CondenserComponent, CondenserHXInput
+  Condenser (Phase 11D / Phase 11R):
+    CondenserComponent, CondenserHXInput, CondenserScenarioBinding
 
 Architectural constraints:
   - MUST NOT import from network/ or solvers/.
@@ -47,8 +47,16 @@ from mpl_sim.components.base import (
     ComponentKind,
     ComponentPort,
 )
-from mpl_sim.components.condenser import CondenserComponent, CondenserHXInput
-from mpl_sim.components.evaporator import EvaporatorComponent, EvaporatorHXInput
+from mpl_sim.components.condenser import (
+    CondenserComponent,
+    CondenserHXInput,
+    CondenserScenarioBinding,
+)
+from mpl_sim.components.evaporator import (
+    EvaporatorComponent,
+    EvaporatorHXInput,
+    EvaporatorScenarioBinding,
+)
 from mpl_sim.components.pipe import (
     Pipe,
     PipeAccelerationInput,
@@ -111,10 +119,12 @@ __all__ = [
     "AccumulatorPressureSummary",
     "VolumePressureLawBinding",
     "AccumulatorVolumePressureSummary",
-    # Evaporator Phase 11C
+    # Evaporator Phase 11C / Phase 11R
     "EvaporatorComponent",
     "EvaporatorHXInput",
-    # Condenser Phase 11D
+    "EvaporatorScenarioBinding",
+    # Condenser Phase 11D / Phase 11R
     "CondenserComponent",
     "CondenserHXInput",
+    "CondenserScenarioBinding",
 ]
