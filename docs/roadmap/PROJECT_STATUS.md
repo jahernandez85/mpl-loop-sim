@@ -54,15 +54,32 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11M status** | **Checkpoint complete. `ShahBoilingHTC` and `YanCondensationHTC` are implemented, exported, and tested under the current `CorrelationRole.HTC` contract with explicit scalar inputs, one-element HTC outputs, validity verdicts, metadata, and no property lookup or hidden defaults. Existing HX builders forward all `geom_scalars`, so `YanCondensationHTC` is directly injectable when callers provide its required scalars. `ShahBoilingHTC` HX injection remains deferred because current builders do not populate `HTCInput.q_flux`. Remaining two-phase HTC closures, two-phase DP, moving boundary, and full-loop integration remain deferred.** |
 | **Phase 11N audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 11N status** | **Checkpoint complete. `HXSolveRequest.q_flux_primary: float | None` adds strict explicit primary-side heat-flux validation and all three HX strategies pass it unchanged to primary `HTCInput.q_flux`. Epsilon-NTU and segmented two-sided paths explicitly keep secondary `HTCInput.q_flux=None`. `ShahBoilingHTC` is injectable through EpsilonNTU, LMTD, and Segmented fixed-wall paths when all required scalars and q-flux are supplied. No Q/A inference, abs(), clipping, or hidden fallback exists. `YanCondensationHTC` remains injectable and q-flux-independent. Two-phase DP, remaining HTC closures, moving boundary, and full-loop integration remain deferred.** |
+| **Phase 11P audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 11P status** | **Checkpoint complete. All three HX strategies support explicit primary-side `TwoPhaseDPInput` construction and Pa/m-to-Pa conversion when `dp_primary_is_two_phase=True`; default single-phase behavior remains unchanged.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **V1 HX model foundation now includes all four secondary BC classes in limited segmented form, but roadmap-defined correlation migrations, counterflow/phase-change segmented coupling, moving boundary, and full-loop convergence acceptance remain incomplete.** |
-| **Branch status** | **Implemented and audited on `phase-11o-two-phase-dp-migration`; approved for merge as a Phase 11O checkpoint.** |
+| **Branch status** | **Phase 11P implemented and audited on `phase-11p-two-phase-dp-hx-plumbing`; approved for merge as a checkpoint.** |
 | **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation** |
-| **Next immediate slice** | Continue Phase 11 with additional two-phase DP closures (Homogeneous, Kim-Mudawar 2013), counterflow or justified phase-change coupling, two-phase DP HX injection wiring, and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
-| **Working tree before this audit** | Phase 11O corrective work: Decision 011, frozen-contract amendment, `TwoPhaseDPInput.property_scalars`, MSH envelope/semantic fixes, and focused test expansion |
-| **Test status** | 3130 passed, verified 2026-06-19 with `pytest`; `test_two_phase_dp.py` includes 83 tests |
+| **Next immediate slice** | Continue Phase 11 with additional two-phase DP closures (Homogeneous, Kim-Mudawar 2013), counterflow or justified phase-change coupling, and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
+| **Working tree before this audit** | Phase 11P: `dp_primary_is_two_phase` flag, three HX two-phase DP builders, gradient-to-drop conversion, 70-test plumbing test file |
+| **Test status** | 3252 passed, verified 2026-06-19 with `pytest`; `test_hx_two_phase_dp_plumbing.py` includes 122 tests |
 | **Lint status** | `ruff check src tests` clean, verified 2026-06-19. |
-| **Format status** | `black --check --no-cache src tests` passed, with 132 files unchanged |
+| **Format status** | `black --check --no-cache src tests` passed, with 133 files unchanged |
+
+Phase 11P two-phase DP HX builder and gradient-to-drop plumbing is complete as a checkpoint.
+
+- **`HXSolveRequest.dp_primary_is_two_phase: bool = False`** added in `src/mpl_sim/hx_models/base.py`. When `True` the active HX model builds `TwoPhaseDPInput` instead of `SinglePhaseDPInput` and multiplies the Pa/m gradient output by `L_cell` to produce a Pa pressure drop. When `False` (default) the existing single-phase DP behaviour is unchanged.
+- **Two-phase DP builders added to all three HX models**:
+  - `EpsilonNTUModel._build_two_phase_dp_input(req)` in `src/mpl_sim/hx_models/epsilon_ntu.py`
+  - `LMTDModel._build_two_phase_dp_input(req)` in `src/mpl_sim/hx_models/lmtd.py`
+  - `SegmentedMarchModel._build_two_phase_dp_input_for_cell(req, cell_state)` in `src/mpl_sim/hx_models/segmented.py`
+- **Gradient-to-drop conversion**: `raw_dP_Pa = raw_dp_out.value[0] * dp_inp.L_cell`. The raw Pa value (pre-calibration) is stored in `HXSolveResult.raw_dP_primary`. `friction_multiplier` is applied after conversion, producing `dP_primary` [Pa].
+- **Required geom_scalars for two-phase path**: `G`, `x`, `D_h`, `L_cell`, `rho_l`, `rho_v`, `mu_l`, `mu_v`. The four fluid-property scalars are forwarded into `TwoPhaseDPInput.property_scalars` (Decision 011). Missing or non-positive values raise `ValueError` with the key name in the message.
+- **Supported in EpsilonNTU**: all four BC paths (FixedHeatRate, SinkInletTempAndFlow, FixedWallTemp, AmbientCoupling).
+- **Supported in LMTD**: both BC paths (FixedWallTemp, AmbientCoupling).
+- **Supported in Segmented**: all four BC paths (FixedHeatRate, FixedWallTemp, AmbientCoupling, SinkInletTempAndFlow); per-cell conversion uses `L_cell` from geom_scalars for each cell call.
+- **No auto-detection by correlation class**; no registry resolution; no CoolProp; no PropertyBackend; no hidden defaults.
+- New test file `tests/hx_models/test_hx_two_phase_dp_plumbing.py` with 122 tests covering: single-phase path unchanged, TwoPhaseDPInput construction, exact property-scalar forwarding, the complete missing/invalid scalar matrix, gradient-to-drop conversion, friction_multiplier placement, hidden-default absence, per-cell segmented conversion, every supported BC path in all three models, wrong mode/correlation combinations, registry absence, and CoolProp/PropertyBackend absence.
 
 Phase 11O two-phase DP correlation migration is complete as a checkpoint.
 
@@ -70,9 +87,9 @@ Phase 11O two-phase DP correlation migration is complete as a checkpoint.
 - **Output semantics**: gradient dP/dx [Pa/m], positive = pressure decreasing in flow direction. Gravity and acceleration gradients are NOT included (Component terms per §3.2). Same sign convention and output form as `ChurchillFrictionGradient`.
 - **Required explicit inputs via `TwoPhaseDPInput`**: `G` [kg/m²s], `x[0]` quality ∈ [0, 1], and `D_h` [m], plus caller-supplied `rho_l`, `rho_v`, `mu_l`, and `mu_v` entries in the immutable `property_scalars` mapping authorized by Decision 011. The mapping defaults empty. MSH validates required keys as finite and strictly positive; missing or invalid entries raise `ValueError`. No direct `TwoPhaseDPInput.rho_l/rho_v/mu_l/mu_v` fields remain.
 - **Validity envelope**: quality x ∈ [0, 1]; D_h ≥ 1 μm. No G bounds declared (source does not establish explicit limits). `EXTRAPOLATED` for D_h < 1 μm; `IN_ENVELOPE` for x ∈ [0, 1], D_h ≥ 1 μm. x outside [0, 1] is a hard `ValueError` (physically impossible).
-- **HX injection**: DEFERRED. Current `_build_dp_input` in all three HX models produces `SinglePhaseDPInput` (not `TwoPhaseDPInput`) and treats `value[0]` as a pressure drop (Pa), not a gradient (Pa/m). Injection requires a dedicated `TwoPhaseDPInput` builder, explicit `property_scalars` plumbing, and explicit gradient-to-drop multiplication by `L_cell`.
+- **HX injection at the Phase 11O checkpoint**: originally deferred because HX models only built `SinglePhaseDPInput`. Phase 11P resolves that deferral with an explicit two-phase builder mode, Decision 011 property-scalar forwarding, and gradient-to-drop multiplication by `L_cell`.
 - No CoolProp, no PropertyBackend, no quality clamping, no hidden defaults, no automatic closure selection, no CorrelationRegistry resolution inside HX models.
-- `tests/correlations/test_two_phase_dp.py` contains 83 tests covering the contract field manifest, immutable mapping behavior, required scalar failures, independent numerical verification, quality endpoints, Reynolds envelope boundaries, Pa/m and `L_cell` semantics, refrigerant scope, registry/export behavior, architecture boundaries, and honest HX deferral.
+- `tests/correlations/test_two_phase_dp.py` contains 83 tests covering the contract field manifest, immutable mapping behavior, required scalar failures, independent numerical verification, quality endpoints, Reynolds envelope boundaries, Pa/m and `L_cell` semantics, refrigerant scope, registry/export behavior, architecture boundaries, and the HX input/output boundary.
 - `MSHTwoPhaseFrictionGradient` exported from `mpl_sim.correlations`.
 
 Phase 11N explicit q_flux plumbing is complete and approved as a checkpoint.
@@ -117,7 +134,7 @@ The Phase 11 final closeout assessment is checkpoint-only: Phase 11 remains open
   - **Single-phase HTC**: `DittusBoelterHTC`, `GnielinskiHTC` — **implemented and tested in Phase 11L**.
   - **Boiling HTC**: `ShahBoilingHTC` — **implemented and tested in Phase 11M** (Shah 1982, saturated flow boiling). Remaining (Chen, Bennett-Chen, Gungor-Winterton, Kandlikar-Balasubramanian, Kim-Mudawar 2012) deferred.
   - **Condensation HTC**: `YanCondensationHTC` — **implemented and tested in Phase 11M** (Yan et al. 1999, plate HX condensation). Remaining deferred.
-  - **Two-phase DP**: `MSHTwoPhaseFrictionGradient` — **implemented and tested in Phase 11O** (MSH 1986, Churchill ff). Remaining (Homogeneous/Cicchitti, Kim-Mudawar 2013) deferred. HX injection deferred (unit/input mismatch documented above).
+  - **Two-phase DP**: `MSHTwoPhaseFrictionGradient` — **implemented and tested in Phase 11O** (MSH 1986, Churchill ff) and wired into HX models in Phase 11P. Remaining Homogeneous/Cicchitti and Kim-Mudawar 2013 closures are deferred.
   - **Placeholder/test**: none in production code; test-only stubs used in test files only.
 
 - Phase 11K: No adapter or factory utilities were added: the existing `HXSolveRequest` injection seams are already sufficient for consuming any `Correlation`-contract-compliant closure without registry resolution or hidden defaults.
@@ -354,6 +371,7 @@ Key authority statements:
 | **Phase 11M Two-phase HTC correlation migration foundation** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 | **Phase 11N Explicit q_flux plumbing for HTC injection** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 | **Phase 11O Two-phase DP correlation migration** | **Complete; audited and approved for merge as checkpoint on `phase-11o-two-phase-dp-migration`** |
+| **Phase 11P Two-phase DP HX builder and gradient-to-drop plumbing** | **Complete; audited and approved for merge as checkpoint on `phase-11p-two-phase-dp-hx-plumbing`** |
 
 Closeout artifacts:
 
@@ -413,12 +431,11 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-11o-two-phase-dp-migration` into `main` as a Phase 11O checkpoint.
+1. Merge `phase-11p-two-phase-dp-hx-plumbing` into `main` as a Phase 11P checkpoint.
 2. Continue **Phase 11 - HeatExchangerModel, Evaporator and Condenser** after merge.
 3. Migrate remaining two-phase DP closures (Homogeneous/Cicchitti, Kim-Mudawar 2013) if safe legacy sources are confirmed.
-4. Wire two-phase DP HX injection: extend `_build_dp_input` to build `TwoPhaseDPInput`, add gradient-to-drop `* L_cell` conversion, forward two-phase property scalars through `geom_scalars`.
-5. Migrate remaining two-phase HTC closures if safe legacy sources exist.
-6. Complete meaningful segmented local HTC/secondary coupling and the full-loop convergence acceptance case.
+4. Migrate remaining two-phase HTC closures if safe legacy sources exist.
+5. Complete meaningful segmented local HTC/secondary coupling and the full-loop convergence acceptance case.
 6. Repeat the Phase 11 final closeout audit before starting Phase 12.
 7. Preserve frozen architecture boundaries while completing the remaining work.
 8. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
@@ -477,7 +494,7 @@ None block merging the Phase 11F segmented HX model foundation checkpoint.
 | Presentation artifact lint/noise remains on this branch lineage | Docs cleanup | Handle `docs/presentations` separately in `chore/remove-presentation-artifacts` or a docs cleanup branch |
 | Remaining boiling/condensation HTC closures not migrated | Phase 11 continuation | Chen blocked by CoolProp inside legacy function; Bennett-Chen, Gungor-Winterton, Kandlikar, Kim-Mudawar 2012 deferred until safe legacy sources confirmed |
 | Remaining two-phase DP closures not migrated | Phase 11 continuation | Homogeneous/Cicchitti and Kim-Mudawar 2013; port under correlation contract |
-| Two-phase DP HX injection not wired | Phase 11 continuation | HX models must build TwoPhaseDPInput; gradient→drop * L_cell; two-phase scalars in geom_scalars |
+| Two-phase DP HX injection — `dp_primary_is_two_phase=True` wired | **Phase 11P complete** | All three HX models build `TwoPhaseDPInput` and multiply gradient × `L_cell` |
 | Full loop residual integration with Evaporator and Condenser not implemented | Phase 11 continuation | Integrate through component/local residual adapters while keeping Solver physics-free |
 | Heat transfer, phase change, and two-phase pressure drop incomplete | Phase 11+ | Continue in planned Phase 11 slices; do not fake Phase 12 validation |
 | 29 property CSV files missing | Future `TabulatedPropertyBackend`; `sigma_e`/`eps_r` | Data recovery task; does not block CoolProp-backed V1 path |
@@ -514,6 +531,8 @@ Rules for the next implementation session:
 - Continue Pump and Accumulator only for focused fixes or hardening; continue Phase 11 from the Phase 11F HX checkpoint. Keep dynamic controls, fitting, optimization, DOE, literature validation, Newton/Jacobian expansion, and transient solving deferred unless explicitly requested.
 - Run `pytest`, appropriate scoped lint, and `black --check src tests` before reporting any implementation task complete. Keep scoped audit commands tied to the requested branch surface.
 - Do not include `Co-Authored-By` lines unless explicitly requested.
+- Phase 11P added `HXSolveRequest.dp_primary_is_two_phase: bool = False`. When `True`, HX models build `TwoPhaseDPInput` with `rho_l`, `rho_v`, `mu_l`, `mu_v` from `geom_scalars` into `property_scalars`, and multiply `value[0] * L_cell` for gradient-to-drop conversion. Single-phase DP path (default `False`) is unchanged.
+- Two-phase DP is now injectable into all three HX models using `MSHTwoPhaseFrictionGradient` when the caller supplies required scalars in `geom_scalars` and sets `dp_primary_is_two_phase=True`.
 
 ---
 
@@ -523,6 +542,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-19 |
 | **Updated by** | Codex |
-| **Status note** | Phase 11O audited and approved as a checkpoint on `phase-11o-two-phase-dp-migration`; `MSHTwoPhaseFrictionGradient` returns a positive Pa/m loss gradient; Decision 011 authorizes immutable `TwoPhaseDPInput.property_scalars`; HX builder/plumbing and gradient-to-drop conversion remain deferred; 3130 tests passing; Phase 11 remains open |
+| **Status note** | Phase 11P complete on `phase-11p-two-phase-dp-hx-plumbing`; `dp_primary_is_two_phase=True` enables `TwoPhaseDPInput` construction and Pa/m→Pa gradient-to-drop conversion in all three HX models; 3252 tests passing; Phase 11 remains open |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*

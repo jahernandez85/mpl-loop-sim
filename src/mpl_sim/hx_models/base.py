@@ -217,6 +217,12 @@ class HXSolveRequest:
                              must be finite and > 0 if supplied; zero, negative, NaN,
                              and infinite values are rejected; no abs(), no clipping,
                              no hidden fallback
+    dp_primary_is_two_phase: when True the HX model builds TwoPhaseDPInput for dp_primary
+                             and multiplies the Pa/m gradient output by L_cell to obtain
+                             a pressure drop in Pa.  When False (default) the model builds
+                             SinglePhaseDPInput and treats value[0] as Pa directly
+                             (existing single-phase behaviour).  Ignored when dp_primary
+                             is None.  No auto-detection by correlation class is performed.
 
     Validation
     ----------
@@ -247,6 +253,7 @@ class HXSolveRequest:
     primary_thermal_mode: PrimaryThermalMode | None = None
     ua_computation_mode: UAComputationMode | None = None
     q_flux_primary: float | None = None
+    dp_primary_is_two_phase: bool = False
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.primary_mdot) or self.primary_mdot <= 0:
