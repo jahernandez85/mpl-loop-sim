@@ -1,8 +1,8 @@
-"""SegmentedMarchModel heat-exchanger model — Phase 11F/11H/11I/11J/11S.
+"""SegmentedMarchModel heat-exchanger model — Phase 11F/11H/11I/11J/11S/11T.
 
 Implements a segmented forward-march strategy.
 
-Supported BCs (Phase 11F/11H/11I/11J/11S):
+Supported BCs (Phase 11F/11H/11I/11J/11S/11T):
   - FixedHeatRate: Q is prescribed; enthalpy is marched cell-by-cell over
     n_cells equal segments.
   - FixedWallTemp: Wall temperature is prescribed; the primary stream is marched
@@ -23,18 +23,37 @@ Supported BCs (Phase 11F/11H/11I/11J/11S):
     Flow arrangement (Phase 11S) is controlled by HXSolveRequest.flow_arrangement:
       - None or FlowArrangement.CO_CURRENT (default): explicit co-current
         (parallel-flow) foundation.  Both inlets at cell 0.  Existing behavior.
-      - FlowArrangement.COUNTERFLOW: one-pass counterflow approximation.
-        Primary inlet at cell 0; secondary inlet at cell n-1 (opposite end).
+      - FlowArrangement.COUNTERFLOW: counterflow path; dispatched further by
+        counterflow_iteration (see below).
 
-    COUNTERFLOW LIMITATION (Phase 11S one-pass approximation):
-      During the forward primary march, the secondary temperature is held
-      fixed at bc.T_in (the counterflow secondary inlet value) for all cells.
-      After the primary march, a secondary temperature profile is derived by
-      backward integration from cell n-1 to cell 0.  The derived secondary
-      temperatures are stored in cell records as diagnostics but do NOT feed
-      back into Q_cell computation.  A fully coupled converged counterflow
-      solution requires iteration between the primary and secondary profiles;
-      that iteration is deferred and out of scope for Phase 11S.
+    COUNTERFLOW dispatch (Phase 11T):
+      HXSolveRequest.counterflow_iteration controls which counterflow solver runs:
+
+      counterflow_iteration=None or enabled=False (default, Phase 11S behavior):
+        One-pass approximation.  During the forward primary march, the secondary
+        temperature is held fixed at bc.T_in (the counterflow secondary inlet
+        value) for all cells.  After the march, a secondary temperature profile
+        is derived by backward integration from cell n-1 to cell 0.  The derived
+        secondary temperatures are stored in cell records as diagnostics but do
+        NOT feed back into Q_cell computation.  HXSolveResult.converged=None;
+        HXSolveResult.iteration_count=0.
+
+      counterflow_iteration.enabled=True (Phase 11T iterated solver):
+        Bounded fixed-point iteration over the secondary temperature profile.
+        Algorithm:
+          1. Initialize secondary profile: T_s[i] = bc.T_in for all i.
+          2. For each iteration up to max_iter:
+             a. Forward primary march: Q_cell[i] uses T_s[i] (current estimate).
+             b. Derive new secondary profile backward from cell n-1:
+                  T_s_new_in[n-1] = bc.T_in
+                  T_s_new_out[i]  = T_s_new_in[i] - Q_cell[i] / C_secondary
+                  T_s_new_in[i]   = T_s_new_out[i+1]  for i < n-1
+             c. Residual = max_i |T_s_new_in[i] - T_s[i]|  (convergence criterion)
+             d. Update: T_s[i] += relaxation * (T_s_new_in[i] - T_s[i])
+             e. Stop if residual <= tolerance (converged).
+          3. Return HXSolveResult with iteration_count, converged, residual.
+        Non-convergence (max_iter reached) returns converged=False and the
+        residual from the last iteration; it is never silent.
 
 Common to all paths:
   - Requires DiscretizationSpec with mode=UNIFORM and explicit n_cells >= 1.
@@ -109,9 +128,10 @@ Unsupported / deferred:
   - PrimaryThermalMode.CONSTANT_TEMPERATURE for all segmented paths.
   - UAComputationMode.PRIMARY_ONLY for SinkInletTempAndFlow (two-stream
     physics requires both HTC values).
-  - Fully coupled (iterated) counterflow solve (deferred beyond Phase 11S).
   - Phase-change segmented coupling.
   - Moving-boundary model.
+  - Per-cell geometry/property scalar variation.
+  - Full-loop convergence acceptance.
 
 Architectural constraints:
   - No import of CoolProp, properties/, components/, network/, or solvers/.
@@ -138,6 +158,7 @@ from mpl_sim.correlations.contract import (
 from mpl_sim.discretization.primitives import DiscretizationMode, DiscretizationSpec
 from mpl_sim.hx_models.base import (
     AmbientCoupling,
+    CounterflowIterationConfig,
     FixedHeatRate,
     FixedWallTemp,
     FlowArrangement,
@@ -298,25 +319,29 @@ def _epsilon_cocurrent(NTU: float, Cr: float) -> float:
 
 
 class SegmentedMarchModel(HeatExchangerModel):
-    """Segmented forward-march heat-exchanger strategy — Phase 11F/11H/11I/11J/11S.
+    """Segmented forward-march heat-exchanger strategy — Phase 11F/11H/11I/11J/11S/11T.
 
     Stateless strategy object.  Two calls with equal HXSolveRequest objects
     return equivalent results.
 
     Supported BCs: FixedHeatRate, FixedWallTemp, AmbientCoupling,
-                   SinkInletTempAndFlow (co-current and counterflow foundation).
+                   SinkInletTempAndFlow (co-current, counterflow one-pass,
+                   and counterflow iterated).
 
-    SinkInletTempAndFlow flow arrangement (Phase 11S):
+    SinkInletTempAndFlow flow arrangement (Phase 11S/11T):
       - flow_arrangement=None or CO_CURRENT (default): explicit co-current
         (parallel-flow) per-cell ε-NTU march.  Both primary and secondary
         inlets are at cell 0.  Existing behavior, unchanged.
-      - flow_arrangement=COUNTERFLOW: one-pass counterflow approximation.
-        Primary inlet at cell 0; secondary inlet at cell n-1.
-        LIMITATION: during the forward primary march, secondary temperature
-        is held fixed at bc.T_in (the counterflow secondary inlet value) for
-        all cells.  Secondary profile is derived by backward integration after
-        the march and stored as diagnostics only.  NOT a converged solution.
-        Fully coupled counterflow iteration is deferred.
+      - flow_arrangement=COUNTERFLOW, counterflow_iteration not enabled
+        (default, Phase 11S): one-pass counterflow approximation.  Primary
+        inlet at cell 0; secondary inlet at cell n-1.  Secondary temperature
+        is held fixed at bc.T_in during the forward march; secondary profile
+        derived backward after the march (diagnostics only).
+      - flow_arrangement=COUNTERFLOW, counterflow_iteration.enabled=True
+        (Phase 11T): bounded fixed-point iterated counterflow solver.  The
+        secondary temperature profile is updated each iteration until the
+        max-absolute change across all cells is <= tolerance or max_iter is
+        reached.  HXSolveResult carries iteration_count, converged, residual.
 
     DP handling: cell-wise.  dp_primary (if supplied) is called once per cell
     with the cell inlet state; raw DP values are summed; friction_multiplier
@@ -370,6 +395,9 @@ class SegmentedMarchModel(HeatExchangerModel):
             if arr is None or arr is FlowArrangement.CO_CURRENT:
                 return self._solve_sink_inlet_cocurrent(req, bc)
             if arr is FlowArrangement.COUNTERFLOW:
+                cfg = req.counterflow_iteration
+                if cfg is not None and cfg.enabled:
+                    return self._solve_sink_inlet_counterflow_iterated(req, bc, cfg)
                 return self._solve_sink_inlet_counterflow_onepass(req, bc)
             raise ValueError(
                 f"SegmentedMarchModel: unrecognised FlowArrangement {arr!r} for "
@@ -1376,6 +1404,356 @@ class SegmentedMarchModel(HeatExchangerModel):
             friction_multiplier=req.friction_multiplier,
             raw_dP_primary=raw_dP_total,
             zone_profile=profile,
+        )
+
+    # ------------------------------------------------------------------
+    # SinkInletTempAndFlow path — iterated counterflow solver (11T)
+    # ------------------------------------------------------------------
+
+    def _solve_sink_inlet_counterflow_iterated(
+        self,
+        req: HXSolveRequest,
+        bc: SinkInletTempAndFlow,
+        cfg: CounterflowIterationConfig,
+    ) -> HXSolveResult:
+        """Bounded fixed-point iterated counterflow solver (Phase 11T).
+
+        Primary inlet at cell 0; secondary inlet at cell n-1.
+
+        The secondary temperature profile is iterated until the maximum
+        absolute change across all cells is <= cfg.tolerance, or cfg.max_iter
+        is reached.  Non-convergence returns converged=False with the residual
+        from the last iteration.
+
+        Algorithm (per iteration):
+          1. Forward primary march using current secondary profile T_s[i].
+          2. Derive new secondary profile backward from cell n-1:
+               T_s_new_in[n-1] = bc.T_in
+               T_s_new_out[i]  = T_s_new_in[i] - Q_cell[i] / C_secondary
+               T_s_new_in[i]   = T_s_new_out[i+1]  for i < n-1
+          3. Residual = max_i |T_s_new_in[i] - T_s[i]|
+          4. Update: T_s[i] += cfg.relaxation * (T_s_new_in[i] - T_s[i])
+          5. If residual <= cfg.tolerance: converged.
+
+        HXSolveResult.converged, .iteration_count, and .residual carry
+        the iteration diagnostics.
+        """
+        ctx = "SegmentedMarchModel._solve_sink_inlet_counterflow_iterated"
+        n_cells = _require_n_cells(req.discretization)
+
+        # --- Same validations as co-current / one-pass ---
+        if req.primary_thermal_mode is PrimaryThermalMode.CONSTANT_TEMPERATURE:
+            raise ValueError(
+                "SegmentedMarchModel: PrimaryThermalMode.CONSTANT_TEMPERATURE is not "
+                "supported for SinkInletTempAndFlow counterflow segmented coupling.  "
+                "Phase-change segmented sink coupling is deferred."
+            )
+        if req.primary_thermal_mode is not PrimaryThermalMode.FINITE_CAPACITY:
+            raise ValueError(
+                "SegmentedMarchModel: primary_thermal_mode must be "
+                "PrimaryThermalMode.FINITE_CAPACITY for SinkInletTempAndFlow counterflow "
+                f"segmented coupling; got {req.primary_thermal_mode!r}."
+            )
+        if req.primary_T_in is None:
+            raise ValueError(
+                "SegmentedMarchModel: HXSolveRequest.primary_T_in is required when "
+                "secondary_bc is SinkInletTempAndFlow (counterflow iterated).  "
+                "Supply the precomputed primary inlet temperature [K] from the caller."
+            )
+        if req.primary_cp is None:
+            raise ValueError(
+                "SegmentedMarchModel: HXSolveRequest.primary_cp is required when "
+                "secondary_bc is SinkInletTempAndFlow with FINITE_CAPACITY thermal mode.  "
+                "Supply the precomputed primary-side specific heat [J/kg/K]."
+            )
+        if req.ua_computation_mode is UAComputationMode.PRIMARY_ONLY:
+            raise ValueError(
+                "SegmentedMarchModel: UAComputationMode.PRIMARY_ONLY is not supported "
+                "for SinkInletTempAndFlow counterflow segmented coupling.  "
+                "Two-stream finite-capacity coupling requires both HTC values; "
+                "use UAComputationMode.TWO_SIDED and supply htc_secondary."
+            )
+        A_ht = _require_scalar(req.geom_scalars, "A_ht", ctx)
+        if A_ht <= 0.0:
+            raise ValueError(f"SegmentedMarchModel: geom_scalars['A_ht'] must be > 0; got {A_ht!r}")
+        if req.htc_primary is None:
+            raise ValueError(
+                "SegmentedMarchModel: htc_primary is required when secondary_bc is "
+                "SinkInletTempAndFlow (counterflow iterated).  Needed to compute "
+                "per-cell two-sided UA."
+            )
+        if req.htc_secondary is None:
+            raise ValueError(
+                "SegmentedMarchModel: htc_secondary is required when secondary_bc is "
+                "SinkInletTempAndFlow (counterflow iterated).  Needed to compute "
+                "per-cell two-sided UA."
+            )
+
+        A_cell = A_ht / n_cells
+        C_primary = req.primary_mdot * req.primary_cp
+        C_secondary = bc.mdot_secondary * bc.cp_secondary
+        C_min = min(C_primary, C_secondary)
+        C_max = max(C_primary, C_secondary)
+        Cr = C_min / C_max
+
+        # Initialize secondary temperature profile: all cells start at bc.T_in
+        # (same starting point as the Phase 11S one-pass approximation).
+        T_s_profile: list[float] = [bc.T_in] * n_cells
+
+        converged = False
+        iteration_count = 0
+        residual = float("inf")
+
+        # Accumulators for the final iteration's data (used to build cell records).
+        final_verdicts: list[CorrelationOutput] = []
+        final_q_cells: list[float] = []
+        final_h_ins: list[float] = []
+        final_h_outs: list[float] = []
+        final_raw_dP_cells: list[float] = []
+        final_dP_cells: list[float] = []
+        final_P_ins: list[float] = []
+        final_P_outs: list[float] = []
+        final_T_p_ins: list[float] = []
+        final_T_p_outs: list[float] = []
+        final_htc_primary_vals: list[float] = []
+        final_htc_secondary_vals: list[float] = []
+        final_UA_cell_vals: list[float] = []
+        final_epsilon_vals: list[float] = []
+        final_NTU_vals: list[float] = []
+        final_secondary_T_in_vals: list[float] = []
+        final_secondary_T_out_vals: list[float] = []
+        final_raw_dP_total = 0.0
+        final_Q_total = 0.0
+        final_h_end = req.primary_state_in.h
+        final_P_end = req.primary_state_in.P
+
+        for _iter in range(cfg.max_iter):
+            iteration_count = _iter + 1
+
+            verdicts: list[CorrelationOutput] = []
+            q_cells: list[float] = []
+            h_ins: list[float] = []
+            h_outs: list[float] = []
+            raw_dP_cells: list[float] = []
+            dP_cells: list[float] = []
+            P_ins: list[float] = []
+            P_outs: list[float] = []
+            T_p_ins: list[float] = []
+            T_p_outs: list[float] = []
+            htc_primary_vals: list[float] = []
+            htc_secondary_vals: list[float] = []
+            UA_cell_vals: list[float] = []
+            epsilon_vals: list[float] = []
+            NTU_vals: list[float] = []
+
+            h_current = req.primary_state_in.h
+            P_current = req.primary_state_in.P
+            T_p_current = req.primary_T_in
+            raw_dP_total = 0.0
+            Q_total = 0.0
+
+            # --- Forward primary march using current T_s_profile ---
+            for i in range(n_cells):
+                h_in = h_current
+                P_in = P_current
+                T_p_in = T_p_current
+                T_s_in = T_s_profile[i]
+
+                cell_state = FluidState(
+                    P=P_in,
+                    h=h_in,
+                    identity=req.primary_state_in.identity,
+                )
+
+                # Primary HTC: one call per cell
+                htc_p_inp = self._build_htc_input_for_cell(req, cell_state)
+                raw_htc_p_out = req.htc_primary.evaluate(htc_p_inp)
+                verdicts.append(raw_htc_p_out)
+                h_p_raw = raw_htc_p_out.value[0]
+                if not math.isfinite(h_p_raw) or h_p_raw <= 0.0:
+                    raise ValueError(
+                        f"SegmentedMarchModel: primary HTC output must be finite and > 0 "
+                        f"for cell {i} (counterflow iterated SinkInletTempAndFlow); "
+                        f"got {h_p_raw!r}"
+                    )
+
+                # Secondary HTC: one call per cell
+                htc_s_inp = self._build_secondary_htc_input_for_cell(req, cell_state)
+                raw_htc_s_out = req.htc_secondary.evaluate(htc_s_inp)
+                verdicts.append(raw_htc_s_out)
+                h_s_raw = raw_htc_s_out.value[0]
+                if not math.isfinite(h_s_raw) or h_s_raw <= 0.0:
+                    raise ValueError(
+                        f"SegmentedMarchModel: secondary HTC output must be finite and > 0 "
+                        f"for cell {i} (counterflow iterated SinkInletTempAndFlow); "
+                        f"got {h_s_raw!r}"
+                    )
+
+                # Two-sided UA
+                h_p_eff = req.htc_multiplier * h_p_raw
+                h_s_eff = req.htc_multiplier * h_s_raw
+                if h_p_eff == 0.0 or h_s_eff == 0.0:
+                    UA_cell = 0.0
+                else:
+                    UA_cell = 1.0 / (1.0 / (h_p_eff * A_cell) + 1.0 / (h_s_eff * A_cell))
+
+                # Per-cell ε-NTU using current secondary temperature estimate T_s_in
+                NTU = UA_cell / C_min
+                epsilon = _epsilon_cocurrent(NTU, Cr)
+                Q_cell = epsilon * C_min * (T_s_in - T_p_in)
+                h_out = h_in + Q_cell / req.primary_mdot
+                T_p_out = T_p_in + Q_cell / C_primary
+
+                # DP: one call per cell
+                raw_dP_cell = 0.0
+                dP_cell = 0.0
+                if req.dp_primary is not None:
+                    if req.dp_primary_is_two_phase:
+                        dp_inp = self._build_two_phase_dp_input_for_cell(req, cell_state)
+                        raw_dp_out = req.dp_primary.evaluate(dp_inp)
+                        verdicts.append(raw_dp_out)
+                        raw_dP_gradient = raw_dp_out.value[0]
+                        if not math.isfinite(raw_dP_gradient):
+                            raise ValueError(
+                                f"SegmentedMarchModel: two-phase DP gradient must be finite "
+                                f"for cell {i}; got {raw_dP_gradient!r}"
+                            )
+                        raw_dP_cell = raw_dP_gradient * dp_inp.L_cell
+                    else:
+                        dp_inp = self._build_dp_input(req, cell_state)
+                        raw_dp_out = req.dp_primary.evaluate(dp_inp)
+                        verdicts.append(raw_dp_out)
+                        raw_dP_cell = raw_dp_out.value[0]
+                        if not math.isfinite(raw_dP_cell):
+                            raise ValueError(
+                                f"SegmentedMarchModel: DP correlation output must be finite "
+                                f"for cell {i}; got {raw_dP_cell!r}"
+                            )
+                    dP_cell = req.friction_multiplier * raw_dP_cell
+
+                P_out = P_in - dP_cell
+                raw_dP_total += raw_dP_cell
+                Q_total += Q_cell
+
+                q_cells.append(Q_cell)
+                h_ins.append(h_in)
+                h_outs.append(h_out)
+                raw_dP_cells.append(raw_dP_cell)
+                dP_cells.append(dP_cell)
+                P_ins.append(P_in)
+                P_outs.append(P_out)
+                T_p_ins.append(T_p_in)
+                T_p_outs.append(T_p_out)
+                htc_primary_vals.append(h_p_raw)
+                htc_secondary_vals.append(h_s_raw)
+                UA_cell_vals.append(UA_cell)
+                epsilon_vals.append(epsilon)
+                NTU_vals.append(NTU)
+
+                h_current = h_out
+                P_current = P_out
+                T_p_current = T_p_out
+
+            # --- Backward secondary profile derivation ---
+            # secondary_T_in[n-1]  = bc.T_in  (secondary inlet at far end)
+            # secondary_T_out[i]   = secondary_T_in[i] - Q_cell[i] / C_secondary
+            # secondary_T_in[i]    = secondary_T_out[i+1]  for i < n-1
+            secondary_T_in_vals: list[float] = [0.0] * n_cells
+            secondary_T_out_vals: list[float] = [0.0] * n_cells
+            for i in range(n_cells - 1, -1, -1):
+                if i == n_cells - 1:
+                    secondary_T_in_vals[i] = bc.T_in
+                else:
+                    secondary_T_in_vals[i] = secondary_T_out_vals[i + 1]
+                secondary_T_out_vals[i] = secondary_T_in_vals[i] - q_cells[i] / C_secondary
+
+            # --- Compute residual (max absolute change in secondary profile) ---
+            # and apply under-relaxation to the profile for the next iteration.
+            residual = 0.0
+            for i in range(n_cells):
+                diff = secondary_T_in_vals[i] - T_s_profile[i]
+                abs_diff = diff if diff >= 0.0 else -diff
+                if abs_diff > residual:
+                    residual = abs_diff
+                T_s_profile[i] = T_s_profile[i] + cfg.relaxation * diff
+
+            # --- Save this iteration's data as final ---
+            final_verdicts = verdicts
+            final_q_cells = q_cells
+            final_h_ins = h_ins
+            final_h_outs = h_outs
+            final_raw_dP_cells = raw_dP_cells
+            final_dP_cells = dP_cells
+            final_P_ins = P_ins
+            final_P_outs = P_outs
+            final_T_p_ins = T_p_ins
+            final_T_p_outs = T_p_outs
+            final_htc_primary_vals = htc_primary_vals
+            final_htc_secondary_vals = htc_secondary_vals
+            final_UA_cell_vals = UA_cell_vals
+            final_epsilon_vals = epsilon_vals
+            final_NTU_vals = NTU_vals
+            final_secondary_T_in_vals = secondary_T_in_vals
+            final_secondary_T_out_vals = secondary_T_out_vals
+            final_raw_dP_total = raw_dP_total
+            final_Q_total = Q_total
+            final_h_end = h_current
+            final_P_end = P_current
+
+            if residual <= cfg.tolerance:
+                converged = True
+                break
+
+        # --- Assemble cell records from the final iteration ---
+        cell_records: list[SegmentedCellRecord] = []
+        for i in range(n_cells):
+            cell_records.append(
+                SegmentedCellRecord(
+                    cell_index=i,
+                    Q_cell=final_q_cells[i],
+                    h_in=final_h_ins[i],
+                    h_out=final_h_outs[i],
+                    raw_dP_cell=final_raw_dP_cells[i],
+                    dP_cell=final_dP_cells[i],
+                    P_in=final_P_ins[i],
+                    P_out=final_P_outs[i],
+                    T_in=final_T_p_ins[i],
+                    T_out=final_T_p_outs[i],
+                    htc_primary=final_htc_primary_vals[i],
+                    UA_cell=final_UA_cell_vals[i],
+                    secondary_T_in=final_secondary_T_in_vals[i],
+                    secondary_T_out=final_secondary_T_out_vals[i],
+                    htc_secondary=final_htc_secondary_vals[i],
+                    epsilon=final_epsilon_vals[i],
+                    NTU=final_NTU_vals[i],
+                    C_primary=C_primary,
+                    C_secondary=C_secondary,
+                )
+            )
+
+        dP_primary = req.friction_multiplier * final_raw_dP_total
+        primary_state_out = FluidState(
+            P=final_P_end,
+            h=final_h_end,
+            identity=req.primary_state_in.identity,
+        )
+        profile = SegmentedProfile(
+            cells=tuple(cell_records),
+            flow_arrangement=FlowArrangement.COUNTERFLOW,
+        )
+
+        return HXSolveResult(
+            primary_state_out=primary_state_out,
+            Q=final_Q_total,
+            dP_primary=dP_primary,
+            verdicts=tuple(final_verdicts),
+            htc_multiplier=req.htc_multiplier,
+            friction_multiplier=req.friction_multiplier,
+            raw_dP_primary=final_raw_dP_total,
+            zone_profile=profile,
+            iteration_count=iteration_count,
+            converged=converged,
+            residual=residual,
         )
 
     # ------------------------------------------------------------------

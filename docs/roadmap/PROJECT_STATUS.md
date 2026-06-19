@@ -11,8 +11,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-11s-segmented-counterflow-phase-change-foundation` |
-| **Stage** | Phase 11S segmented counterflow / phase-change coupling foundation; Phase 11 remains open |
+| **Branch** | `phase-11t-iterated-counterflow-segmented-solver` |
+| **Stage** | Phase 11T iterated counterflow segmented solver; Phase 11 remains open |
 | **Completed phase** | **Phase 10 - Pump and Accumulator** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -60,15 +60,54 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11R audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 11R status** | **Checkpoint complete. `EvaporatorScenarioBinding` and `CondenserScenarioBinding` added as immutable frozen dataclasses in `src/mpl_sim/components/evaporator.py` and `src/mpl_sim/components/condenser.py`; `geom_scalars` stored as a defensive `MappingProxyType` copy; both types exported from `mpl_sim.components`. `EvaporatorComponent.evaluate_scenario(primary_state_in, primary_mdot, scenario)` and `CondenserComponent.evaluate_scenario(...)` added as scenario-bound helpers that build the respective `*HXInput` from runtime state + immutable scenario binding and delegate to `evaluate_heat_exchanger`. These helpers are NOT the frozen `contribute(trial, ctx) -> ComponentContribution` contract from INTERFACE_SPEC §11.1; that contract remains deferred. Phase 11Q scenario fields (`q_flux_primary`, `dp_primary_is_two_phase`) are now accessible through the scenario helper path, not only through direct `evaluate_heat_exchanger` calls.** |
 | **Phase 11S status** | **Checkpoint complete. `FlowArrangement` enum (`CO_CURRENT`, `COUNTERFLOW`) added to `src/mpl_sim/hx_models/base.py` and exported from `mpl_sim.hx_models`. `HXSolveRequest.flow_arrangement: FlowArrangement | None = None` added; default `None` preserves all existing behavior. `SegmentedProfile.flow_arrangement: FlowArrangement | None = None` added to record which arrangement was used. `SegmentedMarchModel` now dispatches `SinkInletTempAndFlow` to `_solve_sink_inlet_cocurrent` (for `None`/`CO_CURRENT`) or `_solve_sink_inlet_counterflow_onepass` (for `COUNTERFLOW`). COUNTERFLOW is a one-pass approximation only: primary marches forward using `bc.T_in` as fixed secondary temperature estimate for all cells; secondary profile derived by backward integration after the primary march (diagnostics only). A fully coupled converged counterflow solution is deferred. Phase-change scalar passing (`x`, `h_fg`, `rho_l`, `rho_v`, `mu_l`, `mu_v`) remains explicit via `geom_scalars`; no `primary_T_sat` or `primary_h_fg` fields were added to `HXSolveRequest` because existing correlations do not require them there.** |
+| **Phase 11T status** | **Checkpoint complete. `CounterflowIterationConfig` frozen dataclass added to `src/mpl_sim/hx_models/base.py` with fields `enabled`, `max_iter`, `tolerance`, `relaxation` and `__post_init__` validation. `HXSolveRequest.counterflow_iteration: CounterflowIterationConfig | None = None` added with early validation (only `SinkInletTempAndFlow` + `COUNTERFLOW` accepted when `enabled=True`). `HXSolveResult` extended with `iteration_count: int = 0`, `converged: bool | None = None`, `residual: float | None = None`. `SegmentedMarchModel._solve_sink_inlet_counterflow_iterated` added: bounded fixed-point iteration over the secondary temperature profile using co-current ε-NTU per cell, backward secondary integration, and under-relaxation. Non-convergence returns `converged=False` and is never silent. One-pass path (`enabled=False` or `counterflow_iteration=None`) is unchanged. `CounterflowIterationConfig` exported from `mpl_sim.hx_models`.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **V1 HX model foundation now includes all four secondary BC classes in limited segmented form, explicit co-current and counterflow (one-pass) flow arrangement support, and all existing phase-change scalar-passing via `geom_scalars`, but roadmap-defined correlation migrations, fully coupled counterflow nonlinear solve, moving boundary, and full-loop convergence acceptance remain incomplete.** |
-| **Branch status** | **Phase 11S implemented on `phase-11s-segmented-counterflow-phase-change-foundation`.** |
+| **Branch status** | **Phase 11T implemented on `phase-11t-iterated-counterflow-segmented-solver`.** |
 | **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation** |
-| **Next immediate slice** | Continue Phase 11 with additional two-phase DP closures (Homogeneous, Kim-Mudawar 2013), fully coupled counterflow nonlinear solve (iteration), and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
-| **Working tree before this audit** | Phase 11S: `FlowArrangement` enum, `flow_arrangement` on `HXSolveRequest` and `SegmentedProfile`, `_solve_sink_inlet_counterflow_onepass`, and focused counterflow/phase-change foundation tests |
-| **Test status** | 3456 passed, verified 2026-06-19 with `pytest`; `test_segmented_counterflow_phase_change_foundation.py` contains 76 new tests covering all 15 required Phase 11S coverage items |
+| **Next immediate slice** | Continue Phase 11 with additional two-phase DP closures (Homogeneous, Kim-Mudawar 2013) and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
+| **Working tree before this audit** | Phase 11T: `CounterflowIterationConfig`, `counterflow_iteration` on `HXSolveRequest`, iteration diagnostics on `HXSolveResult`, `_solve_sink_inlet_counterflow_iterated`, and focused iterated-counterflow tests |
+| **Test status** | 3548 passed, verified 2026-06-19 with `pytest`; `test_segmented_counterflow_iteration.py` contains 92 new tests covering all 19 required Phase 11T coverage items plus real-closure regression tests (ShahBoilingHTC, YanCondensationHTC, MSHTwoPhaseFrictionGradient) in iterated counterflow mode |
 | **Lint status** | `ruff check src tests` clean, verified 2026-06-19. |
-| **Format status** | `black --check --no-cache src tests` passed, with 136 files unchanged |
+| **Format status** | `black --check --no-cache src tests` passed, with 137 files unchanged |
+
+Phase 11T iterated counterflow segmented solver is complete as a checkpoint.
+
+- **`CounterflowIterationConfig`** frozen dataclass added to `src/mpl_sim/hx_models/base.py`:
+  - Fields: `enabled: bool = False`, `max_iter: int = 20`, `tolerance: float = 1e-6`, `relaxation: float = 1.0`.
+  - `__post_init__` validates: `max_iter` is a non-boolean `int >= 1`, `tolerance` is finite and `> 0`, and `relaxation` is finite and in `(0, 1]`. Invalid values raise `ValueError` with the field name in the message.
+  - Exported from `mpl_sim.hx_models` and listed in `__all__`.
+- **`HXSolveRequest.counterflow_iteration: CounterflowIterationConfig | None = None`** added.
+  - Default `None` preserves all existing behavior (one-pass and co-current paths unchanged).
+  - Early validation in `__post_init__`: if `enabled=True`, requires `SinkInletTempAndFlow` secondary BC and `FlowArrangement.COUNTERFLOW`; any other combination raises `ValueError`.
+- **`HXSolveResult`** extended with three new fields (defaulting to non-iterated values):
+  - `iteration_count: int = 0` — number of iterations performed.
+  - `converged: bool | None = None` — `True` if residual ≤ tolerance, `False` if max_iter reached without convergence, `None` for non-iterated paths.
+  - `residual: float | None = None` — final max-absolute-difference residual across the secondary profile; `None` for non-iterated paths.
+- **`SegmentedMarchModel._solve_sink_inlet_counterflow_iterated`** added:
+  - Accepts `req`, `bc` (`SinkInletTempAndFlow`), and `cfg` (`CounterflowIterationConfig`).
+  - Validates same prerequisites as one-pass: `FINITE_CAPACITY`, explicit `primary_T_in`/`primary_cp`, `TWO_SIDED`, positive `A_ht`, both HTC correlations.
+  - Initializes secondary temperature profile as `[bc.T_in] * n_cells`.
+  - Each iteration: (1) forward primary march over all cells using current `T_s_profile`; (2) backward secondary integration from cell `n-1` (inlet) to cell `0`; (3) residual = max absolute difference between new and previous secondary profile; (4) under-relaxation update of `T_s_profile`.
+  - Per-cell heat transfer uses the co-current ε-NTU formula (same as one-pass), consistent with the segmented approximation.
+  - Loop exits early when `residual <= cfg.tolerance` (`converged = True`); otherwise runs to `cfg.max_iter` and returns `converged = False`. Non-convergence never raises; caller inspects result fields.
+  - `SegmentedCellRecord` in the iterated path includes `htc_secondary` (unlike the one-pass path).
+  - Returns `HXSolveResult(..., iteration_count=..., converged=..., residual=...)`.
+- **Dispatch updated in `SegmentedMarchModel.solve()`**:
+  - `COUNTERFLOW` + `cfg.enabled=True` → `_solve_sink_inlet_counterflow_iterated`.
+  - `COUNTERFLOW` + `cfg is None` or `cfg.enabled=False` → `_solve_sink_inlet_counterflow_onepass` (unchanged).
+  - `None` / `CO_CURRENT` → `_solve_sink_inlet_cocurrent` (unchanged).
+- **Deferred** (unchanged from Phase 11S):
+  - Moving-boundary modeling.
+  - Full-loop convergence acceptance.
+  - Per-cell `cell_geom_scalars` mechanism.
+  - Remaining two-phase HTC and DP closures.
+  - `primary_T_sat` / `primary_h_fg` on `HXSolveRequest`.
+  - Validation harnesses and valves/manifolds.
+- `CounterflowIterationConfig.max_iter` validation is strict: requires a plain `int` (bool and float explicitly rejected via `isinstance`), and `>= 1`. `bool` subclasses `int` so both `True` and `False` are caught before the `< 1` check. `float("nan")`, `float("inf")`, and `1.5` are also rejected.
+- New test file `tests/hx_models/test_segmented_counterflow_iteration.py` with **92 tests** covering all 19 required Phase 11T coverage items plus real-closure regression tests:
+  - Controlled algorithmic tests use `_ConstHTC` / `_ConstDP` / `_ConstTwoPhaseDP` for precise arithmetic verification (gradient-to-drop, profile consistency, relaxation effects).
+  - Real-closure regression tests (`TestRealCorrelationIteratedMode`) exercise `ShahBoilingHTC` (with explicit `q_flux_primary`), `YanCondensationHTC` (no q-flux required), and `MSHTwoPhaseFrictionGradient` (with `dp_primary_is_two_phase=True`) end-to-end through the iterated solver, including missing-scalar failure modes and energy-balance checks.
 
 Phase 11S segmented counterflow / phase-change coupling foundation is complete as a checkpoint.
 
@@ -443,6 +482,7 @@ Key authority statements:
 | **Phase 11Q Evaporator/Condenser scenario plumbing foundation** | **Complete; implemented on `phase-11q-evaporator-condenser-scenario-plumbing`** |
 | **Phase 11R Component contribution-path scenario binding** | **Complete; implemented on `phase-11r-component-contribution-scenario-binding`** |
 | **Phase 11S Segmented counterflow / phase-change coupling foundation** | **Complete; implemented on `phase-11s-segmented-counterflow-phase-change-foundation`** |
+| **Phase 11T Iterated counterflow segmented solver** | **Complete; implemented on `phase-11t-iterated-counterflow-segmented-solver`** |
 
 Closeout artifacts:
 
@@ -502,10 +542,9 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-11s-segmented-counterflow-phase-change-foundation` into `main` as a Phase 11S checkpoint.
+1. Merge `phase-11t-iterated-counterflow-segmented-solver` into `main` as a Phase 11T checkpoint.
 2. Continue **Phase 11 - HeatExchangerModel, Evaporator and Condenser** after merge.
-3. Implement fully coupled (iterated) counterflow nonlinear solve for `SinkInletTempAndFlow` (deferred in Phase 11S).
-4. Migrate remaining two-phase DP closures (Homogeneous/Cicchitti, Kim-Mudawar 2013) if safe legacy sources are confirmed.
+3. Migrate remaining two-phase DP closures (Homogeneous/Cicchitti, Kim-Mudawar 2013) if safe legacy sources are confirmed.
 5. Migrate remaining two-phase HTC closures if safe legacy sources exist.
 6. Complete the full-loop convergence acceptance case.
 6. Repeat the Phase 11 final closeout audit before starting Phase 12.
@@ -606,6 +645,7 @@ Rules for the next implementation session:
 - Phase 11P added `HXSolveRequest.dp_primary_is_two_phase: bool = False`. When `True`, HX models build `TwoPhaseDPInput` with `rho_l`, `rho_v`, `mu_l`, `mu_v` from `geom_scalars` into `property_scalars`, and multiply `value[0] * L_cell` for gradient-to-drop conversion. Single-phase DP path (default `False`) is unchanged.
 - Two-phase DP is now injectable into all three HX models using `MSHTwoPhaseFrictionGradient` when the caller supplies required scalars in `geom_scalars` and sets `dp_primary_is_two_phase=True`.
 - Phase 11Q added `q_flux_primary: float | None = None` and `dp_primary_is_two_phase: bool = False` to both `EvaporatorHXInput` and `CondenserHXInput`, forwarding both fields explicitly to `HXSolveRequest`. Evaporator scenarios with `ShahBoilingHTC` + q_flux + two-phase DP, and condenser scenarios with `YanCondensationHTC` + two-phase DP, are now representable through the component wrappers without hidden defaults or automatic closure selection.
+- Phase 11T added `CounterflowIterationConfig` and `HXSolveRequest.counterflow_iteration: CounterflowIterationConfig | None = None`. When `enabled=True` (requires `SinkInletTempAndFlow` + `COUNTERFLOW`), `SegmentedMarchModel` performs bounded fixed-point iteration over the secondary temperature profile. `HXSolveResult` now carries `iteration_count`, `converged`, and `residual`; these are `0`/`None`/`None` on all non-iterated paths. The one-pass counterflow and co-current paths are completely unchanged.
 
 ---
 
@@ -615,6 +655,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-19 |
 | **Updated by** | Codex |
-| **Status note** | Phase 11S complete on `phase-11s-segmented-counterflow-phase-change-foundation`; `FlowArrangement` enum (`CO_CURRENT`, `COUNTERFLOW`) added; `HXSolveRequest.flow_arrangement` and `SegmentedProfile.flow_arrangement` added; `_solve_sink_inlet_counterflow_onepass` one-pass foundation added to `SegmentedMarchModel`; phase-change scalar passing continues via `geom_scalars`; fully coupled counterflow solve, moving boundary, and full-loop convergence remain deferred; 3456 tests passing; Phase 11 remains open |
+| **Status note** | Phase 11T complete on `phase-11t-iterated-counterflow-segmented-solver`; `CounterflowIterationConfig` added with strict `max_iter` validation (bool/float/nan/inf rejected); `HXSolveRequest.counterflow_iteration` and `HXSolveResult` iteration diagnostics added; `_solve_sink_inlet_counterflow_iterated` bounded fixed-point solver added to `SegmentedMarchModel`; real Shah/Yan/MSH regression tests added in iterated mode; one-pass and co-current paths unchanged; moving boundary and full-loop convergence remain deferred; 3548 tests passing; Phase 11 remains open |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
