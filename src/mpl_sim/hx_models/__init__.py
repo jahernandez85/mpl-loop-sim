@@ -11,6 +11,9 @@ Exports:
   Flow arrangement (Phase 11S):
     FlowArrangement  — CO_CURRENT | COUNTERFLOW
 
+  Counterflow iteration config (Phase 11T):
+    CounterflowIterationConfig
+
   Request / result:
     HXSolveRequest, HXSolveResult
 
@@ -38,6 +41,7 @@ Architectural constraints:
 
 from mpl_sim.hx_models.base import (
     AmbientCoupling,
+    CounterflowIterationConfig,
     FixedHeatRate,
     FixedWallTemp,
     FlowArrangement,
@@ -72,6 +76,8 @@ __all__ = [
     "SecondaryFluidBC",
     # Flow arrangement (Phase 11S)
     "FlowArrangement",
+    # Counterflow iteration config (Phase 11T)
+    "CounterflowIterationConfig",
     # Request / result
     "HXSolveRequest",
     "HXSolveResult",

@@ -90,9 +90,10 @@ class FlowArrangement(Enum):
     COUNTERFLOW — opposing flow; primary inlet at cell 0, secondary inlet
                   at cell n-1 (the opposite end).
 
-    Note: COUNTERFLOW in SegmentedMarchModel is implemented as a one-pass
-    approximation only.  A fully coupled nonlinear counterflow solution requires
-    iteration; that iteration is deferred.  See SegmentedMarchModel docstring.
+    Note: COUNTERFLOW in SegmentedMarchModel defaults to a one-pass
+    approximation (Phase 11S).  An explicit iterated counterflow solver is
+    available via CounterflowIterationConfig.enabled=True (Phase 11T).
+    See SegmentedMarchModel docstring.
 
     Only applies to SinkInletTempAndFlow BC in SegmentedMarchModel.
     Ignored by EpsilonNTUModel and LMTDModel.
@@ -100,6 +101,78 @@ class FlowArrangement(Enum):
 
     CO_CURRENT = auto()
     COUNTERFLOW = auto()
+
+
+# ---------------------------------------------------------------------------
+# CounterflowIterationConfig
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CounterflowIterationConfig:
+    """Explicit solver configuration for the iterated counterflow solver (Phase 11T).
+
+    Controls whether SegmentedMarchModel uses a bounded fixed-point iteration
+    over the secondary temperature profile when flow_arrangement=COUNTERFLOW and
+    secondary_bc=SinkInletTempAndFlow.
+
+    Fields
+    ------
+    enabled     : activate the iterated counterflow solver; default False.
+                  When False the Phase 11S one-pass approximation is used.
+    max_iter    : maximum number of fixed-point iterations; must be >= 1.
+                  Algorithmic default (not a physical assumption).
+    tolerance   : convergence tolerance [K]; iteration stops when the maximum
+                  absolute change in the secondary temperature profile across
+                  all cells is <= tolerance.  Must be finite and > 0.
+                  Algorithmic default (not a physical assumption).
+    relaxation  : under-relaxation factor applied at each profile update.
+                  The new profile estimate is blended as:
+                    T_s[i] += relaxation * (T_s_new[i] - T_s[i])
+                  1.0 = full update (no relaxation); smaller values damp the
+                  update step.  Must be finite and in (0, 1].
+                  Algorithmic default (not a physical assumption).
+
+    Validation
+    ----------
+    - max_iter must be >= 1.
+    - tolerance must be finite and > 0.
+    - relaxation must be finite and in (0, 1].
+
+    Usage
+    -----
+    HXSolveRequest(
+        ...
+        flow_arrangement=FlowArrangement.COUNTERFLOW,
+        counterflow_iteration=CounterflowIterationConfig(
+            enabled=True,
+            max_iter=20,
+            tolerance=1e-6,
+            relaxation=1.0,
+        ),
+    )
+    """
+
+    enabled: bool = False
+    max_iter: int = 20
+    tolerance: float = 1e-6
+    relaxation: float = 1.0
+
+    def __post_init__(self) -> None:
+        if self.max_iter < 1:
+            raise ValueError(
+                f"CounterflowIterationConfig.max_iter must be >= 1; got {self.max_iter!r}"
+            )
+        if not math.isfinite(self.tolerance) or self.tolerance <= 0:
+            raise ValueError(
+                f"CounterflowIterationConfig.tolerance must be finite and > 0; "
+                f"got {self.tolerance!r}"
+            )
+        if not math.isfinite(self.relaxation) or not (0 < self.relaxation <= 1.0):
+            raise ValueError(
+                f"CounterflowIterationConfig.relaxation must be finite and in (0, 1]; "
+                f"got {self.relaxation!r}"
+            )
 
 
 # ---------------------------------------------------------------------------
@@ -248,8 +321,17 @@ class HXSolveRequest:
                              co-current behavior.  FlowArrangement.CO_CURRENT reproduces
                              that behavior explicitly.  FlowArrangement.COUNTERFLOW uses
                              a one-pass approximation (primary inlet at cell 0, secondary
-                             inlet at cell n-1); not a fully coupled converged solution.
+                             inlet at cell n-1); not a fully coupled converged solution
+                             unless counterflow_iteration.enabled=True is also set.
                              Ignored by EpsilonNTUModel and LMTDModel.
+    counterflow_iteration  : optional explicit iteration configuration for the COUNTERFLOW
+                             path in SegmentedMarchModel (Phase 11T).  None (default)
+                             preserves the Phase 11S one-pass approximation.  When supplied
+                             with enabled=True, activates the bounded fixed-point iterated
+                             counterflow solver for SinkInletTempAndFlow.  Only valid when
+                             flow_arrangement=FlowArrangement.COUNTERFLOW and secondary_bc
+                             is SinkInletTempAndFlow; supplying enabled=True with any other
+                             BC or arrangement raises ValueError at construction time.
 
     Validation
     ----------
@@ -282,6 +364,7 @@ class HXSolveRequest:
     q_flux_primary: float | None = None
     dp_primary_is_two_phase: bool = False
     flow_arrangement: FlowArrangement | None = None
+    counterflow_iteration: CounterflowIterationConfig | None = None
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.primary_mdot) or self.primary_mdot <= 0:
@@ -362,6 +445,19 @@ class HXSolveRequest:
                     "HXSolveRequest: ua_computation_mode is required when secondary_bc is "
                     "SinkInletTempAndFlow"
                 )
+        if self.counterflow_iteration is not None and self.counterflow_iteration.enabled:
+            if not isinstance(self.secondary_bc, SinkInletTempAndFlow):
+                raise ValueError(
+                    "HXSolveRequest: counterflow_iteration.enabled=True is only supported "
+                    "for SinkInletTempAndFlow secondary BC; got "
+                    f"{type(self.secondary_bc).__name__!r}."
+                )
+            if self.flow_arrangement is not FlowArrangement.COUNTERFLOW:
+                raise ValueError(
+                    "HXSolveRequest: counterflow_iteration.enabled=True requires "
+                    "flow_arrangement=FlowArrangement.COUNTERFLOW; got "
+                    f"{self.flow_arrangement!r}."
+                )
         object.__setattr__(self, "geom_scalars", MappingProxyType(dict(self.geom_scalars)))
 
 
@@ -386,6 +482,14 @@ class HXSolveResult:
     friction_multiplier : friction/DP multiplier that was applied
     raw_dP_primary      : pre-calibration DP value [Pa] (for seam inspectability)
     zone_profile        : optional zone/cell profile (declared seam; None in V1)
+    iteration_count     : number of counterflow iterations performed (Phase 11T);
+                          0 when the iterated solver was not used
+    converged           : True if the iterated counterflow solver converged within
+                          tolerance; False if max_iter was reached without convergence;
+                          None when the iterated solver was not used
+    residual            : final max-absolute-difference in the secondary temperature
+                          profile across all cells [K] from the last iteration;
+                          None when the iterated solver was not used
     """
 
     primary_state_out: FluidState
@@ -396,6 +500,9 @@ class HXSolveResult:
     friction_multiplier: float = 1.0
     raw_dP_primary: float = 0.0
     zone_profile: object | None = None
+    iteration_count: int = 0
+    converged: bool | None = None
+    residual: float | None = None
 
 
 # ---------------------------------------------------------------------------
