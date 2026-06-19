@@ -229,13 +229,22 @@ SinglePhaseDPInput {                                                   <<FROZEN>
   L_cell:     float            # cell length [m] (for the caller's integration; closure returns a gradient)
 }
 
-TwoPhaseDPInput {                                                      <<FROZEN>>
-  state:      FluidState[]      # cell endpoint states spanning the quality range
-  G:          float
-  x:          float[]           # local quality profile across the cell (0..1, continuous through ends)
-  D_h:        float
-  L_cell:     float
-  regime:     FlowRegimeVerdict?   # optional, for regime-aware two-phase ΔP closures
+TwoPhaseDPInput {                              <<FROZEN — amended by Decision 011>>
+  state:              FluidState[]      # cell endpoint states spanning the quality range
+  G:                  float
+  x:                  float[]           # local quality profile across the cell (0..1, continuous through ends)
+  D_h:                float
+  L_cell:             float
+  regime:             FlowRegimeVerdict?   # optional, for regime-aware two-phase ΔP closures
+  property_scalars:   { name -> float }    # explicit formula-specific scalars (see Decision 011)
+                                           # e.g. rho_l, rho_v, mu_l, mu_v for MSH (1986)
+                                           # default: empty mapping
+                                           # caller supplies formula-specific scalars; no property lookup
+                                           # correlations validate required keys and values
+                                           # missing or invalid keys fail clearly with ValueError
+                                           # no CoolProp, no PropertyBackend, no hidden defaults allowed
+                                           # does not imply automatic closure selection
+                                           # HX use requires an explicit builder/plumbing path
 }
 
 HTCInput {                                                            <<FROZEN>>

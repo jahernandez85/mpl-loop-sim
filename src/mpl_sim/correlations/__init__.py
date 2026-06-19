@@ -2,6 +2,7 @@
 # Phase 10G: VolumePressureLaw (PCA) added
 # Phase 11L: single-phase HTC correlations (Dittus-Boelter, Gnielinski) added
 # Phase 11M: two-phase HTC correlations (ShahBoilingHTC, YanCondensationHTC) added
+# Phase 11O: two-phase DP correlation (MSHTwoPhaseFrictionGradient) added
 # MUST NOT import from components/, network/, or solvers/.
 
 from mpl_sim.correlations.contract import (
@@ -39,6 +40,7 @@ from mpl_sim.correlations.registry import (
 )
 from mpl_sim.correlations.single_phase_dp import ChurchillFrictionGradient
 from mpl_sim.correlations.single_phase_htc import DittusBoelterHTC, GnielinskiHTC
+from mpl_sim.correlations.two_phase_dp import MSHTwoPhaseFrictionGradient
 from mpl_sim.correlations.two_phase_htc import ShahBoilingHTC, YanCondensationHTC
 from mpl_sim.correlations.volume_pressure_law import PcaVolumePressureLaw
 
@@ -47,6 +49,7 @@ __all__ = [
     "ChurchillFrictionGradient",
     "DittusBoelterHTC",
     "GnielinskiHTC",
+    "MSHTwoPhaseFrictionGradient",
     "ShahBoilingHTC",
     "YanCondensationHTC",
     "PcaVolumePressureLaw",

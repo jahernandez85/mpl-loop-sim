@@ -16,7 +16,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum, auto
 from types import MappingProxyType
 
@@ -334,7 +334,24 @@ class SinglePhaseDPInput:
 
 @dataclass(frozen=True)
 class TwoPhaseDPInput:
-    """Input manifest for TWO_PHASE_DP closures."""
+    """Input manifest for TWO_PHASE_DP closures.  Amended by Decision 011.
+
+    Required by every two-phase DP correlation:
+        state            : cell state(s); length >= 1  (vector-first)
+        G                : mass flux [kg/m²s]
+        x                : local quality profile across the cell; must be finite in [0, 1]
+        D_h              : hydraulic diameter [m]
+        L_cell           : cell length [m] (caller's integration length; closure returns gradient)
+
+    Optional regime hint:
+        regime           : FlowRegimeVerdict; for regime-aware closures
+
+    Formula-specific scalars (Decision 011):
+        property_scalars : caller-supplied Mapping[str, float]; default empty.
+                           Example keys: rho_l, rho_v, mu_l, mu_v (for MSH 1986).
+                           No CoolProp, no PropertyBackend, no hidden defaults.
+                           Each closure validates required keys; missing key raises ValueError.
+    """
 
     state: tuple[FluidState, ...]
     G: float
@@ -342,6 +359,10 @@ class TwoPhaseDPInput:
     D_h: float
     L_cell: float
     regime: FlowRegimeVerdict | None = None
+    property_scalars: Mapping[str, float] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "property_scalars", MappingProxyType(dict(self.property_scalars)))
 
 
 @dataclass(frozen=True)
