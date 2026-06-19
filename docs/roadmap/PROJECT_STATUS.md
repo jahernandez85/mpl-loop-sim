@@ -11,8 +11,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-11m-two-phase-htc-migration-foundation` |
-| **Stage** | Phase 11N explicit q_flux plumbing for HTC injection; Phase 11 remains open |
+| **Branch** | `phase-11q-evaporator-condenser-scenario-plumbing` |
+| **Stage** | Phase 11Q evaporator/condenser scenario plumbing foundation; Phase 11 remains open |
 | **Completed phase** | **Phase 10 - Pump and Accumulator** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -56,15 +56,32 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11N status** | **Checkpoint complete. `HXSolveRequest.q_flux_primary: float | None` adds strict explicit primary-side heat-flux validation and all three HX strategies pass it unchanged to primary `HTCInput.q_flux`. Epsilon-NTU and segmented two-sided paths explicitly keep secondary `HTCInput.q_flux=None`. `ShahBoilingHTC` is injectable through EpsilonNTU, LMTD, and Segmented fixed-wall paths when all required scalars and q-flux are supplied. No Q/A inference, abs(), clipping, or hidden fallback exists. `YanCondensationHTC` remains injectable and q-flux-independent. Two-phase DP, remaining HTC closures, moving boundary, and full-loop integration remain deferred.** |
 | **Phase 11P audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 11P status** | **Checkpoint complete. All three HX strategies support explicit primary-side `TwoPhaseDPInput` construction and Pa/m-to-Pa conversion when `dp_primary_is_two_phase=True`; default single-phase behavior remains unchanged.** |
+| **Phase 11Q status** | **Checkpoint complete. `EvaporatorHXInput` and `CondenserHXInput` now include `q_flux_primary: float | None = None` and `dp_primary_is_two_phase: bool = False`; both fields are forwarded explicitly to `HXSolveRequest` by `evaluate_heat_exchanger`. Evaporator can now use `ShahBoilingHTC` (with explicit `q_flux_primary`) and `MSHTwoPhaseFrictionGradient` (with `dp_primary_is_two_phase=True`) through the component wrapper. Condenser can now use `YanCondensationHTC` and `MSHTwoPhaseFrictionGradient` through the component wrapper. No hidden defaults, no automatic closure selection, no registry resolution in components.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **V1 HX model foundation now includes all four secondary BC classes in limited segmented form, but roadmap-defined correlation migrations, counterflow/phase-change segmented coupling, moving boundary, and full-loop convergence acceptance remain incomplete.** |
-| **Branch status** | **Phase 11P implemented and audited on `phase-11p-two-phase-dp-hx-plumbing`; approved for merge as a checkpoint.** |
+| **Branch status** | **Phase 11Q implemented and audited on `phase-11q-evaporator-condenser-scenario-plumbing`; approved for merge as a checkpoint.** |
 | **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation** |
 | **Next immediate slice** | Continue Phase 11 with additional two-phase DP closures (Homogeneous, Kim-Mudawar 2013), counterflow or justified phase-change coupling, and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
-| **Working tree before this audit** | Phase 11P: `dp_primary_is_two_phase` flag, three HX two-phase DP builders, gradient-to-drop conversion, 70-test plumbing test file |
-| **Test status** | 3252 passed, verified 2026-06-19 with `pytest`; `test_hx_two_phase_dp_plumbing.py` includes 122 tests |
+| **Working tree before this audit** | Phase 11Q: evaporator/condenser `q_flux_primary` and `dp_primary_is_two_phase` forwarding, focused scenario-plumbing tests, and status update |
+| **Test status** | 3303 passed, verified 2026-06-19 with `pytest`; `test_evaporator_condenser_scenario_plumbing.py` contains 51 tests |
 | **Lint status** | `ruff check src tests` clean, verified 2026-06-19. |
-| **Format status** | `black --check --no-cache src tests` passed, with 133 files unchanged |
+| **Format status** | `black --check --no-cache src tests` passed, with 134 files unchanged |
+
+Phase 11Q evaporator/condenser scenario plumbing foundation is complete as a checkpoint.
+
+- **`EvaporatorHXInput.q_flux_primary: float | None = None`** and **`EvaporatorHXInput.dp_primary_is_two_phase: bool = False`** added in `src/mpl_sim/components/evaporator.py`. Both are forwarded explicitly in `evaluate_heat_exchanger` to `HXSolveRequest`.
+- **`CondenserHXInput.q_flux_primary: float | None = None`** and **`CondenserHXInput.dp_primary_is_two_phase: bool = False`** added in `src/mpl_sim/components/condenser.py`. Both are forwarded explicitly in `evaluate_heat_exchanger` to `HXSolveRequest`.
+- **Evaporator explicit scenarios now covered**:
+  - Single-phase HTC + single-phase DP: caller injects any HTC correlation (e.g. `GnielinskiHTC`) and any single-phase DP correlation with `dp_primary_is_two_phase=False` (default).
+  - Boiling HTC + q_flux + two-phase DP: caller injects `ShahBoilingHTC` as `htc_primary`, supplies `q_flux_primary`, and sets `dp_primary_is_two_phase=True` with `MSHTwoPhaseFrictionGradient` as `dp_primary`.
+  - Missing `q_flux_primary` when using `ShahBoilingHTC` fails clearly via `HXSolveRequest` validation.
+  - Missing two-phase DP property scalar fails clearly via `HXSolveRequest` builder validation.
+- **Condenser explicit scenarios now covered**:
+  - Condensation HTC + two-phase DP: caller injects `YanCondensationHTC` as `htc_primary` and sets `dp_primary_is_two_phase=True` with `MSHTwoPhaseFrictionGradient` as `dp_primary`.
+  - `YanCondensationHTC` does not require `q_flux_primary`; the field defaults to `None`.
+- **No hidden defaults, no automatic closure selection, no registry resolution inside components.** All scenarios are explicitly configured by the caller.
+- **Deferred** (unchanged): counterflow and broader phase-change segmented coupling; moving boundary; full-loop convergence acceptance; additional two-phase DP and HTC closures; validation harnesses; valves/manifolds after Phase 11.
+- New test file `tests/components/test_evaporator_condenser_scenario_plumbing.py` with 51 tests covering all 13 required scenario items: forwarding, integration, failure modes, unchanged geometry-scalar forwarding, and architecture boundary searches.
 
 Phase 11P two-phase DP HX builder and gradient-to-drop plumbing is complete as a checkpoint.
 
@@ -372,6 +389,7 @@ Key authority statements:
 | **Phase 11N Explicit q_flux plumbing for HTC injection** | **Complete; approved for merge as checkpoint, continue Phase 11** |
 | **Phase 11O Two-phase DP correlation migration** | **Complete; audited and approved for merge as checkpoint on `phase-11o-two-phase-dp-migration`** |
 | **Phase 11P Two-phase DP HX builder and gradient-to-drop plumbing** | **Complete; audited and approved for merge as checkpoint on `phase-11p-two-phase-dp-hx-plumbing`** |
+| **Phase 11Q Evaporator/Condenser scenario plumbing foundation** | **Complete; implemented on `phase-11q-evaporator-condenser-scenario-plumbing`** |
 
 Closeout artifacts:
 
@@ -431,7 +449,7 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-11p-two-phase-dp-hx-plumbing` into `main` as a Phase 11P checkpoint.
+1. Merge `phase-11q-evaporator-condenser-scenario-plumbing` into `main` as a Phase 11Q checkpoint.
 2. Continue **Phase 11 - HeatExchangerModel, Evaporator and Condenser** after merge.
 3. Migrate remaining two-phase DP closures (Homogeneous/Cicchitti, Kim-Mudawar 2013) if safe legacy sources are confirmed.
 4. Migrate remaining two-phase HTC closures if safe legacy sources exist.
@@ -447,7 +465,7 @@ Phase boundaries to preserve:
 Recommended commit message:
 
 ```text
-feat: add explicit q-flux plumbing for HTC correlations
+feat: add evaporator condenser scenario plumbing
 ```
 
 ---
@@ -533,6 +551,7 @@ Rules for the next implementation session:
 - Do not include `Co-Authored-By` lines unless explicitly requested.
 - Phase 11P added `HXSolveRequest.dp_primary_is_two_phase: bool = False`. When `True`, HX models build `TwoPhaseDPInput` with `rho_l`, `rho_v`, `mu_l`, `mu_v` from `geom_scalars` into `property_scalars`, and multiply `value[0] * L_cell` for gradient-to-drop conversion. Single-phase DP path (default `False`) is unchanged.
 - Two-phase DP is now injectable into all three HX models using `MSHTwoPhaseFrictionGradient` when the caller supplies required scalars in `geom_scalars` and sets `dp_primary_is_two_phase=True`.
+- Phase 11Q added `q_flux_primary: float | None = None` and `dp_primary_is_two_phase: bool = False` to both `EvaporatorHXInput` and `CondenserHXInput`, forwarding both fields explicitly to `HXSolveRequest`. Evaporator scenarios with `ShahBoilingHTC` + q_flux + two-phase DP, and condenser scenarios with `YanCondensationHTC` + two-phase DP, are now representable through the component wrappers without hidden defaults or automatic closure selection.
 
 ---
 
@@ -542,6 +561,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-19 |
 | **Updated by** | Codex |
-| **Status note** | Phase 11P complete on `phase-11p-two-phase-dp-hx-plumbing`; `dp_primary_is_two_phase=True` enables `TwoPhaseDPInput` construction and Pa/m→Pa gradient-to-drop conversion in all three HX models; 3252 tests passing; Phase 11 remains open |
+| **Status note** | Phase 11Q complete and audited on `phase-11q-evaporator-condenser-scenario-plumbing`; `EvaporatorHXInput` and `CondenserHXInput` forward `q_flux_primary` and `dp_primary_is_two_phase` to `HXSolveRequest`; evaporator/condenser can use `ShahBoilingHTC`, `YanCondensationHTC`, and `MSHTwoPhaseFrictionGradient` through explicit scenario plumbing; 3303 tests passing; Phase 11 remains open |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
