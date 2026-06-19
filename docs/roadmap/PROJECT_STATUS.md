@@ -11,8 +11,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-11q-evaporator-condenser-scenario-plumbing` |
-| **Stage** | Phase 11Q evaporator/condenser scenario plumbing foundation; Phase 11 remains open |
+| **Branch** | `phase-11r-component-contribution-scenario-binding` |
+| **Stage** | Phase 11R component contribution-path scenario binding; Phase 11 remains open |
 | **Completed phase** | **Phase 10 - Pump and Accumulator** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -57,15 +57,36 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11P audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 11P status** | **Checkpoint complete. All three HX strategies support explicit primary-side `TwoPhaseDPInput` construction and Pa/m-to-Pa conversion when `dp_primary_is_two_phase=True`; default single-phase behavior remains unchanged.** |
 | **Phase 11Q status** | **Checkpoint complete. `EvaporatorHXInput` and `CondenserHXInput` now include `q_flux_primary: float | None = None` and `dp_primary_is_two_phase: bool = False`; both fields are forwarded explicitly to `HXSolveRequest` by `evaluate_heat_exchanger`. Evaporator can now use `ShahBoilingHTC` (with explicit `q_flux_primary`) and `MSHTwoPhaseFrictionGradient` (with `dp_primary_is_two_phase=True`) through the component wrapper. Condenser can now use `YanCondensationHTC` and `MSHTwoPhaseFrictionGradient` through the component wrapper. No hidden defaults, no automatic closure selection, no registry resolution in components.** |
+| **Phase 11R audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 11R status** | **Checkpoint complete. `EvaporatorScenarioBinding` and `CondenserScenarioBinding` added as immutable frozen dataclasses in `src/mpl_sim/components/evaporator.py` and `src/mpl_sim/components/condenser.py`; `geom_scalars` stored as a defensive `MappingProxyType` copy; both types exported from `mpl_sim.components`. `EvaporatorComponent.evaluate_scenario(primary_state_in, primary_mdot, scenario)` and `CondenserComponent.evaluate_scenario(...)` added as scenario-bound helpers that build the respective `*HXInput` from runtime state + immutable scenario binding and delegate to `evaluate_heat_exchanger`. These helpers are NOT the frozen `contribute(trial, ctx) -> ComponentContribution` contract from INTERFACE_SPEC §11.1; that contract remains deferred. Phase 11Q scenario fields (`q_flux_primary`, `dp_primary_is_two_phase`) are now accessible through the scenario helper path, not only through direct `evaluate_heat_exchanger` calls.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **V1 HX model foundation now includes all four secondary BC classes in limited segmented form, but roadmap-defined correlation migrations, counterflow/phase-change segmented coupling, moving boundary, and full-loop convergence acceptance remain incomplete.** |
-| **Branch status** | **Phase 11Q implemented and audited on `phase-11q-evaporator-condenser-scenario-plumbing`; approved for merge as a checkpoint.** |
+| **Branch status** | **Phase 11R implemented and audited on `phase-11r-component-contribution-scenario-binding`; scenario-bound helper evaluation approved as a component-level checkpoint.** |
 | **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation** |
 | **Next immediate slice** | Continue Phase 11 with additional two-phase DP closures (Homogeneous, Kim-Mudawar 2013), counterflow or justified phase-change coupling, and full-loop convergence acceptance according to `IMPLEMENTATION_PLAN.md` |
 | **Working tree before this audit** | Phase 11Q: evaporator/condenser `q_flux_primary` and `dp_primary_is_two_phase` forwarding, focused scenario-plumbing tests, and status update |
-| **Test status** | 3303 passed, verified 2026-06-19 with `pytest`; `test_evaporator_condenser_scenario_plumbing.py` contains 51 tests |
+| **Test status** | 3380 passed, verified 2026-06-19 with `pytest`; `test_evaporator_condenser_contribution_scenario_binding.py` contains 77 new tests, including contract-boundary and binding-immutability coverage; `test_evaporator_condenser_scenario_plumbing.py` (51 tests, Phase 11Q) unchanged |
 | **Lint status** | `ruff check src tests` clean, verified 2026-06-19. |
-| **Format status** | `black --check --no-cache src tests` passed, with 134 files unchanged |
+| **Format status** | `black --check --no-cache src tests` passed, with 135 files unchanged |
+
+Phase 11R component contribution-path scenario binding is complete as a checkpoint.
+
+- **`EvaporatorScenarioBinding`** added in `src/mpl_sim/components/evaporator.py`. Immutable frozen dataclass holding all scenario-specific configuration (everything in `EvaporatorHXInput` except runtime `primary_state_in` and `primary_mdot`), including `q_flux_primary` and `dp_primary_is_two_phase` from Phase 11Q. `geom_scalars` stored as `MappingProxyType(dict(...))` in `__post_init__` so neither `binding.geom_scalars[key] = val` nor post-construction mutation of the source dict can affect the binding.
+- **`CondenserScenarioBinding`** added in `src/mpl_sim/components/condenser.py`. Mirrors `EvaporatorScenarioBinding` for the condenser; same `MappingProxyType` immutability guarantee.
+- **`EvaporatorComponent.evaluate_scenario(primary_state_in, primary_mdot, scenario)`** added: scenario-bound helper that builds `EvaporatorHXInput` from runtime state + immutable scenario binding and delegates to `evaluate_heat_exchanger`. No registry access, no closure selection, no property lookup. NOT the frozen `contribute(trial, ctx) -> ComponentContribution` contract from INTERFACE_SPEC §11.1, which remains deferred.
+- **`CondenserComponent.evaluate_scenario(primary_state_in, primary_mdot, scenario)`** added: same pattern for condenser.
+- Both new types exported from `mpl_sim.components` and listed in `__all__`.
+- **Evaporator scenarios now reachable through `evaluate_scenario()`**:
+  - Shah boiling HTC + `q_flux_primary` + two-phase DP: set `EvaporatorScenarioBinding(htc_primary=ShahBoilingHTC(), q_flux_primary=..., dp_primary=MSHTwoPhaseFrictionGradient(), dp_primary_is_two_phase=True, ...)`.
+  - Missing `q_flux_primary` for Shah fails clearly via `HXSolveRequest` validation.
+  - Missing two-phase DP property scalar fails clearly via builder validation.
+- **Condenser scenarios now reachable through `evaluate_scenario()`**:
+  - Yan condensation HTC + two-phase DP: set `CondenserScenarioBinding(htc_primary=YanCondensationHTC(), dp_primary=MSHTwoPhaseFrictionGradient(), dp_primary_is_two_phase=True, ...)`.
+  - `YanCondensationHTC` does not require `q_flux_primary`; field defaults to `None`.
+- `evaluate_scenario()` produces identical results to `evaluate_heat_exchanger()` for the same inputs (verified by cross-reference tests).
+- **No hidden defaults, no automatic closure selection, no registry resolution inside components.** All scenarios explicitly configured by caller through `*ScenarioBinding`.
+- **Deferred** (unchanged): frozen `contribute(trial, ctx) -> ComponentContribution` contract from INTERFACE_SPEC §11.1 (requires `ComponentTrialState` and `EvalContext`, not yet implemented); broader counterflow and phase-change segmented coupling; moving boundary; full-loop convergence acceptance; additional two-phase DP and HTC closures; validation harnesses; valves/manifolds after Phase 11.
+- New test file `tests/components/test_evaporator_condenser_contribution_scenario_binding.py` covering all 13 required items plus `MappingProxyType` immutability tests (geom_scalars read-only, source-dict isolation, frozen field assignment rejection).
 
 Phase 11Q evaporator/condenser scenario plumbing foundation is complete as a checkpoint.
 
@@ -390,6 +411,7 @@ Key authority statements:
 | **Phase 11O Two-phase DP correlation migration** | **Complete; audited and approved for merge as checkpoint on `phase-11o-two-phase-dp-migration`** |
 | **Phase 11P Two-phase DP HX builder and gradient-to-drop plumbing** | **Complete; audited and approved for merge as checkpoint on `phase-11p-two-phase-dp-hx-plumbing`** |
 | **Phase 11Q Evaporator/Condenser scenario plumbing foundation** | **Complete; implemented on `phase-11q-evaporator-condenser-scenario-plumbing`** |
+| **Phase 11R Component contribution-path scenario binding** | **Complete; implemented on `phase-11r-component-contribution-scenario-binding`** |
 
 Closeout artifacts:
 
@@ -449,7 +471,7 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-11q-evaporator-condenser-scenario-plumbing` into `main` as a Phase 11Q checkpoint.
+1. Merge `phase-11r-component-contribution-scenario-binding` into `main` as a Phase 11R checkpoint.
 2. Continue **Phase 11 - HeatExchangerModel, Evaporator and Condenser** after merge.
 3. Migrate remaining two-phase DP closures (Homogeneous/Cicchitti, Kim-Mudawar 2013) if safe legacy sources are confirmed.
 4. Migrate remaining two-phase HTC closures if safe legacy sources exist.
@@ -465,7 +487,7 @@ Phase boundaries to preserve:
 Recommended commit message:
 
 ```text
-feat: add evaporator condenser scenario plumbing
+feat: bind component scenario helpers
 ```
 
 ---
@@ -561,6 +583,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-19 |
 | **Updated by** | Codex |
-| **Status note** | Phase 11Q complete and audited on `phase-11q-evaporator-condenser-scenario-plumbing`; `EvaporatorHXInput` and `CondenserHXInput` forward `q_flux_primary` and `dp_primary_is_two_phase` to `HXSolveRequest`; evaporator/condenser can use `ShahBoilingHTC`, `YanCondensationHTC`, and `MSHTwoPhaseFrictionGradient` through explicit scenario plumbing; 3303 tests passing; Phase 11 remains open |
+| **Status note** | Phase 11R complete and audited on `phase-11r-component-contribution-scenario-binding`; `EvaporatorScenarioBinding` + `CondenserScenarioBinding` (immutable, with defensive read-only `geom_scalars` copies) and `evaluate_scenario()` helpers added; frozen `contribute(trial, ctx)` contract from INTERFACE_SPEC §11.1 remains deferred; Phase 11Q scenario fields reachable through `evaluate_scenario()`; 3380 tests passing; Phase 11 remains open |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
