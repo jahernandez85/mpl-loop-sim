@@ -67,13 +67,12 @@ positive gradient for positive mass flux G.
 
 HX injection status
 -------------------
-Direct HX injection is DEFERRED.  Current HX models (_build_dp_input) build
-SinglePhaseDPInput, not TwoPhaseDPInput, and treat value[0] as a pressure
-drop (Pa) rather than a gradient (Pa/m).  Injection requires:
-  1. HX models to build TwoPhaseDPInput with an explicit property_scalars
-     mapping containing rho_l, rho_v, mu_l, mu_v (Decision 011).
-  2. Explicit gradient-to-drop multiplication by L_cell inside the HX model.
-Until these are in place, two-phase DP must be evaluated standalone.
+Direct HX injection is implemented by Phase 11P.  The caller explicitly sets
+HXSolveRequest.dp_primary_is_two_phase=True; HX models then build
+TwoPhaseDPInput with rho_l, rho_v, mu_l, and mu_v in property_scalars and
+multiply value[0] by L_cell exactly once to obtain pressure drop [Pa].
+Correlation selection remains injected and explicit; this module performs no
+registry resolution or HX-specific conversion.
 
 Architectural rules:
 - No import of CoolProp, properties/, geometry/, components/, network/,

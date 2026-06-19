@@ -30,7 +30,7 @@ Covers MSHTwoPhaseFrictionGradient (Müller-Steinhagen & Heck 1986):
     - No hidden defaults.
     - Correct package export from mpl_sim.correlations.
     - Registerable through CorrelationRegistry.
-    - HX injection is deferred; tested with a focused note.
+    - HX callers must use TwoPhaseDPInput and perform gradient-to-drop conversion.
 """
 
 from __future__ import annotations
@@ -537,27 +537,16 @@ class TestPackageExport:
 
 
 # ---------------------------------------------------------------------------
-# HX injection — deferred; documented note
+# HX input and output boundary
 # ---------------------------------------------------------------------------
 
 
-class TestHXInjectionDeferred:
-    """Direct HX injection of MSHTwoPhaseFrictionGradient is deferred.
-
-    Current HX models (_build_dp_input) build SinglePhaseDPInput, not
-    TwoPhaseDPInput.  When MSHTwoPhaseFrictionGradient.evaluate() receives a
-    SinglePhaseDPInput it raises TypeError.  Injection additionally requires:
-      1. HX models to build TwoPhaseDPInput with a property_scalars mapping
-         containing rho_l, rho_v, mu_l, mu_v (Decision 011).
-      2. Explicit gradient-to-drop multiplication by L_cell inside the HX model
-         (current convention treats value[0] as ΔP, not Pa/m gradient).
-    These changes are deferred to a later phase.
-    """
+class TestHXInputOutputBoundary:
+    """Protect the correlation side of the Phase 11P HX integration boundary."""
 
     def test_wrong_input_type_raised_when_called_with_single_phase_input(self) -> None:
-        """Confirm that passing SinglePhaseDPInput raises TypeError — the
-        same error that would occur if an HX model injected this correlation
-        via the current _build_dp_input which produces SinglePhaseDPInput."""
+        """Passing SinglePhaseDPInput fails clearly; HX callers must select the
+        explicit two-phase builder path."""
         from mpl_sim.correlations.contract import SinglePhaseDPInput
 
         wrong = SinglePhaseDPInput(

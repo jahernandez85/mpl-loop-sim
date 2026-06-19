@@ -110,6 +110,7 @@ from mpl_sim.correlations.contract import (
     CorrelationOutput,
     HTCInput,
     SinglePhaseDPInput,
+    TwoPhaseDPInput,
 )
 from mpl_sim.discretization.primitives import DiscretizationMode, DiscretizationSpec
 from mpl_sim.hx_models.base import (
@@ -369,15 +370,27 @@ class SegmentedMarchModel(HeatExchangerModel):
                     h=h_in,
                     identity=req.primary_state_in.identity,
                 )
-                dp_inp = self._build_dp_input(req, cell_state)
-                raw_dp_out = req.dp_primary.evaluate(dp_inp)
-                verdicts.append(raw_dp_out)
-                raw_dP_cell = raw_dp_out.value[0]
-                if not math.isfinite(raw_dP_cell):
-                    raise ValueError(
-                        f"SegmentedMarchModel: DP correlation output must be finite "
-                        f"for cell {i}; got {raw_dP_cell!r}"
-                    )
+                if req.dp_primary_is_two_phase:
+                    dp_inp = self._build_two_phase_dp_input_for_cell(req, cell_state)
+                    raw_dp_out = req.dp_primary.evaluate(dp_inp)
+                    verdicts.append(raw_dp_out)
+                    raw_dP_gradient = raw_dp_out.value[0]
+                    if not math.isfinite(raw_dP_gradient):
+                        raise ValueError(
+                            f"SegmentedMarchModel: two-phase DP gradient must be finite "
+                            f"for cell {i}; got {raw_dP_gradient!r}"
+                        )
+                    raw_dP_cell = raw_dP_gradient * dp_inp.L_cell
+                else:
+                    dp_inp = self._build_dp_input(req, cell_state)
+                    raw_dp_out = req.dp_primary.evaluate(dp_inp)
+                    verdicts.append(raw_dp_out)
+                    raw_dP_cell = raw_dp_out.value[0]
+                    if not math.isfinite(raw_dP_cell):
+                        raise ValueError(
+                            f"SegmentedMarchModel: DP correlation output must be finite "
+                            f"for cell {i}; got {raw_dP_cell!r}"
+                        )
                 dP_cell = req.friction_multiplier * raw_dP_cell
 
             P_out = P_in - dP_cell
@@ -453,6 +466,51 @@ class SegmentedMarchModel(HeatExchangerModel):
             mu=mu,
         )
 
+    def _build_two_phase_dp_input_for_cell(
+        self, req: HXSolveRequest, cell_state: FluidState
+    ) -> TwoPhaseDPInput:
+        """Build TwoPhaseDPInput for one cell in the two-phase DP path.
+
+        Required geom_scalars keys: G, x, D_h, L_cell, rho_l, rho_v, mu_l, mu_v.
+        rho_l, rho_v, mu_l, mu_v are forwarded into TwoPhaseDPInput.property_scalars.
+        L_cell is stored in the returned object; the caller multiplies value[0] by
+        L_cell to convert the Pa/m gradient to a per-cell pressure drop in Pa.
+        """
+        gs = req.geom_scalars
+        ctx = "SegmentedMarchModel._build_two_phase_dp_input_for_cell"
+        G = _require_scalar(gs, "G", ctx)
+        if G <= 0.0:
+            raise ValueError(f"SegmentedMarchModel: geom_scalars['G'] must be > 0; got {G!r}")
+        x_val = _require_scalar(gs, "x", ctx)
+        if not (0.0 <= x_val <= 1.0):
+            raise ValueError(
+                f"SegmentedMarchModel: geom_scalars['x'] must be in [0, 1]; got {x_val!r}"
+            )
+        D_h = _require_scalar(gs, "D_h", ctx)
+        if D_h <= 0.0:
+            raise ValueError(f"SegmentedMarchModel: geom_scalars['D_h'] must be > 0; got {D_h!r}")
+        L_cell = _require_scalar(gs, "L_cell", ctx)
+        if L_cell <= 0.0:
+            raise ValueError(
+                f"SegmentedMarchModel: geom_scalars['L_cell'] must be > 0; got {L_cell!r}"
+            )
+        property_scalars: dict[str, float] = {}
+        for key in ("rho_l", "rho_v", "mu_l", "mu_v"):
+            val = _require_scalar(gs, key, ctx)
+            if val <= 0.0:
+                raise ValueError(
+                    f"SegmentedMarchModel: geom_scalars[{key!r}] must be > 0; got {val!r}"
+                )
+            property_scalars[key] = val
+        return TwoPhaseDPInput(
+            state=(cell_state,),
+            G=G,
+            x=(x_val,),
+            D_h=D_h,
+            L_cell=L_cell,
+            property_scalars=property_scalars,
+        )
+
     # ------------------------------------------------------------------
     # AmbientCoupling path
     # ------------------------------------------------------------------
@@ -524,15 +582,27 @@ class SegmentedMarchModel(HeatExchangerModel):
                     h=h_in,
                     identity=req.primary_state_in.identity,
                 )
-                dp_inp = self._build_dp_input(req, cell_state)
-                raw_dp_out = req.dp_primary.evaluate(dp_inp)
-                verdicts.append(raw_dp_out)
-                raw_dP_cell = raw_dp_out.value[0]
-                if not math.isfinite(raw_dP_cell):
-                    raise ValueError(
-                        f"SegmentedMarchModel: DP correlation output must be finite "
-                        f"for cell {i}; got {raw_dP_cell!r}"
-                    )
+                if req.dp_primary_is_two_phase:
+                    dp_inp = self._build_two_phase_dp_input_for_cell(req, cell_state)
+                    raw_dp_out = req.dp_primary.evaluate(dp_inp)
+                    verdicts.append(raw_dp_out)
+                    raw_dP_gradient = raw_dp_out.value[0]
+                    if not math.isfinite(raw_dP_gradient):
+                        raise ValueError(
+                            f"SegmentedMarchModel: two-phase DP gradient must be finite "
+                            f"for cell {i}; got {raw_dP_gradient!r}"
+                        )
+                    raw_dP_cell = raw_dP_gradient * dp_inp.L_cell
+                else:
+                    dp_inp = self._build_dp_input(req, cell_state)
+                    raw_dp_out = req.dp_primary.evaluate(dp_inp)
+                    verdicts.append(raw_dp_out)
+                    raw_dP_cell = raw_dp_out.value[0]
+                    if not math.isfinite(raw_dP_cell):
+                        raise ValueError(
+                            f"SegmentedMarchModel: DP correlation output must be finite "
+                            f"for cell {i}; got {raw_dP_cell!r}"
+                        )
                 dP_cell = req.friction_multiplier * raw_dP_cell
 
             P_out = P_in - dP_cell
@@ -675,15 +745,27 @@ class SegmentedMarchModel(HeatExchangerModel):
             raw_dP_cell = 0.0
             dP_cell = 0.0
             if req.dp_primary is not None:
-                dp_inp = self._build_dp_input(req, cell_state)
-                raw_dp_out = req.dp_primary.evaluate(dp_inp)
-                verdicts.append(raw_dp_out)
-                raw_dP_cell = raw_dp_out.value[0]
-                if not math.isfinite(raw_dP_cell):
-                    raise ValueError(
-                        f"SegmentedMarchModel: DP correlation output must be finite "
-                        f"for cell {i}; got {raw_dP_cell!r}"
-                    )
+                if req.dp_primary_is_two_phase:
+                    dp_inp = self._build_two_phase_dp_input_for_cell(req, cell_state)
+                    raw_dp_out = req.dp_primary.evaluate(dp_inp)
+                    verdicts.append(raw_dp_out)
+                    raw_dP_gradient = raw_dp_out.value[0]
+                    if not math.isfinite(raw_dP_gradient):
+                        raise ValueError(
+                            f"SegmentedMarchModel: two-phase DP gradient must be finite "
+                            f"for cell {i}; got {raw_dP_gradient!r}"
+                        )
+                    raw_dP_cell = raw_dP_gradient * dp_inp.L_cell
+                else:
+                    dp_inp = self._build_dp_input(req, cell_state)
+                    raw_dp_out = req.dp_primary.evaluate(dp_inp)
+                    verdicts.append(raw_dp_out)
+                    raw_dP_cell = raw_dp_out.value[0]
+                    if not math.isfinite(raw_dP_cell):
+                        raise ValueError(
+                            f"SegmentedMarchModel: DP correlation output must be finite "
+                            f"for cell {i}; got {raw_dP_cell!r}"
+                        )
                 dP_cell = req.friction_multiplier * raw_dP_cell
 
             P_out = P_in - dP_cell
@@ -886,15 +968,27 @@ class SegmentedMarchModel(HeatExchangerModel):
             raw_dP_cell = 0.0
             dP_cell = 0.0
             if req.dp_primary is not None:
-                dp_inp = self._build_dp_input(req, cell_state)
-                raw_dp_out = req.dp_primary.evaluate(dp_inp)
-                verdicts.append(raw_dp_out)
-                raw_dP_cell = raw_dp_out.value[0]
-                if not math.isfinite(raw_dP_cell):
-                    raise ValueError(
-                        f"SegmentedMarchModel: DP correlation output must be finite "
-                        f"for cell {i}; got {raw_dP_cell!r}"
-                    )
+                if req.dp_primary_is_two_phase:
+                    dp_inp = self._build_two_phase_dp_input_for_cell(req, cell_state)
+                    raw_dp_out = req.dp_primary.evaluate(dp_inp)
+                    verdicts.append(raw_dp_out)
+                    raw_dP_gradient = raw_dp_out.value[0]
+                    if not math.isfinite(raw_dP_gradient):
+                        raise ValueError(
+                            f"SegmentedMarchModel: two-phase DP gradient must be finite "
+                            f"for cell {i}; got {raw_dP_gradient!r}"
+                        )
+                    raw_dP_cell = raw_dP_gradient * dp_inp.L_cell
+                else:
+                    dp_inp = self._build_dp_input(req, cell_state)
+                    raw_dp_out = req.dp_primary.evaluate(dp_inp)
+                    verdicts.append(raw_dp_out)
+                    raw_dP_cell = raw_dp_out.value[0]
+                    if not math.isfinite(raw_dP_cell):
+                        raise ValueError(
+                            f"SegmentedMarchModel: DP correlation output must be finite "
+                            f"for cell {i}; got {raw_dP_cell!r}"
+                        )
                 dP_cell = req.friction_multiplier * raw_dP_cell
 
             P_out = P_in - dP_cell
