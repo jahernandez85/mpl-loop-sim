@@ -135,7 +135,7 @@ class CounterflowIterationConfig:
 
     Validation
     ----------
-    - max_iter must be >= 1.
+    - max_iter must be an int (bool and float rejected), and >= 1.
     - tolerance must be finite and > 0.
     - relaxation must be finite and in (0, 1].
 
@@ -159,6 +159,11 @@ class CounterflowIterationConfig:
     relaxation: float = 1.0
 
     def __post_init__(self) -> None:
+        if isinstance(self.max_iter, bool) or not isinstance(self.max_iter, int):
+            raise ValueError(
+                f"CounterflowIterationConfig.max_iter must be an int (not bool or float); "
+                f"got {self.max_iter!r}"
+            )
         if self.max_iter < 1:
             raise ValueError(
                 f"CounterflowIterationConfig.max_iter must be >= 1; got {self.max_iter!r}"

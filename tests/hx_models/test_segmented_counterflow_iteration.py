@@ -60,6 +60,8 @@ from mpl_sim.correlations.contract import (
     ValidityStatus,
     ValidityVerdict,
 )
+from mpl_sim.correlations.two_phase_dp import MSHTwoPhaseFrictionGradient
+from mpl_sim.correlations.two_phase_htc import ShahBoilingHTC, YanCondensationHTC
 from mpl_sim.discretization.primitives import DiscretizationMode, DiscretizationSpec
 from mpl_sim.hx_models.base import (
     AmbientCoupling,
@@ -517,6 +519,32 @@ class TestIterationConfigValidation:
         """Validation runs regardless of enabled flag."""
         with pytest.raises(ValueError, match="max_iter"):
             CounterflowIterationConfig(enabled=False, max_iter=0)
+
+    def test_max_iter_true_rejected(self):
+        """bool is a subclass of int; True must be explicitly rejected."""
+        with pytest.raises(ValueError, match="max_iter"):
+            CounterflowIterationConfig(max_iter=True)
+
+    def test_max_iter_false_rejected(self):
+        """bool is a subclass of int; False must be explicitly rejected."""
+        with pytest.raises(ValueError, match="max_iter"):
+            CounterflowIterationConfig(max_iter=False)
+
+    def test_max_iter_float_rejected(self):
+        with pytest.raises(ValueError, match="max_iter"):
+            CounterflowIterationConfig(max_iter=1.5)  # type: ignore[arg-type]
+
+    def test_max_iter_nan_rejected(self):
+        with pytest.raises(ValueError, match="max_iter"):
+            CounterflowIterationConfig(max_iter=float("nan"))  # type: ignore[arg-type]
+
+    def test_max_iter_inf_rejected(self):
+        with pytest.raises(ValueError, match="max_iter"):
+            CounterflowIterationConfig(max_iter=float("inf"))  # type: ignore[arg-type]
+
+    def test_max_iter_neg_inf_rejected(self):
+        with pytest.raises(ValueError, match="max_iter"):
+            CounterflowIterationConfig(max_iter=-float("inf"))  # type: ignore[arg-type]
 
 
 # ===========================================================================
@@ -1310,3 +1338,404 @@ class TestPhase11SRegression:
         result = model.solve(req)
         expected_h_out = _STATE_IN.h + result.Q / mdot
         assert math.isclose(result.primary_state_out.h, expected_h_out, rel_tol=1e-9)
+
+
+# ===========================================================================
+# Real-correlation regression — iterated counterflow mode
+# ===========================================================================
+
+# Shared geom for Shah boiling (requires q_flux, h_fg, k_l, Pr_l, rho_v)
+_SHAH_GEOM: dict = {
+    "G": 200.0,
+    "x": 0.5,
+    "D_h": 0.002,
+    "L_cell": 0.1,
+    "A_ht": 0.03,
+    "rho_l": 1000.0,
+    "rho_v": 20.0,
+    "mu_l": 1e-4,
+    "k_l": 0.1,
+    "Pr_l": 5.0,
+    "h_fg": 200_000.0,
+}
+
+# Shared geom for Yan condensation (no h_fg, no k_v)
+_YAN_GEOM: dict = {
+    "G": 200.0,
+    "x": 0.5,
+    "D_h": 0.002,
+    "L_cell": 0.1,
+    "A_ht": 0.03,
+    "rho_l": 1000.0,
+    "rho_v": 20.0,
+    "mu_l": 1e-4,
+    "k_l": 0.1,
+    "Pr_l": 5.0,
+}
+
+# Shared geom for MSH two-phase DP
+_MSH_GEOM: dict = {
+    "G": 200.0,
+    "x": 0.3,
+    "D_h": 0.002,
+    "L_cell": 0.1,
+    "A_ht": 0.03,
+    "rho_l": 1000.0,
+    "rho_v": 20.0,
+    "mu_l": 1e-4,
+    "mu_v": 1e-5,
+}
+
+
+def _iter_req_shah(
+    q_flux: float = 5000.0,
+    n_cells: int = 3,
+    iteration_cfg: CounterflowIterationConfig | None = None,
+) -> HXSolveRequest:
+    disc = DiscretizationSpec(mode=DiscretizationMode.UNIFORM, n_cells=n_cells)
+    if iteration_cfg is None:
+        iteration_cfg = _iter_cfg(max_iter=10)
+    return HXSolveRequest(
+        primary_state_in=_STATE_IN,
+        primary_mdot=0.1,
+        secondary_bc=_sink_bc(T_in=360.0, mdot=0.05, cp=4000.0),
+        geometry=object(),
+        discretization=disc,
+        geom_scalars=_SHAH_GEOM,
+        htc_primary=ShahBoilingHTC(),
+        htc_secondary=_ConstHTC(htc=2000.0),
+        primary_T_in=300.0,
+        primary_cp=1500.0,
+        primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+        ua_computation_mode=UAComputationMode.TWO_SIDED,
+        q_flux_primary=q_flux,
+        flow_arrangement=FlowArrangement.COUNTERFLOW,
+        counterflow_iteration=iteration_cfg,
+    )
+
+
+def _iter_req_yan(
+    n_cells: int = 3,
+    iteration_cfg: CounterflowIterationConfig | None = None,
+) -> HXSolveRequest:
+    disc = DiscretizationSpec(mode=DiscretizationMode.UNIFORM, n_cells=n_cells)
+    if iteration_cfg is None:
+        iteration_cfg = _iter_cfg(max_iter=10)
+    return HXSolveRequest(
+        primary_state_in=_STATE_IN,
+        primary_mdot=0.1,
+        secondary_bc=_sink_bc(T_in=300.0, mdot=0.05, cp=4000.0),
+        geometry=object(),
+        discretization=disc,
+        geom_scalars=_YAN_GEOM,
+        htc_primary=YanCondensationHTC(),
+        htc_secondary=_ConstHTC(htc=2000.0),
+        primary_T_in=360.0,
+        primary_cp=1500.0,
+        primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+        ua_computation_mode=UAComputationMode.TWO_SIDED,
+        flow_arrangement=FlowArrangement.COUNTERFLOW,
+        counterflow_iteration=iteration_cfg,
+    )
+
+
+class TestRealCorrelationIteratedMode:
+    """Real Shah / Yan / MSH correlations exercised in iterated counterflow.
+
+    These are regression tests: they verify that the actual production closures
+    from Phase 11L–11O work end-to-end through the iterated solver path.
+    Fake correlations remain in other test classes for controlled algorithmic checks.
+    """
+
+    # -----------------------------------------------------------------------
+    # Shah boiling HTC in iterated counterflow
+    # -----------------------------------------------------------------------
+
+    def test_shah_iterated_counterflow_evaluates_successfully(self):
+        """Shah boiling HTC with explicit q_flux succeeds in iterated mode."""
+        result = SegmentedMarchModel().solve(_iter_req_shah())
+        assert isinstance(result, HXSolveResult)
+        assert math.isfinite(result.Q)
+
+    def test_shah_iterated_counterflow_q_positive_heating(self):
+        """Secondary (360 K) hotter than primary (300 K) → Q > 0."""
+        result = SegmentedMarchModel().solve(_iter_req_shah())
+        assert result.Q > 0.0
+
+    def test_shah_iterated_counterflow_reports_iteration_diagnostics(self):
+        """iteration_count >= 1, converged is bool, residual is finite."""
+        result = SegmentedMarchModel().solve(_iter_req_shah())
+        assert result.iteration_count >= 1
+        assert isinstance(result.converged, bool)
+        assert result.residual is not None
+        assert math.isfinite(result.residual)
+
+    def test_shah_iterated_q_flux_reaches_primary_htc(self):
+        """q_flux_primary must reach Shah HTC; Shah raises without it."""
+        model = SegmentedMarchModel()
+        # With q_flux supplied → succeeds
+        result = model.solve(_iter_req_shah(q_flux=5000.0))
+        assert math.isfinite(result.Q)
+        # Without q_flux → Shah raises ValueError about q_flux
+        req_no_qflux = HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.1,
+            secondary_bc=_sink_bc(T_in=360.0, mdot=0.05, cp=4000.0),
+            geometry=object(),
+            discretization=_DISC_3,
+            geom_scalars=_SHAH_GEOM,
+            htc_primary=ShahBoilingHTC(),
+            htc_secondary=_ConstHTC(htc=2000.0),
+            primary_T_in=300.0,
+            primary_cp=1500.0,
+            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            q_flux_primary=None,
+            flow_arrangement=FlowArrangement.COUNTERFLOW,
+            counterflow_iteration=_iter_cfg(max_iter=10),
+        )
+        with pytest.raises(ValueError):
+            model.solve(req_no_qflux)
+
+    def test_shah_missing_h_fg_scalar_fails_clearly(self):
+        """Missing h_fg in geom_scalars raises ValueError from Shah."""
+        geom = dict(_SHAH_GEOM)
+        del geom["h_fg"]
+        req = HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.1,
+            secondary_bc=_sink_bc(T_in=360.0, mdot=0.05, cp=4000.0),
+            geometry=object(),
+            discretization=_DISC_3,
+            geom_scalars=geom,
+            htc_primary=ShahBoilingHTC(),
+            htc_secondary=_ConstHTC(htc=2000.0),
+            primary_T_in=300.0,
+            primary_cp=1500.0,
+            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            q_flux_primary=5000.0,
+            flow_arrangement=FlowArrangement.COUNTERFLOW,
+            counterflow_iteration=_iter_cfg(max_iter=10),
+        )
+        with pytest.raises(ValueError):
+            SegmentedMarchModel().solve(req)
+
+    def test_shah_missing_rho_v_scalar_fails_clearly(self):
+        """Missing rho_v in geom_scalars raises ValueError from Shah."""
+        geom = dict(_SHAH_GEOM)
+        del geom["rho_v"]
+        req = HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.1,
+            secondary_bc=_sink_bc(T_in=360.0, mdot=0.05, cp=4000.0),
+            geometry=object(),
+            discretization=_DISC_3,
+            geom_scalars=geom,
+            htc_primary=ShahBoilingHTC(),
+            htc_secondary=_ConstHTC(htc=2000.0),
+            primary_T_in=300.0,
+            primary_cp=1500.0,
+            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            q_flux_primary=5000.0,
+            flow_arrangement=FlowArrangement.COUNTERFLOW,
+            counterflow_iteration=_iter_cfg(max_iter=10),
+        )
+        with pytest.raises(ValueError):
+            SegmentedMarchModel().solve(req)
+
+    def test_shah_iterated_energy_balance_holds(self):
+        """h_out = h_in + Q / mdot even with real Shah closure."""
+        mdot = 0.1
+        result = SegmentedMarchModel().solve(_iter_req_shah())
+        expected = _STATE_IN.h + result.Q / mdot
+        assert math.isclose(result.primary_state_out.h, expected, rel_tol=1e-9)
+
+    # -----------------------------------------------------------------------
+    # Yan condensation HTC in iterated counterflow
+    # -----------------------------------------------------------------------
+
+    def test_yan_iterated_counterflow_evaluates_successfully(self):
+        """Yan condensation HTC without q_flux succeeds in iterated mode."""
+        result = SegmentedMarchModel().solve(_iter_req_yan())
+        assert isinstance(result, HXSolveResult)
+        assert math.isfinite(result.Q)
+
+    def test_yan_iterated_counterflow_q_negative_cooling(self):
+        """Secondary (300 K) cooler than primary (360 K) → Q < 0."""
+        result = SegmentedMarchModel().solve(_iter_req_yan())
+        assert result.Q < 0.0
+
+    def test_yan_iterated_reports_diagnostics(self):
+        result = SegmentedMarchModel().solve(_iter_req_yan())
+        assert result.iteration_count >= 1
+        assert isinstance(result.converged, bool)
+
+    def test_yan_missing_k_l_scalar_fails_clearly(self):
+        """Missing k_l in geom_scalars raises ValueError from Yan."""
+        geom = dict(_YAN_GEOM)
+        del geom["k_l"]
+        req = HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.1,
+            secondary_bc=_sink_bc(T_in=300.0, mdot=0.05, cp=4000.0),
+            geometry=object(),
+            discretization=_DISC_3,
+            geom_scalars=geom,
+            htc_primary=YanCondensationHTC(),
+            htc_secondary=_ConstHTC(htc=2000.0),
+            primary_T_in=360.0,
+            primary_cp=1500.0,
+            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            flow_arrangement=FlowArrangement.COUNTERFLOW,
+            counterflow_iteration=_iter_cfg(max_iter=10),
+        )
+        with pytest.raises(ValueError):
+            SegmentedMarchModel().solve(req)
+
+    def test_yan_iterated_energy_balance_holds(self):
+        """h_out = h_in + Q / mdot even with real Yan closure."""
+        mdot = 0.1
+        result = SegmentedMarchModel().solve(_iter_req_yan())
+        expected = _STATE_IN.h + result.Q / mdot
+        assert math.isclose(result.primary_state_out.h, expected, rel_tol=1e-9)
+
+    # -----------------------------------------------------------------------
+    # MSH two-phase DP in iterated counterflow
+    # -----------------------------------------------------------------------
+
+    def test_msh_real_gradient_to_drop_in_iterated_mode(self):
+        """Real MSHTwoPhaseFrictionGradient: raw_dP_primary == gradient × L_cell × n_cells.
+
+        expected_gradient is evaluated directly from the correlation (not derived
+        from result.raw_dP_primary), so this test can only pass if L_cell is applied
+        exactly once per cell.
+
+        All cells share the same geom_scalars so every cell produces the same
+        per-cell gradient; raw_dP_primary must equal that gradient × L_cell × n.
+        """
+        L_cell = 0.1
+        n = 3
+        geom = dict(_MSH_GEOM, L_cell=L_cell)
+
+        # --- independent reference: evaluate MSH directly -----------------
+        ref_inp = TwoPhaseDPInput(
+            state=(_STATE_IN,),
+            G=geom["G"],
+            x=(geom["x"],),
+            D_h=geom["D_h"],
+            L_cell=L_cell,
+            property_scalars={
+                "rho_l": geom["rho_l"],
+                "rho_v": geom["rho_v"],
+                "mu_l": geom["mu_l"],
+                "mu_v": geom["mu_v"],
+            },
+        )
+        expected_gradient = MSHTwoPhaseFrictionGradient().evaluate(ref_inp).value[0]
+        expected_raw_dP = expected_gradient * L_cell * n
+
+        # --- iterated counterflow solve -----------------------------------
+        disc = DiscretizationSpec(mode=DiscretizationMode.UNIFORM, n_cells=n)
+        req = HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.1,
+            secondary_bc=_sink_bc(T_in=360.0, mdot=0.05, cp=4000.0),
+            geometry=object(),
+            discretization=disc,
+            geom_scalars=geom,
+            htc_primary=_ConstHTC(htc=2000.0),
+            htc_secondary=_ConstHTC(htc=2000.0),
+            dp_primary=MSHTwoPhaseFrictionGradient(),
+            dp_primary_is_two_phase=True,
+            primary_T_in=300.0,
+            primary_cp=1500.0,
+            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            flow_arrangement=FlowArrangement.COUNTERFLOW,
+            counterflow_iteration=_iter_cfg(max_iter=5),
+        )
+        result = SegmentedMarchModel().solve(req)
+
+        assert result.converged is not None, "must have run in iterated mode"
+        assert result.raw_dP_primary == pytest.approx(expected_raw_dP, rel=1e-9)
+        # friction_multiplier=1.0 (default) → dP_primary == raw_dP_primary
+        assert result.dP_primary == pytest.approx(result.raw_dP_primary, rel=1e-9)
+
+    def test_msh_friction_multiplier_applied_once_in_iterated_mode(self):
+        """friction_multiplier × raw_dP == dP_primary in iterated mode."""
+        fm = 1.5
+        msh = MSHTwoPhaseFrictionGradient()
+        req = HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.1,
+            secondary_bc=_sink_bc(T_in=360.0, mdot=0.05, cp=4000.0),
+            geometry=object(),
+            discretization=_DISC_3,
+            geom_scalars=_MSH_GEOM,
+            htc_primary=_ConstHTC(htc=2000.0),
+            htc_secondary=_ConstHTC(htc=2000.0),
+            dp_primary=msh,
+            dp_primary_is_two_phase=True,
+            primary_T_in=300.0,
+            primary_cp=1500.0,
+            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            flow_arrangement=FlowArrangement.COUNTERFLOW,
+            counterflow_iteration=_iter_cfg(max_iter=5),
+            friction_multiplier=fm,
+        )
+        result = SegmentedMarchModel().solve(req)
+        assert math.isclose(result.dP_primary, fm * result.raw_dP_primary, rel_tol=1e-9)
+
+    def test_msh_missing_rho_l_fails_clearly_in_iterated_mode(self):
+        """Missing rho_l raises ValueError from MSH in iterated mode."""
+        geom = dict(_MSH_GEOM)
+        del geom["rho_l"]
+        req = HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.1,
+            secondary_bc=_sink_bc(T_in=360.0, mdot=0.05, cp=4000.0),
+            geometry=object(),
+            discretization=_DISC_3,
+            geom_scalars=geom,
+            htc_primary=_ConstHTC(htc=2000.0),
+            htc_secondary=_ConstHTC(htc=2000.0),
+            dp_primary=MSHTwoPhaseFrictionGradient(),
+            dp_primary_is_two_phase=True,
+            primary_T_in=300.0,
+            primary_cp=1500.0,
+            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            flow_arrangement=FlowArrangement.COUNTERFLOW,
+            counterflow_iteration=_iter_cfg(max_iter=5),
+        )
+        with pytest.raises(ValueError, match="rho_l"):
+            SegmentedMarchModel().solve(req)
+
+    def test_msh_missing_mu_v_fails_clearly_in_iterated_mode(self):
+        """Missing mu_v raises ValueError from MSH in iterated mode."""
+        geom = dict(_MSH_GEOM)
+        del geom["mu_v"]
+        req = HXSolveRequest(
+            primary_state_in=_STATE_IN,
+            primary_mdot=0.1,
+            secondary_bc=_sink_bc(T_in=360.0, mdot=0.05, cp=4000.0),
+            geometry=object(),
+            discretization=_DISC_3,
+            geom_scalars=geom,
+            htc_primary=_ConstHTC(htc=2000.0),
+            htc_secondary=_ConstHTC(htc=2000.0),
+            dp_primary=MSHTwoPhaseFrictionGradient(),
+            dp_primary_is_two_phase=True,
+            primary_T_in=300.0,
+            primary_cp=1500.0,
+            primary_thermal_mode=PrimaryThermalMode.FINITE_CAPACITY,
+            ua_computation_mode=UAComputationMode.TWO_SIDED,
+            flow_arrangement=FlowArrangement.COUNTERFLOW,
+            counterflow_iteration=_iter_cfg(max_iter=5),
+        )
+        with pytest.raises(ValueError, match="mu_v"):
+            SegmentedMarchModel().solve(req)
