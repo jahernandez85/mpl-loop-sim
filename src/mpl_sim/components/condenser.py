@@ -1,4 +1,4 @@
-"""CondenserComponent — Phase 11D.
+"""CondenserComponent — Phase 11D / Phase 11Q.
 
 Foundational condenser component: immutable, local, physics-free skeleton
 with a minimal evaluate_heat_exchanger helper.
@@ -7,6 +7,11 @@ Phase 11D:
   - CondenserHXInput   : scalar inputs for evaluate_heat_exchanger
   - CondenserComponent : inlet/outlet ports, ComponentKind.CONDENSER,
                          evaluate_heat_exchanger method
+
+Phase 11Q:
+  - CondenserHXInput adds q_flux_primary and dp_primary_is_two_phase,
+    forwarded explicitly to HXSolveRequest so callers can use YanCondensationHTC
+    with two-phase DP closures without hidden defaults.
 
 Sign convention for Q (inherited from HXSolveResult via HXSolveRequest):
   Q < 0  — primary fluid rejects heat (standard condenser sense)
@@ -66,6 +71,12 @@ class CondenserHXInput:
     dp_primary          : optional injected primary-side DP correlation
     htc_multiplier      : calibration multiplier for HTC output; default 1.0
     friction_multiplier : calibration multiplier for DP output; default 1.0
+    q_flux_primary      : optional wall heat flux [W/m²] for the primary side;
+                          forwarded unchanged to HXSolveRequest.q_flux_primary;
+                          must be finite and > 0 if supplied; default None
+    dp_primary_is_two_phase : when True the HX model builds TwoPhaseDPInput
+                          for dp_primary and converts Pa/m gradient to Pa;
+                          default False (single-phase DP path)
     """
 
     primary_state_in: FluidState
@@ -83,6 +94,8 @@ class CondenserHXInput:
     primary_cp: float | None = None
     primary_thermal_mode: PrimaryThermalMode | None = None
     ua_computation_mode: UAComputationMode | None = None
+    q_flux_primary: float | None = None
+    dp_primary_is_two_phase: bool = False
 
     def __post_init__(self) -> None:
         if not isinstance(self.geom_scalars, Mapping):
@@ -200,5 +213,7 @@ class CondenserComponent(Component):
             primary_cp=inp.primary_cp,
             primary_thermal_mode=inp.primary_thermal_mode,
             ua_computation_mode=inp.ua_computation_mode,
+            q_flux_primary=inp.q_flux_primary,
+            dp_primary_is_two_phase=inp.dp_primary_is_two_phase,
         )
         return inp.model.solve(req)
