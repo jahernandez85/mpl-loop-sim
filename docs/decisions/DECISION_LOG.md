@@ -299,3 +299,71 @@ Consequences:
 
 Status:
 Accepted / Reconciled
+
+---
+
+# Decision 011
+
+Date: 2026-06-18
+
+Topic:
+Explicit property-scalar mapping on TwoPhaseDPInput
+
+Decision:
+TwoPhaseDPInput is authorized to carry a field named `property_scalars`, a
+caller-supplied, formula-specific Mapping[str, float].  The direct optional
+fields `rho_l`, `rho_v`, `mu_l`, and `mu_v` that were added in the Phase 11O
+checkpoint are replaced by this general mapping.  These changes amend the
+previously frozen TwoPhaseDPInput field manifest (CORRELATION_CONTRACT.md
+§4.4).
+
+Rationale:
+1. The previously frozen manifest contained no mechanism for a two-phase DP
+   correlation to receive derived fluid properties (e.g. rho_l, rho_v, mu_l,
+   mu_v) as explicit scalar inputs.
+2. Migrating real two-phase DP closures (MSH, Kim-Mudawar, Homogeneous)
+   requires these scalars; the formula cannot derive them internally because
+   FluidState is only (P, h, identity) and direct PropertyBackend calls inside
+   correlations are forbidden (Decision 006, Decision 005).
+3. Adding four direct optional fields per closure (rho_l, rho_v, mu_l, mu_v)
+   satisfies Phase 11O but would require repeated frozen-contract amendments
+   each time a new closure needs additional scalars (e.g. sigma, k_l, h_fg,
+   Pr_l).
+4. HTCInput already carries geom_scalars: Mapping[str, float] for formula-
+   specific geometry scalars; this pattern is proven and consistent.
+5. A general property-scalar mapping on TwoPhaseDPInput follows the identical
+   pattern without granting correlations any new dependency on components,
+   network, solver, or PropertyBackend.
+
+Rules binding this decision:
+- Correlations must validate the presence, finiteness, and physical validity
+  of every key they require.  Missing keys must raise ValueError clearly.
+- No hidden defaults are allowed.
+- No CoolProp or PropertyBackend calls are allowed inside correlations.
+- property_scalars is provided by the Component (or test caller); the
+  correlation never populates it.
+- The mapping does not imply automatic closure selection; correlation choice
+  remains explicit through the existing injection/registry boundary.
+- HX models must not resolve registries or infer missing property scalars;
+  when TwoPhaseDPInput injection is implemented it must supply all required
+  keys explicitly through a dedicated builder.
+- Existing L_cell semantics are unchanged: closures returning Pa/m gradients
+  do not consume L_cell; pressure-drop conversion remains the Component's
+  responsibility.
+
+Consequences:
+- TwoPhaseDPInput gains a property_scalars: Mapping[str, float] field
+  (default: empty mapping).
+- The direct fields rho_l, rho_v, mu_l, mu_v are removed.
+- MSHTwoPhaseFrictionGradient and any future TWO_PHASE_DP closure read
+  required scalars from inp.property_scalars.
+- Existing callers that build TwoPhaseDPInput without property_scalars are
+  unaffected (empty mapping is the default).
+
+Relationship to previous decisions:
+- Refines Decision 005 (role-typed CorrelationInput objects) by authorizing
+  a formula-specific scalar bag on TwoPhaseDPInput.
+- Does not reopen Decisions 001-010.
+
+Status:
+Accepted

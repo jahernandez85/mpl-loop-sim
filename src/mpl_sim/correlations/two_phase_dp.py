@@ -23,21 +23,38 @@ Formula migrated from:
 Numerical coefficients and interpolation form are taken directly from the
 PyP2PL source (Churchill friction factor, Darcy-Weisbach form).
 Architectural anti-patterns in the MPL source are removed:
-  - FluidState coupling replaced by explicit scalar inputs (rho_l, rho_v,
-    mu_l, mu_v on TwoPhaseDPInput)
+  - FluidState coupling replaced by explicit property_scalars mapping
+    (rho_l, rho_v, mu_l, mu_v in TwoPhaseDPInput.property_scalars)
   - Quality clamping (max/min) replaced by explicit ValueError
   - No CoolProp, PropertyBackend, or hidden fluid-specific defaults
 
 Required scalars
 ----------------
-From TwoPhaseDPInput fields:
+From TwoPhaseDPInput fields and property_scalars (Decision 011):
   G       : mass flux [kg/m²s]  — must be finite and > 0
   x[0]    : local vapor quality [-] — must be finite and in [0, 1]
   D_h     : hydraulic diameter [m] — must be finite and > 0
+
+From TwoPhaseDPInput.property_scalars:
   rho_l   : liquid density [kg/m³] — must be finite and > 0
   rho_v   : vapor density [kg/m³]  — must be finite and > 0
   mu_l    : liquid dynamic viscosity [Pa·s] — must be finite and > 0
   mu_v    : vapor dynamic viscosity [Pa·s]  — must be finite and > 0
+
+Domain notes
+------------
+Smooth wall: MSH (1986) uses smooth-wall Churchill (1977) friction factor.
+  Roughness is NOT a formula parameter; the caller cannot provide roughness.
+  eps/D = 0 is a documented formula assumption, not a hidden default.
+Reynolds numbers: Re_lo = G*D_h/mu_l and Re_vo = G*D_h/mu_v.
+  Re_lo < 1 or Re_vo < 1 returns EXTRAPOLATED (Churchill gives correct
+  Stokes-limit values, but MSH was not validated in that regime).  Full
+  PyP2PL equivalence is only claimed for Re ≥ 1.
+Fluid scope: validated for refrigerants (Ould Didi et al. 2002, Kokate 2024).
+  AnyFluid() is NOT used; envelope declares FluidClassSpec(REFRIGERANT).
+L_cell: present in TwoPhaseDPInput (frozen contract) but NOT used by this
+  correlation.  Output is a Pa/m gradient; multiplication by L_cell to
+  obtain a pressure drop [Pa] is the caller's responsibility.
 
 Output semantics
 ----------------
@@ -53,10 +70,9 @@ HX injection status
 Direct HX injection is DEFERRED.  Current HX models (_build_dp_input) build
 SinglePhaseDPInput, not TwoPhaseDPInput, and treat value[0] as a pressure
 drop (Pa) rather than a gradient (Pa/m).  Injection requires:
-  1. HX models to build TwoPhaseDPInput with explicit two-phase scalars.
+  1. HX models to build TwoPhaseDPInput with an explicit property_scalars
+     mapping containing rho_l, rho_v, mu_l, mu_v (Decision 011).
   2. Explicit gradient-to-drop multiplication by L_cell inside the HX model.
-  3. Two-phase property scalars (rho_l, rho_v, mu_l, mu_v) forwarded through
-     geom_scalars or a dedicated two-phase input builder.
 Until these are in place, two-phase DP must be evaluated standalone.
 
 Architectural rules:
@@ -67,9 +83,9 @@ Architectural rules:
 from __future__ import annotations
 
 import math
+from collections.abc import Mapping
 
 from mpl_sim.correlations.contract import (
-    AnyFluid,
     Bound,
     BoundedQuantity,
     ClosureMetadata,
@@ -78,12 +94,31 @@ from mpl_sim.correlations.contract import (
     CorrelationOutput,
     CorrelationRole,
     EnvelopeRef,
+    FluidClass,
+    FluidClassSpec,
     SourceRef,
     TwoPhaseDPInput,
     ValidityEnvelope,
     ValidityStatus,
     ValidityVerdict,
 )
+
+# ---------------------------------------------------------------------------
+# Private scalar-extraction helper
+# ---------------------------------------------------------------------------
+
+
+def _require_scalar(ps: Mapping[str, float], key: str, context: str) -> float:
+    """Return ps[key], raising ValueError clearly on absence or invalid value."""
+    if key not in ps:
+        raise ValueError(
+            f"{context}: property_scalars must contain '{key}'; " f"keys present: {sorted(ps)}"
+        )
+    v = ps[key]
+    if not math.isfinite(v) or v <= 0.0:
+        raise ValueError(f"{context}: property_scalars['{key}'] must be finite and > 0; got {v!r}")
+    return v
+
 
 # ---------------------------------------------------------------------------
 # Canonical metadata
@@ -127,19 +162,34 @@ _BOUND_DH = Bound(
     units="m",
 )
 
+_BOUND_RE_LO = Bound(
+    quantity=BoundedQuantity.REYNOLDS,
+    min=1.0,
+    max=None,
+    units="Re_lo [-]",
+)
+
+_BOUND_RE_VO = Bound(
+    quantity=BoundedQuantity.REYNOLDS,
+    min=1.0,
+    max=None,
+    units="Re_vo [-]",
+)
+
 _ENVELOPE = ValidityEnvelope(
-    fluid_families=(AnyFluid(),),
-    bounds=(_BOUND_QUALITY, _BOUND_DH),
+    fluid_families=(FluidClassSpec(FluidClass.REFRIGERANT),),
+    bounds=(_BOUND_QUALITY, _BOUND_DH, _BOUND_RE_LO, _BOUND_RE_VO),
     source=_SOURCE,
     notes=(
-        "Quality x ∈ [0, 1]; D_h ≥ 1 μm.  "
-        "At x = 0 the formula returns the all-liquid gradient; "
-        "at x = 1 it returns the all-vapor gradient.  "
-        "Validated for refrigerants in conventional and mini-channels "
-        "(Ould Didi et al. 2002, Kokate 2024).  "
-        "Mass-flux and Reynolds-number bounds are not explicitly declared "
-        "by the source; the formula uses Darcy-Weisbach which is valid for "
-        "any positive Re."
+        "Quality x ∈ [0, 1]; D_h ≥ 1 μm; Re_lo ≥ 1; Re_vo ≥ 1.  "
+        "Formula uses smooth-wall Churchill (1977) friction factor; "
+        "roughness is not a free parameter (MSH smooth-wall assumption).  "
+        "Validated for refrigerants (Ould Didi et al. 2002, Kokate 2024); "
+        "AnyFluid overclaims — scope is refrigerant-class fluids.  "
+        "At x = 0 returns all-liquid gradient; at x = 1 returns all-vapor gradient.  "
+        "Re < 1 is outside the MSH validation domain; Churchill (1977) returns "
+        "correct Stokes-limit values but MSH was not validated for that regime — "
+        "verdict is EXTRAPOLATED, not an error."
     ),
 )
 
@@ -160,26 +210,31 @@ _METADATA = ClosureMetadata(
 # ---------------------------------------------------------------------------
 
 
-def _churchill_darcy(Re: float, eps_D: float) -> float:
-    """Churchill (1977) Darcy friction factor.
+def _churchill_darcy(Re: float) -> float:
+    """Churchill (1977) Darcy friction factor, smooth-wall (eps/D = 0).
 
-    Same formula as ChurchillFrictionGradient._churchill_darcy.
-    Reproduced here to keep two_phase_dp.py self-contained.
+    MSH (1986) assumes smooth-wall tubes; roughness is not a free parameter
+    of the two-phase DP formula.  The eps_D = 0 simplification is the same
+    as ChurchillFrictionGradient._churchill_darcy(Re, eps_D=0.0).
     """
     term_lam = (8.0 / Re) ** 12
-    inner = (7.0 / Re) ** 0.9 + 0.27 * eps_D
+    inner = (7.0 / Re) ** 0.9  # eps_D = 0: smooth wall, MSH formula assumption
     A = (2.457 * math.log(1.0 / inner)) ** 16
     B = (37530.0 / Re) ** 16
     return 8.0 * (term_lam + (A + B) ** (-1.5)) ** (1.0 / 12.0)
 
 
-def _build_verdict(x: float, D_h: float) -> ValidityVerdict:
+def _build_verdict(x: float, D_h: float, Re_lo: float, Re_vo: float) -> ValidityVerdict:
     violated: list[Bound] = []
 
     if x < _BOUND_QUALITY.min or x > _BOUND_QUALITY.max:  # type: ignore[operator]
         violated.append(_BOUND_QUALITY)
     if D_h < _BOUND_DH.min:  # type: ignore[operator]
         violated.append(_BOUND_DH)
+    if Re_lo < _BOUND_RE_LO.min:  # type: ignore[operator]
+        violated.append(_BOUND_RE_LO)
+    if Re_vo < _BOUND_RE_VO.min:  # type: ignore[operator]
+        violated.append(_BOUND_RE_VO)
 
     if violated:
         detail = "Extrapolating outside validated envelope: " + ", ".join(b.units for b in violated)
@@ -264,62 +319,26 @@ class MSHTwoPhaseFrictionGradient(Correlation):
                 f"MSHTwoPhaseFrictionGradient: D_h must be finite and > 0; " f"got {D_h!r}"
             )
 
-        # Explicit property scalars — None means the caller did not supply them.
-        rho_l = inp.rho_l
-        if rho_l is None:
-            raise ValueError(
-                "MSHTwoPhaseFrictionGradient: rho_l is required but was not "
-                "supplied (TwoPhaseDPInput.rho_l is None)"
-            )
-        if not math.isfinite(rho_l) or rho_l <= 0.0:
-            raise ValueError(
-                f"MSHTwoPhaseFrictionGradient: rho_l must be finite and > 0; " f"got {rho_l!r}"
-            )
+        # Explicit property scalars from property_scalars mapping (Decision 011).
+        _CTX = "MSHTwoPhaseFrictionGradient"
+        rho_l = _require_scalar(inp.property_scalars, "rho_l", _CTX)
+        rho_v = _require_scalar(inp.property_scalars, "rho_v", _CTX)
+        mu_l = _require_scalar(inp.property_scalars, "mu_l", _CTX)
+        mu_v = _require_scalar(inp.property_scalars, "mu_v", _CTX)
 
-        rho_v = inp.rho_v
-        if rho_v is None:
-            raise ValueError(
-                "MSHTwoPhaseFrictionGradient: rho_v is required but was not "
-                "supplied (TwoPhaseDPInput.rho_v is None)"
-            )
-        if not math.isfinite(rho_v) or rho_v <= 0.0:
-            raise ValueError(
-                f"MSHTwoPhaseFrictionGradient: rho_v must be finite and > 0; " f"got {rho_v!r}"
-            )
-
-        mu_l = inp.mu_l
-        if mu_l is None:
-            raise ValueError(
-                "MSHTwoPhaseFrictionGradient: mu_l is required but was not "
-                "supplied (TwoPhaseDPInput.mu_l is None)"
-            )
-        if not math.isfinite(mu_l) or mu_l <= 0.0:
-            raise ValueError(
-                f"MSHTwoPhaseFrictionGradient: mu_l must be finite and > 0; " f"got {mu_l!r}"
-            )
-
-        mu_v = inp.mu_v
-        if mu_v is None:
-            raise ValueError(
-                "MSHTwoPhaseFrictionGradient: mu_v is required but was not "
-                "supplied (TwoPhaseDPInput.mu_v is None)"
-            )
-        if not math.isfinite(mu_v) or mu_v <= 0.0:
-            raise ValueError(
-                f"MSHTwoPhaseFrictionGradient: mu_v must be finite and > 0; " f"got {mu_v!r}"
-            )
+        # --- Derived Reynolds numbers (needed for verdict and friction factors) ---
+        Re_lo = G * D_h / mu_l
+        Re_vo = G * D_h / mu_v
 
         # --- Validity verdict ---
-        verdict = _build_verdict(x, D_h)
+        verdict = _build_verdict(x, D_h, Re_lo, Re_vo)
 
-        # --- All-liquid frictional gradient ---
-        Re_lo = G * D_h / mu_l
-        f_lo = _churchill_darcy(Re_lo, 0.0)
+        # --- All-liquid frictional gradient (smooth-wall Churchill ff) ---
+        f_lo = _churchill_darcy(Re_lo)
         dPdz_lo = f_lo * G**2 / (2.0 * rho_l * D_h)
 
-        # --- All-vapor frictional gradient ---
-        Re_vo = G * D_h / mu_v
-        f_vo = _churchill_darcy(Re_vo, 0.0)
+        # --- All-vapor frictional gradient (smooth-wall Churchill ff) ---
+        f_vo = _churchill_darcy(Re_vo)
         dPdz_vo = f_vo * G**2 / (2.0 * rho_v * D_h)
 
         # --- MSH interpolation ---

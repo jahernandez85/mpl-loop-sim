@@ -71,16 +71,22 @@ def _make_inp(
     mu_v: float | None = 1.2e-5,
     L_cell: float = 0.1,
 ) -> TwoPhaseDPInput:
+    ps: dict[str, float] = {}
+    if rho_l is not None:
+        ps["rho_l"] = rho_l
+    if rho_v is not None:
+        ps["rho_v"] = rho_v
+    if mu_l is not None:
+        ps["mu_l"] = mu_l
+    if mu_v is not None:
+        ps["mu_v"] = mu_v
     return TwoPhaseDPInput(
         state=(_STATE,),
         G=G,
         x=(x,),
         D_h=D_h,
         L_cell=L_cell,
-        rho_l=rho_l,
-        rho_v=rho_v,
-        mu_l=mu_l,
-        mu_v=mu_v,
+        property_scalars=ps,
     )
 
 
@@ -301,10 +307,7 @@ class TestInvalidQuality:
             x=(),
             D_h=0.005,
             L_cell=0.1,
-            rho_l=1000.0,
-            rho_v=20.0,
-            mu_l=2e-4,
-            mu_v=1.2e-5,
+            property_scalars={"rho_l": 1000.0, "rho_v": 20.0, "mu_l": 2e-4, "mu_v": 1.2e-5},
         )
         with pytest.raises(ValueError, match="x tuple must not be empty"):
             _CORR.evaluate(inp)
@@ -358,37 +361,45 @@ class TestInvalidDh:
 
 
 class TestInvalidDensity:
-    def test_rho_l_none_raises(self) -> None:
-        with pytest.raises(ValueError, match="rho_l is required"):
+    def test_rho_l_missing_raises(self) -> None:
+        with pytest.raises(ValueError, match="must contain 'rho_l'"):
             _CORR.evaluate(_make_inp(rho_l=None))
 
-    def test_rho_v_none_raises(self) -> None:
-        with pytest.raises(ValueError, match="rho_v is required"):
+    def test_rho_v_missing_raises(self) -> None:
+        with pytest.raises(ValueError, match="must contain 'rho_v'"):
             _CORR.evaluate(_make_inp(rho_v=None))
 
     def test_rho_l_zero_raises(self) -> None:
-        with pytest.raises(ValueError, match="rho_l must be finite and > 0"):
+        with pytest.raises(ValueError, match="finite and > 0"):
             _CORR.evaluate(_make_inp(rho_l=0.0))
 
     def test_rho_v_zero_raises(self) -> None:
-        with pytest.raises(ValueError, match="rho_v must be finite and > 0"):
+        with pytest.raises(ValueError, match="finite and > 0"):
             _CORR.evaluate(_make_inp(rho_v=0.0))
 
     def test_rho_l_negative_raises(self) -> None:
-        with pytest.raises(ValueError, match="rho_l must be finite and > 0"):
+        with pytest.raises(ValueError, match="finite and > 0"):
             _CORR.evaluate(_make_inp(rho_l=-1.0))
 
     def test_rho_v_negative_raises(self) -> None:
-        with pytest.raises(ValueError, match="rho_v must be finite and > 0"):
+        with pytest.raises(ValueError, match="finite and > 0"):
             _CORR.evaluate(_make_inp(rho_v=-1.0))
 
     def test_rho_l_nan_raises(self) -> None:
-        with pytest.raises(ValueError, match="rho_l must be finite and > 0"):
+        with pytest.raises(ValueError, match="finite and > 0"):
             _CORR.evaluate(_make_inp(rho_l=math.nan))
 
     def test_rho_v_nan_raises(self) -> None:
-        with pytest.raises(ValueError, match="rho_v must be finite and > 0"):
+        with pytest.raises(ValueError, match="finite and > 0"):
             _CORR.evaluate(_make_inp(rho_v=math.nan))
+
+    def test_rho_l_inf_raises(self) -> None:
+        with pytest.raises(ValueError, match="finite and > 0"):
+            _CORR.evaluate(_make_inp(rho_l=math.inf))
+
+    def test_rho_v_inf_raises(self) -> None:
+        with pytest.raises(ValueError, match="finite and > 0"):
+            _CORR.evaluate(_make_inp(rho_v=math.inf))
 
 
 # ---------------------------------------------------------------------------
@@ -397,37 +408,45 @@ class TestInvalidDensity:
 
 
 class TestInvalidViscosity:
-    def test_mu_l_none_raises(self) -> None:
-        with pytest.raises(ValueError, match="mu_l is required"):
+    def test_mu_l_missing_raises(self) -> None:
+        with pytest.raises(ValueError, match="must contain 'mu_l'"):
             _CORR.evaluate(_make_inp(mu_l=None))
 
-    def test_mu_v_none_raises(self) -> None:
-        with pytest.raises(ValueError, match="mu_v is required"):
+    def test_mu_v_missing_raises(self) -> None:
+        with pytest.raises(ValueError, match="must contain 'mu_v'"):
             _CORR.evaluate(_make_inp(mu_v=None))
 
     def test_mu_l_zero_raises(self) -> None:
-        with pytest.raises(ValueError, match="mu_l must be finite and > 0"):
+        with pytest.raises(ValueError, match="finite and > 0"):
             _CORR.evaluate(_make_inp(mu_l=0.0))
 
     def test_mu_v_zero_raises(self) -> None:
-        with pytest.raises(ValueError, match="mu_v must be finite and > 0"):
+        with pytest.raises(ValueError, match="finite and > 0"):
             _CORR.evaluate(_make_inp(mu_v=0.0))
 
     def test_mu_l_negative_raises(self) -> None:
-        with pytest.raises(ValueError, match="mu_l must be finite and > 0"):
+        with pytest.raises(ValueError, match="finite and > 0"):
             _CORR.evaluate(_make_inp(mu_l=-1e-4))
 
     def test_mu_v_negative_raises(self) -> None:
-        with pytest.raises(ValueError, match="mu_v must be finite and > 0"):
+        with pytest.raises(ValueError, match="finite and > 0"):
             _CORR.evaluate(_make_inp(mu_v=-1e-5))
 
     def test_mu_l_nan_raises(self) -> None:
-        with pytest.raises(ValueError, match="mu_l must be finite and > 0"):
+        with pytest.raises(ValueError, match="finite and > 0"):
             _CORR.evaluate(_make_inp(mu_l=math.nan))
 
     def test_mu_v_nan_raises(self) -> None:
-        with pytest.raises(ValueError, match="mu_v must be finite and > 0"):
+        with pytest.raises(ValueError, match="finite and > 0"):
             _CORR.evaluate(_make_inp(mu_v=math.nan))
+
+    def test_mu_l_inf_raises(self) -> None:
+        with pytest.raises(ValueError, match="finite and > 0"):
+            _CORR.evaluate(_make_inp(mu_l=math.inf))
+
+    def test_mu_v_inf_raises(self) -> None:
+        with pytest.raises(ValueError, match="finite and > 0"):
+            _CORR.evaluate(_make_inp(mu_v=math.inf))
 
 
 # ---------------------------------------------------------------------------
@@ -528,11 +547,10 @@ class TestHXInjectionDeferred:
     Current HX models (_build_dp_input) build SinglePhaseDPInput, not
     TwoPhaseDPInput.  When MSHTwoPhaseFrictionGradient.evaluate() receives a
     SinglePhaseDPInput it raises TypeError.  Injection additionally requires:
-      1. HX models to build TwoPhaseDPInput with two-phase property scalars.
+      1. HX models to build TwoPhaseDPInput with a property_scalars mapping
+         containing rho_l, rho_v, mu_l, mu_v (Decision 011).
       2. Explicit gradient-to-drop multiplication by L_cell inside the HX model
          (current convention treats value[0] as ΔP, not Pa/m gradient).
-      3. rho_l, rho_v, mu_l, mu_v forwarded through geom_scalars or a
-         dedicated two-phase input builder.
     These changes are deferred to a later phase.
     """
 
@@ -570,3 +588,200 @@ class TestHXInjectionDeferred:
         implied_drop_Pa = gradient_Pa_m * L_cell
         # The gradient and the implied total drop are different by L_cell factor
         assert gradient_Pa_m != pytest.approx(implied_drop_Pa, rel=0.01)
+
+
+# ---------------------------------------------------------------------------
+# Reynolds-number envelope (Finding 3: Re < 1 must be EXTRAPOLATED, not silent)
+# ---------------------------------------------------------------------------
+
+
+class TestReynoldsEnvelope:
+    """Re_lo and Re_vo are declared envelope bounds (min = 1).
+
+    MSH was not validated for Re < 1.  The Churchill (1977) formula still
+    computes a physically correct Stokes-limit value at low Re, but the
+    verdict is EXTRAPOLATED — not an error, not a silently wrong number.
+
+    PyP2PL equivalence is only claimed for Re ≥ 1; for Re < 1 Churchill
+    gives f = 64/Re (correct), while PyP2PL caps at f = 64.0 (Re=1 limit).
+    """
+
+    def test_re_lo_below_one_gives_extrapolated(self) -> None:
+        # mu_l = 2.0 Pa·s → Re_lo = 200*0.005/2.0 = 0.5 < 1
+        result = _CORR.evaluate(_make_inp(mu_l=2.0))
+        assert result.verdict.status == ValidityStatus.EXTRAPOLATED
+        assert any(b.units == "Re_lo [-]" for b in result.verdict.violated)
+
+    def test_re_vo_below_one_gives_extrapolated(self) -> None:
+        # mu_v = 2.0 Pa·s → Re_vo = 200*0.005/2.0 = 0.5 < 1
+        result = _CORR.evaluate(_make_inp(mu_v=2.0))
+        assert result.verdict.status == ValidityStatus.EXTRAPOLATED
+        assert any(b.units == "Re_vo [-]" for b in result.verdict.violated)
+
+    def test_re_below_one_value_is_still_finite(self) -> None:
+        # EXTRAPOLATED must not return NaN — formula is evaluable at Re < 1
+        result = _CORR.evaluate(_make_inp(mu_l=2.0))
+        assert math.isfinite(result.value[0])
+        assert result.value[0] > 0.0
+
+    def test_normal_re_gives_in_envelope(self) -> None:
+        # Default: G=200, D_h=0.005, mu_l=2e-4 → Re_lo=5000 ≥ 1 ✓
+        #                              mu_v=1.2e-5 → Re_vo=83333 ≥ 1 ✓
+        result = _CORR.evaluate(_make_inp())
+        assert result.verdict.status == ValidityStatus.IN_ENVELOPE
+
+    def test_re_lo_exactly_one_is_in_envelope(self) -> None:
+        # mu_l = 1.0 Pa·s → Re_lo = 200*0.005/1.0 = 1.0 (boundary, ≥ 1)
+        result = _CORR.evaluate(_make_inp(mu_l=1.0))
+        assert result.verdict.status == ValidityStatus.IN_ENVELOPE
+
+
+# ---------------------------------------------------------------------------
+# Fluid-family scope (Finding 5: AnyFluid overclaims, must be REFRIGERANT)
+# ---------------------------------------------------------------------------
+
+
+class TestFluidFamily:
+    """Validity evidence is refrigerant-focused; AnyFluid() is not used."""
+
+    def test_fluid_family_is_refrigerant_not_any_fluid(self) -> None:
+        from mpl_sim.correlations.contract import AnyFluid, FluidClass, FluidClassSpec
+
+        env = _CORR.envelope()
+        assert not any(
+            isinstance(f, AnyFluid) for f in env.fluid_families
+        ), "AnyFluid() overclaims validity — MSH evidence is refrigerant-focused"
+        assert any(
+            isinstance(f, FluidClassSpec) and f.fluid_class == FluidClass.REFRIGERANT
+            for f in env.fluid_families
+        )
+
+    def test_envelope_has_at_least_one_fluid_family(self) -> None:
+        env = _CORR.envelope()
+        assert len(env.fluid_families) >= 1
+
+
+# ---------------------------------------------------------------------------
+# Smooth-wall assumption (Finding 2: no hidden roughness default)
+# ---------------------------------------------------------------------------
+
+
+class TestSmoothWall:
+    """MSH (1986) assumes smooth-wall tubes.  Roughness is not a parameter."""
+
+    def test_two_phase_dp_input_has_no_roughness_field(self) -> None:
+        import dataclasses
+
+        field_names = {f.name for f in dataclasses.fields(TwoPhaseDPInput)}
+        assert "roughness" not in field_names, (
+            "TwoPhaseDPInput must not have a roughness field — smooth wall is "
+            "an MSH formula assumption, not a caller-settable parameter"
+        )
+
+    def test_correlation_produces_finite_result_without_roughness(self) -> None:
+        result = _CORR.evaluate(_make_inp())
+        assert math.isfinite(result.value[0])
+        assert result.value[0] > 0.0
+
+
+# ---------------------------------------------------------------------------
+# L_cell semantics (Finding 4: gradient output; L_cell not used by formula)
+# ---------------------------------------------------------------------------
+
+
+class TestLCellSemantics:
+    """value[0] is dP/dx_friction in Pa/m; L_cell is in the frozen input type
+    but is NOT consumed by this correlation.  Integration over L_cell is the
+    caller's responsibility."""
+
+    def test_l_cell_does_not_affect_gradient(self) -> None:
+        result_a = _CORR.evaluate(_make_inp(L_cell=0.01))
+        result_b = _CORR.evaluate(_make_inp(L_cell=10.0))
+        assert result_a.value[0] == pytest.approx(result_b.value[0], rel=1e-10)
+
+    def test_output_unit_is_gradient_not_drop(self) -> None:
+        # For a 0.1 m cell, the Pa/m gradient and the implied Pa drop differ by 0.1×
+        inp = _make_inp(L_cell=0.1)
+        result = _CORR.evaluate(inp)
+        gradient = result.value[0]
+        implied_drop = gradient * 0.1
+        # gradient (Pa/m) ≠ drop (Pa) unless gradient happened to equal drop
+        # numerically — for any reasonable refrigerant conditions this is not so
+        assert abs(gradient - implied_drop) > abs(gradient) * 0.05
+
+
+# ---------------------------------------------------------------------------
+# Contract field set (Finding 1: optional scalars follow Phase 3 precedent)
+# ---------------------------------------------------------------------------
+
+
+class TestContractFieldSet:
+    """TwoPhaseDPInput carries property_scalars: Mapping[str, float] (Decision 011)
+    instead of direct optional fields rho_l/rho_v/mu_l/mu_v.  No named
+    per-closure optional scalar fields exist on the frozen type."""
+
+    def test_frozen_core_fields_present(self) -> None:
+        import dataclasses
+
+        field_names = {f.name for f in dataclasses.fields(TwoPhaseDPInput)}
+        for required in ("state", "G", "x", "D_h", "L_cell"):
+            assert required in field_names
+
+    def test_property_scalars_field_present(self) -> None:
+        import dataclasses
+
+        field_names = {f.name for f in dataclasses.fields(TwoPhaseDPInput)}
+        assert "property_scalars" in field_names
+
+    def test_no_direct_rho_mu_fields(self) -> None:
+        """Direct named optional fields rho_l/rho_v/mu_l/mu_v must not exist.
+
+        These were replaced by property_scalars (Decision 011) to avoid
+        repeated frozen-contract amendments per new closure.
+        """
+        import dataclasses
+
+        field_names = {f.name for f in dataclasses.fields(TwoPhaseDPInput)}
+        for name in ("rho_l", "rho_v", "mu_l", "mu_v"):
+            assert name not in field_names, (
+                f"Direct field '{name}' must not exist on TwoPhaseDPInput; "
+                f"use property_scalars instead (Decision 011)"
+            )
+
+    def test_property_scalars_defaults_to_empty_mapping(self) -> None:
+        inp = TwoPhaseDPInput(
+            state=(_STATE,),
+            G=200.0,
+            x=(0.5,),
+            D_h=0.005,
+            L_cell=0.1,
+        )
+        assert len(inp.property_scalars) == 0
+
+    def test_property_scalars_is_immutable_after_construction(self) -> None:
+        from types import MappingProxyType
+
+        inp = TwoPhaseDPInput(
+            state=(_STATE,),
+            G=200.0,
+            x=(0.5,),
+            D_h=0.005,
+            L_cell=0.1,
+            property_scalars={"rho_l": 1000.0},
+        )
+        assert isinstance(inp.property_scalars, MappingProxyType)
+        with pytest.raises(TypeError):
+            inp.property_scalars["rho_l"] = 999.0  # type: ignore[index]
+
+    def test_existing_callers_without_property_scalars_still_construct(self) -> None:
+        # Callers that don't supply property_scalars can still construct
+        # TwoPhaseDPInput (they just can't call MSH without the required keys).
+        inp = TwoPhaseDPInput(
+            state=(_STATE,),
+            G=200.0,
+            x=(0.5,),
+            D_h=0.005,
+            L_cell=0.1,
+        )
+        assert inp.G == 200.0
+        assert inp.x == (0.5,)
