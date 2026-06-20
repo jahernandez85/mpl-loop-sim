@@ -2,7 +2,7 @@
 
 A modular, explicit-input thermo-hydraulic simulation library for mechanically pumped two-phase loops (MPLs) and related systems.
 
-**Current state:** HX/component/correlation architecture is implementation-complete with 3600+ deterministic tests. Full-loop convergence, network solving, property lookup at the HX layer, moving-boundary modeling, and experimental validation remain deferred.
+**Current state:** HX/component/correlation architecture is implementation-complete, with a minimal fixed-architecture one-variable energy-closure solver and 3700+ deterministic tests. Generic network solving, pressure closure, property lookup at the HX layer, moving-boundary modeling, and experimental validation remain deferred.
 
 ---
 
@@ -17,11 +17,15 @@ A modular, explicit-input thermo-hydraulic simulation library for mechanically p
 - Inject DP correlations: `ChurchillFrictionGradient`, `MSHTwoPhaseFrictionGradient`.
 - Evaluate `EvaporatorComponent` and `CondenserComponent` through immutable scenario bindings.
 - Assemble and run a minimal evaporator-to-condenser forward pass.
-- Run 3600+ deterministic, property-lookup-free tests.
+- Solve the fixed `reference -> evaporator -> condenser -> return` architecture
+  for condenser heat rate so that `h_return = h_reference`.
+- Run 3700+ deterministic, property-lookup-free tests.
 
 ## What it cannot do yet
 
-- Full loop convergence (net energy imbalance is reported, not resolved).
+- Generic full-loop convergence beyond the Phase 13A fixed architecture and
+  one-variable energy closure.
+- Pressure closure; accumulated pressure drop remains diagnostic only.
 - Network flow-pressure solving (components are not connected through a network).
 - Property lookup at the HX/component/correlation layer (CoolProp is only in `mpl_sim.properties`).
 - Moving-boundary two-phase zone modeling.
@@ -40,6 +44,7 @@ pytest
 python examples/minimal_evaporator_condenser_loop.py
 python examples/fixed_heat_rate_hx.py
 python examples/segmented_counterflow_hx.py
+python examples/minimal_closed_mpl_solver.py
 
 # Lint and format checks
 ruff check src tests examples
@@ -104,7 +109,10 @@ The library is built around five principles:
 2. **Injected correlations.** HX models accept correlation objects as arguments; no registry resolution at evaluation time.
 3. **Immutable value objects.** `FluidState`, `HXSolveRequest`, `HXSolveResult`, scenario bindings, and geometry are all frozen dataclasses.
 4. **Honest diagnostics.** Energy imbalance, out-of-envelope verdicts, and non-convergence are always reported — never suppressed.
-5. **Clean layer boundaries.** CoolProp only in `properties/`; solver only in `solvers/`; network only in `network/`; components do not know their neighbours.
+5. **Clean layer boundaries.** CoolProp stays in `properties/`; the generic
+   network solver stays in `solvers/`; Phase 13A's `closed_loop` helper is a
+   fixed case-specific orchestrator, not a generic Solver or Network; components
+   do not know their neighbours.
 
 ---
 
@@ -120,8 +128,8 @@ The library is built around five principles:
 
 ## Project status
 
-Phase 12B — Examples and User Documentation Quickstart.
+Phase 13A — Minimal Closed MPL Solver.
 The HX component family (Phases 11A–11U) is implementation-complete as a checkpoint.
-Full-loop convergence, network assembly, validation harness, and moving-boundary modeling remain deferred.
+Generic network/pressure closure, validation harness, and moving-boundary modeling remain deferred.
 
 *Developed at Université de Liège — Andrés Hernández, 2026.*

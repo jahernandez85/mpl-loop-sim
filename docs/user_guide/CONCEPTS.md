@@ -156,7 +156,8 @@ Required `geom_scalars` for this path: `G`, `x`, `D_h`, `L_cell`, `A_ht`, and th
 
 | Capability | Status |
 |---|---|
-| Full loop convergence | Deferred |
+| Minimal fixed-architecture energy closure | Implemented in Phase 13A (`mpl_sim.closed_loop`) |
+| Generic network and pressure closure | Deferred |
 | Network flow-pressure solver | Deferred |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |

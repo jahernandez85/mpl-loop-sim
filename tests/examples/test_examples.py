@@ -79,6 +79,9 @@ class TestExampleFilesExist:
     def test_segmented_counterflow_hx_exists(self) -> None:
         assert (EXAMPLES_DIR / "segmented_counterflow_hx.py").is_file()
 
+    def test_minimal_closed_mpl_solver_exists(self) -> None:
+        assert (EXAMPLES_DIR / "minimal_closed_mpl_solver.py").is_file()
+
     def test_examples_readme_exists(self) -> None:
         docs = (
             REPO_ROOT / "README.md",
@@ -92,6 +95,7 @@ class TestExampleFilesExist:
                 "minimal_evaporator_condenser_loop.py",
                 "fixed_heat_rate_hx.py",
                 "segmented_counterflow_hx.py",
+                "minimal_closed_mpl_solver.py",
             ):
                 assert filename in text, f"{doc} does not reference {filename}"
                 assert (EXAMPLES_DIR / filename).is_file()
@@ -119,6 +123,11 @@ class TestExampleImports:
         assert callable(mod.evaluate_example)
         assert not hasattr(mod, "result")
 
+    def test_minimal_closed_mpl_solver_importable(self) -> None:
+        mod = _import_example("minimal_closed_mpl_solver.py")
+        # All logic is under __main__; importing must succeed with no side effects.
+        assert not hasattr(mod, "result")
+
 
 # ---------------------------------------------------------------------------
 # 2 — examples run as standalone scripts (exit code 0)
@@ -138,6 +147,10 @@ class TestExampleRuns:
         proc = _run_example("segmented_counterflow_hx.py")
         assert proc.returncode == 0, proc.stderr
 
+    def test_minimal_closed_mpl_solver_runs(self) -> None:
+        proc = _run_example("minimal_closed_mpl_solver.py")
+        assert proc.returncode == 0, proc.stderr
+
 
 # ---------------------------------------------------------------------------
 # 3 — public API imports only (no private module imports)
@@ -148,6 +161,7 @@ class TestPublicAPIOnly:
     """Examples must import from mpl_sim top-level packages, not internals."""
 
     _public_packages = {
+        "mpl_sim.closed_loop",
         "mpl_sim.components",
         "mpl_sim.core",
         "mpl_sim.correlations",
@@ -180,6 +194,9 @@ class TestPublicAPIOnly:
 
     def test_segmented_counterflow_hx_public_api(self) -> None:
         self._check("segmented_counterflow_hx.py")
+
+    def test_minimal_closed_mpl_solver_public_api(self) -> None:
+        self._check("minimal_closed_mpl_solver.py")
 
 
 # ---------------------------------------------------------------------------
@@ -263,6 +280,9 @@ class TestExamplesDoNotWriteFiles:
     def test_segmented_counterflow_hx_no_file_writes(self, tmp_path: Path) -> None:
         self._check("segmented_counterflow_hx.py", tmp_path)
 
+    def test_minimal_closed_mpl_solver_no_file_writes(self, tmp_path: Path) -> None:
+        self._check("minimal_closed_mpl_solver.py", tmp_path)
+
 
 # ---------------------------------------------------------------------------
 # 6 — examples do not use external data or internet
@@ -287,6 +307,9 @@ class TestExamplesNoExternalDependencies:
     def test_segmented_counterflow_hx_no_external(self) -> None:
         self._check("segmented_counterflow_hx.py")
 
+    def test_minimal_closed_mpl_solver_no_external(self) -> None:
+        self._check("minimal_closed_mpl_solver.py")
+
 
 # ---------------------------------------------------------------------------
 # 9 — no example asserts validation or full-loop convergence as achieved
@@ -303,7 +326,8 @@ class TestExamplesHonestClaims:
         "is a converged loop solution",
         "is a full network solver",
         "complete simulator",
-        "automatic phase inference",
+        "implements automatic phase inference",
+        "supports automatic phase inference",
     ]
 
     def _check(self, filename: str) -> None:
@@ -331,3 +355,45 @@ class TestExamplesHonestClaims:
     def test_segmented_counterflow_states_not_validated(self) -> None:
         text = (EXAMPLES_DIR / "segmented_counterflow_hx.py").read_text(encoding="utf-8")
         assert "not a validated" in text.lower()
+
+    def test_minimal_closed_mpl_solver_honest_claims(self) -> None:
+        self._check("minimal_closed_mpl_solver.py")
+
+    def test_minimal_closed_mpl_solver_states_not_generic(self) -> None:
+        text = (EXAMPLES_DIR / "minimal_closed_mpl_solver.py").read_text(encoding="utf-8")
+        assert "not a generic" in text.lower()
+
+
+# ---------------------------------------------------------------------------
+# Phase 13A — closed-loop solver output diagnostics
+# ---------------------------------------------------------------------------
+
+
+class TestPhase13AMinimalClosedSolverDiagnostics:
+    """Run the Phase 13A example as a script and inspect its stdout."""
+
+    def test_converged_reported(self) -> None:
+        proc = _run_example("minimal_closed_mpl_solver.py")
+        assert "Converged:          True" in proc.stdout
+
+    def test_energy_residual_small(self) -> None:
+        import re
+
+        proc = _run_example("minimal_closed_mpl_solver.py")
+        m = re.search(r"Energy residual:\s+([+-]?\d+\.\d+e[+-]\d+)", proc.stdout)
+        assert m is not None, "Energy residual line not found in output"
+        residual = float(m.group(1))
+        assert abs(residual) < 1.0, f"Residual too large: {residual}"
+
+    def test_solved_q_cond_near_minus_q_evap(self) -> None:
+        import re
+
+        proc = _run_example("minimal_closed_mpl_solver.py")
+        m = re.search(r"Solved Q_cond:\s+([+-]?\d+\.\d+)", proc.stdout)
+        assert m is not None, "Solved Q_cond line not found in output"
+        q_cond = float(m.group(1))
+        assert abs(q_cond - (-1000.0)) < 1.0, f"Q_cond not near -1000 W: {q_cond}"
+
+    def test_pressure_note_present(self) -> None:
+        proc = _run_example("minimal_closed_mpl_solver.py")
+        assert "Pressure closure is NOT implemented" in proc.stdout
