@@ -65,13 +65,45 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11U status** | **Closeout readiness audit complete. 3558 tests passing (3548 pre-audit + 10 new export-consistency tests). Capability matrix and support exceptions documented. Architecture boundaries confirmed clean. Public exports verified. No new physics added. See `PHASE_11U_HX_CLOSEOUT_READINESS_AUDIT.md`.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **The current HX-family checkpoint (11A–11U) is ready. `EpsilonNTUModel` and `SegmentedMarchModel` support all four secondary BC classes; `LMTDModel` intentionally supports only `FixedWallTemp` and `AmbientCoupling`. Co-current, one-pass counterflow, and iterated counterflow are implemented only for segmented `SinkInletTempAndFlow`. Active public closures are injectable, including `ChurchillFrictionGradient` and `MSHTwoPhaseFrictionGradient`. Immutable scenario bindings are implemented. 1575 Phase 11 tests pass across 29 files. Full-loop convergence, network contribution integration, moving boundary, remaining closures, and validation remain deferred.** |
-| **Branch status** | **Phase 11U audited on `phase-11u-hx-closeout-readiness-audit`.** |
-| **Current active phase** | **Phase 11 - HeatExchangerModel, Evaporator and Condenser continuation after the 11U readiness checkpoint** |
-| **Next immediate slice** | Recommended next phase: migrate remaining two-phase DP closures (Homogeneous/Cicchitti, Kim-Mudawar 2013), or advance to Phase 12 validation harness, or implement a minimal full-loop convergence acceptance case wiring EvaporatorComponent and CondenserComponent through the Phase 8 solver |
-| **Working tree before this audit** | Phase 11T: `CounterflowIterationConfig`, `counterflow_iteration` on `HXSolveRequest`, iteration diagnostics on `HXSolveResult`, `_solve_sink_inlet_counterflow_iterated`, and focused iterated-counterflow tests |
-| **Test status** | **3558 passed, verified 2026-06-19** with `pytest` (3548 pre-Phase 11U + 10 new export-consistency tests in `test_phase11_public_exports.py`); Phase 11 HX-family tests: 1575 across 29 test files |
-| **Lint status** | `ruff check src tests` clean, verified 2026-06-19. |
-| **Format status** | `black --check --no-cache src tests` passed, verified 2026-06-19 |
+| **Phase 12A audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 12A status** | **Checkpoint complete. Minimal loop assembly acceptance example implemented. `examples/minimal_evaporator_condenser_loop.py` provides `MinimalLoopResult` frozen dataclass and `evaluate_minimal_evaporator_condenser_loop(...)` function. 33 focused acceptance tests in `tests/loops/test_minimal_loop_example.py` cover all 12 required items. Not a full network solver; no loop convergence; no moving-boundary model; no property lookup. Net energy imbalance and enthalpy drift reported explicitly. 3591 tests passing. See `PHASE_12A_MINIMAL_LOOP_ASSEMBLY_AUDIT.md`.** |
+| **Branch status** | **Phase 12A implemented on `phase-12a-minimal-loop-assembly`.** |
+| **Current active phase** | **Phase 12A - Minimal Loop Assembly Acceptance Case** |
+| **Next immediate slice** | Options: (A) migrate remaining two-phase DP closures (Homogeneous/Cicchitti, Kim-Mudawar 2013); (B) Phase 12 validation harness; (C) full-loop convergence wiring EvaporatorComponent / CondenserComponent through Phase 8 solver |
+| **Working tree before this phase** | Phase 11U: HX closeout readiness audit, 3558 tests |
+| **Test status** | **3591 passed, verified 2026-06-20** with `pytest` (3558 pre-Phase 12A + 33 new minimal-loop acceptance tests in `tests/loops/test_minimal_loop_example.py`) |
+| **Lint status** | `ruff check src tests examples` clean, verified 2026-06-20. |
+| **Format status** | `black --check --no-cache src tests examples` passed, verified 2026-06-20 |
+
+Phase 12A minimal loop assembly acceptance case is complete as a checkpoint.
+
+- **`examples/minimal_evaporator_condenser_loop.py`** added — standalone runnable example and importable module:
+  - **`MinimalLoopResult`** frozen dataclass: `evap_result`, `cond_result`, `h_initial`, `h_after_evap`, `h_after_cond`, `Q_evap`, `Q_cond`, `net_Q`, `net_dh`, `dP_evap`, `dP_cond`, `dP_total`, `warnings`.
+  - **`evaluate_minimal_evaporator_condenser_loop(inlet_state, primary_mdot, evap_component, evap_scenario, cond_component, cond_scenario)`** — one explicit forward pass: (1) evaluate evaporator; (2) feed evap outlet to condenser inlet; (3) assemble diagnostics. No loop convergence. No hidden global state.
+  - Validates `primary_mdot` is finite and > 0; raises `ValueError` with field name in message otherwise.
+  - `net_Q` and `net_dh` are always reported, never suppressed — caller sees the energy imbalance.
+  - `warnings` collects non-`IN_ENVELOPE` correlation verdicts from both components.
+  - `__main__` block uses explicit `R134a` fluid identity, explicit geometry (MicrochannelGeometry + PlateGeometry), explicit `FixedHeatRate` BCs, and explicit `EpsilonNTUModel` + `DiscretizationMode.LUMPED`. No CoolProp call occurs.
+- **`examples/__init__.py`** added — makes `examples/` a Python package importable in tests.
+- **`tests/loops/test_minimal_loop_example.py`** added — 33 acceptance tests covering all 12 required items:
+  1. Minimal loop runs end-to-end.
+  2. Evaporator outlet feeds condenser inlet.
+  3. Heat signs correct (Q_evap > 0, Q_cond < 0).
+  4. Enthalpy changes consistent with Q/mdot.
+  5. Pressure drops accumulate exactly.
+  6. Net loop imbalance reported (not hidden).
+  7. Explicit closures required/injected.
+  8. Missing required inputs fail clearly.
+  9. No property lookup (nonexistent fluid name completes without error).
+  10. Public example imports work (smoke test via `subprocess`).
+  11. Existing Phase 11 HX tests remain passing (suite-level gate: 3591 total).
+  12. Example executes as standalone smoke test with exit code 0.
+- The example and focused tests import framework symbols through public package APIs.
+- **`pyproject.toml`** adds pytest `pythonpath = ["."]` so the importable
+  `examples` package is available during collection without runtime path mutation.
+- **Architecture boundaries**: no CoolProp, no PropertyBackend, no CorrelationRegistry, no network, no solvers in `examples/` or `tests/loops/`. Verified by grep.
+- **NOT implemented** (all deferred): full network solver; loop convergence iteration; moving-boundary model; validation harness; valves/manifolds; new HTC/DP closures; automatic phase inference; hidden property defaults.
+- **Test arithmetic** (deterministic, no property lookup): Q_evap=1000 W, Q_cond=-800 W, mdot=0.05 kg/s → h_after_evap=270 000 J/kg, h_after_cond=254 000 J/kg, net_dh=+4 000 J/kg, net_Q=+200 W.
 
 Phase 11T iterated counterflow segmented solver is complete as a checkpoint.
 

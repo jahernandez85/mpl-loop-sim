@@ -1,7 +1,10 @@
 # Examples
 
-Runnable example scripts for the mpl_sim simulator.
+Runnable example and acceptance scripts for the mpl_sim simulator.
 
-Scripts will be added here as components are implemented (Phase 6+).
-Each example should be self-contained and include the corresponding
-`ReproducibilityTuple` so results can be reproduced exactly.
+Phase 12A includes a deterministic evaporator-condenser forward-pass acceptance
+example. It intentionally does not claim network convergence, validation, or a
+complete `ReproducibilityTuple`; those integrations remain deferred.
+
+Future worked simulation cases should be self-contained and include the
+corresponding `ReproducibilityTuple` once that end-to-end path is in scope.
