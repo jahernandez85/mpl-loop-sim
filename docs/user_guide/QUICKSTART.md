@@ -23,14 +23,15 @@ Its current strength is a clean, explicit, well-tested HX/component/correlation 
 - Inject heat transfer (`DittusBoelterHTC`, `GnielinskiHTC`, `ShahBoilingHTC`, `YanCondensationHTC`) and pressure-drop (`ChurchillFrictionGradient`, `MSHTwoPhaseFrictionGradient`) correlations explicitly.
 - Evaluate `EvaporatorComponent` and `CondenserComponent` through scenario bindings.
 - Assemble a minimal forward evaporator-to-condenser path and report energy imbalance explicitly.
-- Run 3600+ deterministic, property-lookup-free tests.
+- Solve a minimal closed loop for energy closure: find the condenser heat rate `Q_cond` such that `h_return = h_reference` using bounded bisection (`solve_minimal_closed_mpl`).
+- Run 3700+ deterministic, property-lookup-free tests.
 
 ---
 
 ## 3. What can it NOT yet do?
 
-- **No full-loop convergence.** The loop is not closed; energy imbalance is reported, not resolved.
-- **No network solver.** Components cannot be connected through a flow-pressure network.
+- **Minimal energy closure only.** `solve_minimal_closed_mpl` closes the energy balance for a fixed one-evaporator + one-condenser architecture. Generic network topology, pressure closure, and multi-component loops remain deferred.
+- **No network solver.** Components cannot be connected through an arbitrary flow-pressure network.
 - **No property lookup.** `FluidState` carries only `(P, h, identity)`; no CoolProp or REFPROP call occurs in the HX/component/correlation layers.
 - **No moving-boundary model.** Two-phase zone tracking is not implemented.
 - **No automatic phase inference or quality marching.**
@@ -71,9 +72,10 @@ black --check --no-cache src tests examples
 python examples/minimal_evaporator_condenser_loop.py
 python examples/fixed_heat_rate_hx.py
 python examples/segmented_counterflow_hx.py
+python examples/minimal_closed_mpl_solver.py
 ```
 
-All three examples are standalone scripts. They print diagnostics to stdout, write no files, and make no network or property-lookup calls.
+All four examples are standalone scripts. They print diagnostics to stdout, write no files, and make no network or property-lookup calls.
 
 ---
 
@@ -166,7 +168,7 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 | Correlations | Receive only `CorrelationInput` objects and explicit scalars. Never receive a Component or Geometry. |
 | Calibration | Never inside a correlation. Applied as a multiplier after the correlation call. |
 | Network topology | Only in `mpl_sim.network`. Components do not know their neighbours or the network. |
-| Solver | Only in `mpl_sim.solvers`. Network never knows the solver; solver never knows physics. |
+| Generic Solver | Only in `mpl_sim.solvers`. Network never knows the solver; solver never knows physics. Phase 13A's `mpl_sim.closed_loop` API is a fixed case-specific orchestration helper, not the generic Network/Solver path. |
 | `SystemState` | The only owner of numerical state values. Not the ports or components. |
 
 ---
@@ -176,7 +178,7 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 **For users exploring the library:**
 
 1. Run `pytest` to verify the baseline.
-2. Run the three examples in [`examples/`](../../examples/).
+2. Run the four examples in [`examples/`](../../examples/).
 3. Read [`CONCEPTS.md`](CONCEPTS.md) for the mental model.
 4. Read [`EXAMPLES.md`](EXAMPLES.md) for annotated walkthroughs.
 
@@ -185,7 +187,7 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 1. Check `docs/roadmap/PROJECT_STATUS.md` for the current phase and deferred items.
 2. Check `docs/roadmap/IMPLEMENTATION_PLAN.md` for the authoritative phase order.
 3. The next recommended directions are:
-   - Full-loop convergence: wire `EvaporatorComponent` and `CondenserComponent` through the Phase 8 fixed-point solver.
+   - Pressure closure (Phase 13B): extend the closed-loop solver to also balance loop ΔP.
    - Remaining two-phase DP closures: Homogeneous/Cicchitti, Kim-Mudawar 2013.
    - Validation harness: pin literature data as acceptance tests.
 4. Preserve the architecture boundaries in `docs/architecture/ARCHITECTURE_MASTER.md`.

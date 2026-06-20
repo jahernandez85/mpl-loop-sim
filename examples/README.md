@@ -4,7 +4,7 @@ Runnable example scripts for the `mpl-loop-sim` library.
 
 All examples:
 - are standalone scripts (run with `python examples/<name>.py`);
-- are also importable as modules (no side effects from `if __name__ == "__main__"` guards);
+- are importable as modules with no side effects (logic guarded by `if __name__ == "__main__"`, or exposed as an `evaluate_example()` function);
 - use only public `mpl_sim.*` package APIs;
 - make no CoolProp or property-lookup calls;
 - write no files;
@@ -54,12 +54,27 @@ Demonstrates `SegmentedMarchModel` with iterated counterflow.
 
 ---
 
+### `minimal_closed_mpl_solver.py` (Phase 13A)
+
+Demonstrates the first minimal closed-loop MPL energy closure.
+
+- Solves for condenser heat rate `Q_cond` such that `h_return = h_reference` (energy closure).
+- Fixed architecture: `reference_state -> evaporator -> condenser -> return`.
+- Uses bounded bisection with an explicit bracket; bracket sign change validated at startup.
+- Reports `converged`, `iterations`, `energy_residual`, `solved_q_cond`, and `dP_total` (diagnostic).
+- All inputs explicit; no hidden defaults; no property lookup.
+
+**Not:** a generic network solver, a pressure-closed loop, a validated physical model.
+
+---
+
 ## Running examples
 
 ```bash
 python examples/minimal_evaporator_condenser_loop.py
 python examples/fixed_heat_rate_hx.py
 python examples/segmented_counterflow_hx.py
+python examples/minimal_closed_mpl_solver.py
 ```
 
 ## Running example tests

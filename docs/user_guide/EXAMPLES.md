@@ -1,6 +1,6 @@
 # Examples
 
-Annotated walkthrough of the three runnable examples in [`examples/`](../../examples/).
+Annotated walkthrough of the four runnable examples in [`examples/`](../../examples/).
 
 ---
 
@@ -132,6 +132,75 @@ All correlation verdicts: IN_ENVELOPE
 
 ---
 
+## 4. Minimal Closed MPL Solver
+
+**File:** [`examples/minimal_closed_mpl_solver.py`](../../examples/minimal_closed_mpl_solver.py)
+
+**Run:**
+```bash
+python examples/minimal_closed_mpl_solver.py
+```
+
+**What it demonstrates:**
+
+- The first actual closed-loop energy closure in the library.
+- Solve for condenser heat rate `Q_cond` such that `h_return = h_reference` using bounded bisection.
+- Fixed architecture: `reference_state -> evaporator -> condenser -> return`.
+- Explicit bracket `(q_cond_lo, q_cond_hi)` must enclose the root (sign change validated at startup).
+- Convergence reported via `converged`, `iterations`, and `energy_residual` fields.
+- Pressure-drop accumulation is diagnostic only (`dP_total`); no pressure closure.
+
+**Key API:**
+
+```python
+from mpl_sim.closed_loop import (
+    ClosedLoopSolveConfig,
+    MinimalClosedMPLCase,
+    solve_minimal_closed_mpl,
+)
+
+case = MinimalClosedMPLCase(
+    reference_state=...,
+    primary_mdot=0.05,
+    evap_component=..., evap_scenario=...,
+    cond_component=..., cond_scenario=...,  # cond secondary_bc MUST be FixedHeatRate
+    q_cond_bounds=(-5000.0, 0.0),           # explicit bracket; must enclose root
+)
+result = solve_minimal_closed_mpl(case, ClosedLoopSolveConfig(max_iter=60, tolerance=1e-3))
+# result.converged          True when abs(energy_residual) <= tolerance
+# result.solved_q_cond      Q_cond [W] that closes the energy balance
+# result.energy_residual    h_return - h_reference [J/kg]
+# result.dP_total           diagnostic only; no pressure closure
+```
+
+**Representative output:**
+
+```
+=== Minimal Closed MPL Solver (Phase 13A) ===
+
+  Architecture: reference -> evaporator -> condenser -> return
+  Solved unknown: Q_cond [W] via FixedHeatRate BC
+  Solve condition: h_return = h_reference (energy closure)
+
+  Solved Q_cond:      -1000.000015 W
+  Energy residual:    -2.98e-04 J/kg
+  Converged:          True
+  Iterations:         26
+
+NOTE: Phase 13A - fixed architecture; not a generic network solver.
+      Pressure closure is NOT implemented; dP_total is diagnostic only.
+```
+
+**What it is NOT:**
+
+- Not a generic network solver (fixed one-evaporator + one-condenser architecture only).
+- Not a pressure-closed loop (dP_total is diagnostic).
+- Not a validated physical model (no experimental data).
+- Not a moving-boundary or quality-marching model.
+- Not a multi-component loop (no parallel evaporators, valves, manifolds, or recuperator).
+
+---
+
 ## Common Patterns
 
 ### Changing the HX model strategy
@@ -175,5 +244,6 @@ for v in result.verdicts:
 
 - Plotting (no matplotlib dependency yet).
 - Phase-change examples with `ShahBoilingHTC` or `YanCondensationHTC` (require explicit quality scalars; `evaluate_scenario` path ready, dedicated example deferred).
-- Full-loop convergence example (requires Phase 8 solver wiring, deferred).
+- Pressure closure (Phase 13B): solving for pump head such that the loop ΔP balances.
+- Generic network solver (Phase 13D): arbitrary topology, multiple parallel components.
 - Validation against published HX data (Phase 12+ validation harness, deferred).
