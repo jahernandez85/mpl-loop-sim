@@ -11,9 +11,9 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-11u-hx-closeout-readiness-audit` |
-| **Stage** | Phase 11U HX closeout / readiness audit; current HX-family checkpoint ready while Phase 11 roadmap work remains open |
-| **Completed phase** | **Phase 10 - Pump and Accumulator** |
+| **Branch** | `phase-12b-examples-user-docs-quickstart` |
+| **Stage** | Phase 12B Examples and User Documentation Quickstart; HX-family checkpoint ready; examples, user guide, and quickstart added |
+| **Completed phase** | **Phase 12A - Minimal Loop Assembly** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -65,15 +65,31 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11U status** | **Closeout readiness audit complete. 3558 tests passing (3548 pre-audit + 10 new export-consistency tests). Capability matrix and support exceptions documented. Architecture boundaries confirmed clean. Public exports verified. No new physics added. See `PHASE_11U_HX_CLOSEOUT_READINESS_AUDIT.md`.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **The current HX-family checkpoint (11A–11U) is ready. `EpsilonNTUModel` and `SegmentedMarchModel` support all four secondary BC classes; `LMTDModel` intentionally supports only `FixedWallTemp` and `AmbientCoupling`. Co-current, one-pass counterflow, and iterated counterflow are implemented only for segmented `SinkInletTempAndFlow`. Active public closures are injectable, including `ChurchillFrictionGradient` and `MSHTwoPhaseFrictionGradient`. Immutable scenario bindings are implemented. 1575 Phase 11 tests pass across 29 files. Full-loop convergence, network contribution integration, moving boundary, remaining closures, and validation remain deferred.** |
+| **Phase 12B audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 12B status** | **Checkpoint complete. Examples and user documentation quickstart added. See `PHASE_12B_EXAMPLES_USER_DOCS_QUICKSTART_AUDIT.md` and the Phase 12B entry below.** |
 | **Phase 12A audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 12A status** | **Checkpoint complete. Minimal loop assembly acceptance example implemented. `examples/minimal_evaporator_condenser_loop.py` provides `MinimalLoopResult` frozen dataclass and `evaluate_minimal_evaporator_condenser_loop(...)` function. 33 focused acceptance tests in `tests/loops/test_minimal_loop_example.py` cover all 12 required items. Not a full network solver; no loop convergence; no moving-boundary model; no property lookup. Net energy imbalance and enthalpy drift reported explicitly. 3591 tests passing. See `PHASE_12A_MINIMAL_LOOP_ASSEMBLY_AUDIT.md`.** |
-| **Branch status** | **Phase 12A implemented on `phase-12a-minimal-loop-assembly`.** |
-| **Current active phase** | **Phase 12A - Minimal Loop Assembly Acceptance Case** |
+| **Branch status** | **Phase 12B implemented on `phase-12b-examples-user-docs-quickstart`.** |
+| **Current active phase** | **Phase 12B - Examples and User Documentation Quickstart** |
 | **Next immediate slice** | Options: (A) migrate remaining two-phase DP closures (Homogeneous/Cicchitti, Kim-Mudawar 2013); (B) Phase 12 validation harness; (C) full-loop convergence wiring EvaporatorComponent / CondenserComponent through Phase 8 solver |
-| **Working tree before this phase** | Phase 11U: HX closeout readiness audit, 3558 tests |
-| **Test status** | **3591 passed, verified 2026-06-20** with `pytest` (3558 pre-Phase 12A + 33 new minimal-loop acceptance tests in `tests/loops/test_minimal_loop_example.py`) |
+| **Working tree before this phase** | Phase 12A: 3591 tests |
+| **Test status** | **3625 passed, verified 2026-06-20** with `pytest` (3591 pre-Phase 12B + 34 new example smoke tests in `tests/examples/test_examples.py`) |
 | **Lint status** | `ruff check src tests examples` clean, verified 2026-06-20. |
 | **Format status** | `black --check --no-cache src tests examples` passed, verified 2026-06-20 |
+
+Phase 12B examples and user documentation quickstart is complete as a checkpoint.
+
+- **`examples/fixed_heat_rate_hx.py`** added — standalone ε-NTU FixedHeatRate evaporator example. Explicit `FluidState`, `MicrochannelGeometry`, `EvaporatorScenarioBinding`. No correlations required for this BC; prints Q, h_out, dP. Deterministic: h_out = h_in + Q/mdot.
+- **`examples/segmented_counterflow_hx.py`** added — `SegmentedMarchModel` + `SinkInletTempAndFlow` + `FlowArrangement.COUNTERFLOW` + `CounterflowIterationConfig(enabled=True)`. Injects `DittusBoelterHTC` (primary + secondary) and `ChurchillFrictionGradient`. Prints Q, h_out, dP, converged, residual, iteration_count. All IN_ENVELOPE for Re=15000.
+- **`examples/README.md`** updated — covers all three examples with run commands and "what it is NOT" section.
+- **`tests/examples/test_examples.py`** added — 34 smoke tests covering: file and documentation references, importability without solve-on-import behavior, standalone run (exit code 0), AST-verified public API imports, expected diagnostics, runtime no-file-write checks, no external imports, and honest claims.
+- **`src/mpl_sim/hx_models/__init__.py`** updated — exports `PrimaryThermalMode` and `UAComputationMode` (previously not exported; required for `SinkInletTempAndFlow` scenarios through component wrappers).
+- **`README.md`** rewritten — reflects current library state: what it does, what it does not, quick start, simplest example, doc index, architecture philosophy.
+- **`docs/user_guide/QUICKSTART.md`** added — answers the 10 required user questions: what is it, what can it do, what can it not do, how to run tests, how to run examples, simplest example, core concepts, how the layers relate, architecture boundaries, recommended next steps.
+- **`docs/user_guide/CONCEPTS.md`** added — explains FluidState, secondary BCs, HX model strategies, correlations, components, geom_scalars, the segmented counterflow path, and deferred capabilities.
+- **`docs/user_guide/EXAMPLES.md`** added — annotated walkthrough of all three examples with representative output, when-to-use guidance, and common patterns.
+- **Architecture boundaries**: no new CoolProp, PropertyBackend, CorrelationRegistry, network, or solver imports in examples/. `PrimaryThermalMode` and `UAComputationMode` export addition is a public API gap fix, not a new architecture concept.
+- **NOT implemented** (all deferred): full network solver; loop convergence iteration; moving-boundary model; validation harness; valves/manifolds; new HTC/DP closures; automatic phase inference; hidden property defaults; plotting.
 
 Phase 12A minimal loop assembly acceptance case is complete as a checkpoint.
 
@@ -518,6 +534,8 @@ Key authority statements:
 | **Phase 11S Segmented counterflow / phase-change coupling foundation** | **Complete; implemented on `phase-11s-segmented-counterflow-phase-change-foundation`** |
 | **Phase 11T Iterated counterflow segmented solver** | **Complete; implemented on `phase-11t-iterated-counterflow-segmented-solver`** |
 | **Phase 11U HX closeout / readiness audit** | **Complete; approved checkpoint on `phase-11u-hx-closeout-readiness-audit`** |
+| **Phase 12A Minimal Loop Assembly** | **Complete; implemented on `phase-12a-minimal-loop-assembly`** |
+| **Phase 12B Examples and User Documentation Quickstart** | **Complete; implemented on `phase-12b-examples-user-docs-quickstart`** |
 
 Closeout artifacts:
 
@@ -594,11 +612,11 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-11u-hx-closeout-readiness-audit` into `main` as the Phase 11U closeout checkpoint.
+1. Merge `phase-12b-examples-user-docs-quickstart` into `main` as the Phase 12B checkpoint.
 2. Choose next direction:
    - **Option A:** Migrate remaining two-phase DP closures (Homogeneous/Cicchitti, Kim-Mudawar 2013) if safe legacy sources are confirmed.
    - **Option B:** Implement a minimal full-loop convergence acceptance case wiring `EvaporatorComponent` and `CondenserComponent` through the Phase 8 fixed-point solver.
-   - **Option C:** Advance to Phase 12 (validation harness, literature data pinning, systematic test plan acceptance).
+   - **Option C:** Advance to Phase 12 validation harness (literature data pinning, systematic test plan acceptance).
 3. Preserve frozen architecture boundaries while completing the remaining work.
 4. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
 5. Preserve the Phase 7 boundary: Network owns topology and assembly/reference wiring only.
@@ -704,8 +722,8 @@ Rules for the next implementation session:
 
 | Field | Value |
 |---|---|
-| **Date** | 2026-06-19 |
+| **Date** | 2026-06-20 |
 | **Updated by** | Codex |
-| **Status note** | Phase 11U HX closeout readiness audit approved on `phase-11u-hx-closeout-readiness-audit`; capability matrix records model-specific BC limits; architecture boundaries confirmed clean (no live CoolProp, PropertyBackend, network, or solver imports in HX/components/correlations); 10 export-consistency tests added in `test_phase11_public_exports.py`; full suite 3558 tests passing; Phase 11 family inventory 1575 tests across 29 files; current HX checkpoint ready while full-loop convergence, frozen component contribution integration, moving boundary, remaining closures, and validation remain deferred |
+| **Status note** | Phase 12B examples and user documentation quickstart complete on `phase-12b-examples-user-docs-quickstart`; 3 runnable examples (minimal loop, fixed-heat-rate HX, segmented counterflow HX); 34 new smoke tests in `tests/examples/`; user guide added under `docs/user_guide/`; README.md rewritten; `PrimaryThermalMode` and `UAComputationMode` exported from `mpl_sim.hx_models`; 3625 total tests; architecture boundaries clean |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*

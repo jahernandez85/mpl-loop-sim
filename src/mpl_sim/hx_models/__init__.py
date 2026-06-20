@@ -8,6 +8,10 @@ Exports:
     SinkInletTempAndFlow, FixedWallTemp, FixedHeatRate, AmbientCoupling
     SecondaryFluidBC  (union type alias)
 
+  Primary-side thermal capacity and UA modes:
+    PrimaryThermalMode  — FINITE_CAPACITY | CONSTANT_TEMPERATURE
+    UAComputationMode   — PRIMARY_ONLY | TWO_SIDED
+
   Flow arrangement (Phase 11S):
     FlowArrangement  — CO_CURRENT | COUNTERFLOW
 
@@ -49,8 +53,10 @@ from mpl_sim.hx_models.base import (
     HeatExchangerModelKind,
     HXSolveRequest,
     HXSolveResult,
+    PrimaryThermalMode,
     SecondaryFluidBC,
     SinkInletTempAndFlow,
+    UAComputationMode,
     UnsupportedHeatExchangerBoundaryConditionError,
 )
 from mpl_sim.hx_models.epsilon_ntu import EpsilonNTUModel
@@ -74,6 +80,9 @@ __all__ = [
     "FixedHeatRate",
     "AmbientCoupling",
     "SecondaryFluidBC",
+    # Primary thermal and UA modes
+    "PrimaryThermalMode",
+    "UAComputationMode",
     # Flow arrangement (Phase 11S)
     "FlowArrangement",
     # Counterflow iteration config (Phase 11T)

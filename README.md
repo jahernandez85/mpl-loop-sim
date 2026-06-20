@@ -1,109 +1,127 @@
 # MPL Loop Simulation Library
 
-A modular scientific framework for the simulation, analysis and surrogate-model generation of mechanically pumped two-phase loops (MPLs).
+A modular, explicit-input thermo-hydraulic simulation library for mechanically pumped two-phase loops (MPLs) and related systems.
 
-The objective of this project is to provide a reusable and extensible platform capable of modelling vapor-compression and mechanically pumped thermal systems using physics-based thermo-hydraulic models.
+**Current state:** HX/component/correlation architecture is implementation-complete with 3600+ deterministic tests. Full-loop convergence, network solving, property lookup at the HX layer, moving-boundary modeling, and experimental validation remain deferred.
 
-The framework is designed to support both research and engineering applications, ranging from single evaporator loops to complex architectures with multiple parallel evaporators, condensers, accumulators and control devices.
+---
 
-## Main Goals
+## What it can do now
 
-* Build a reusable component-based simulation library.
-* Support steady-state thermo-hydraulic analysis.
-* Enable future dynamic and control-oriented models.
-* Generate high-fidelity datasets for surrogate-model development.
-* Allow rapid reconfiguration of loop topologies.
-* Provide a transparent and physically consistent modelling framework.
+- Represent primary-fluid states as explicit `(P, h, identity)` triples — no property lookup in the HX layer.
+- Evaluate heat exchangers with three model strategies:
+  - `EpsilonNTUModel` — lumped ε-NTU, all four secondary BCs.
+  - `LMTDModel` — `FixedWallTemp` and `AmbientCoupling` only.
+  - `SegmentedMarchModel` — cell-by-cell march, all four secondary BCs, including iterated counterflow.
+- Inject HTC correlations: `DittusBoelterHTC`, `GnielinskiHTC`, `ShahBoilingHTC`, `YanCondensationHTC`.
+- Inject DP correlations: `ChurchillFrictionGradient`, `MSHTwoPhaseFrictionGradient`.
+- Evaluate `EvaporatorComponent` and `CondenserComponent` through immutable scenario bindings.
+- Assemble and run a minimal evaporator-to-condenser forward pass.
+- Run 3600+ deterministic, property-lookup-free tests.
 
-## Target Systems
+## What it cannot do yet
 
-Examples of systems that can be represented include:
+- Full loop convergence (net energy imbalance is reported, not resolved).
+- Network flow-pressure solving (components are not connected through a network).
+- Property lookup at the HX/component/correlation layer (CoolProp is only in `mpl_sim.properties`).
+- Moving-boundary two-phase zone modeling.
+- Automatic phase inference or quality marching.
+- Experimental validation (no literature data pinned yet).
 
-* Mechanically Pumped Loops (MPL)
-* Pumped Two-Phase Loops (P2PL)
-* Electronics cooling loops
-* Space thermal-control systems
-* Heat-pump and refrigeration subsystems
-* Experimental two-phase test benches
+---
 
-## Core Modelling Philosophy
+## Quick start
 
-The library follows a component-oriented approach.
+```bash
+# Run all tests
+pytest
 
-Physical systems are constructed by connecting reusable components through fluid ports.
+# Run examples
+python examples/minimal_evaporator_condenser_loop.py
+python examples/fixed_heat_rate_hx.py
+python examples/segmented_counterflow_hx.py
 
-Typical components include:
+# Lint and format checks
+ruff check src tests examples
+black --check --no-cache src tests examples
+```
 
-* Pump
-* Pipe
-* Evaporator
-* Condenser
-* Accumulator
-* Valve
-* Splitter
-* Mixer
-* Reservoir
+See [`docs/user_guide/QUICKSTART.md`](docs/user_guide/QUICKSTART.md) for the full entry-point guide.
 
-The thermodynamic state is represented internally using pressure and enthalpy (P-h), while additional properties are obtained through CoolProp or REFPROP.
+---
 
-## Planned Capabilities
+## Simplest example
 
-### Phase 1
+```python
+from mpl_sim.components import ComponentId, EvaporatorComponent, EvaporatorScenarioBinding
+from mpl_sim.core import FluidState, PureFluid
+from mpl_sim.discretization import DiscretizationMode, DiscretizationSpec
+from mpl_sim.geometry import FinGeometry, MicrochannelGeometry
+from mpl_sim.hx_models import EpsilonNTUModel, FixedHeatRate
 
-* Fluid properties framework
-* Steady-state solver
-* Pipe models
-* Microchannel evaporator models
-* Plate condenser models
-* Accumulator models
-* Parallel branch support
+fluid = PureFluid(name="R134a")
+inlet = FluidState(P=600_000.0, h=220_000.0, identity=fluid)
 
-### Phase 2
+component = EvaporatorComponent(
+    component_id=ComponentId(name="evap"),
+    geometry=MicrochannelGeometry(
+        N_channels=16, D_h_channel=0.0008,
+        fin_geometry=FinGeometry(fin_pitch=400.0, fin_height=0.008, fin_thickness=0.00015),
+        A_heated=0.04, wall_mass=0.15, wall_material="aluminium",
+    ),
+)
+scenario = EvaporatorScenarioBinding(
+    secondary_bc=FixedHeatRate(Q=750.0),
+    model=EpsilonNTUModel(),
+    discretization=DiscretizationSpec(mode=DiscretizationMode.LUMPED),
+)
+result = component.evaluate_scenario(inlet, primary_mdot=0.04, scenario=scenario)
+print(f"Q = {result.Q:.1f} W,  h_out = {result.primary_state_out.h:.1f} J/kg")
+# Q = 750.0 W,  h_out = 238750.0 J/kg
+```
 
-* Dynamic simulation framework
-* Moving-boundary models
-* Control-oriented reduced-order models
-* MPC-compatible state-space generation
+---
 
-### Phase 3
+## Documentation
 
-* Automated Design of Experiments (DOE)
-* Surrogate-model generation
-* Machine-learning-assisted closure models
-* Hybrid physics-informed modelling
+| Document | Purpose |
+|---|---|
+| [`docs/user_guide/QUICKSTART.md`](docs/user_guide/QUICKSTART.md) | Ten entry-point questions answered |
+| [`docs/user_guide/CONCEPTS.md`](docs/user_guide/CONCEPTS.md) | Core abstractions: FluidState, BC, HX models, correlations |
+| [`docs/user_guide/EXAMPLES.md`](docs/user_guide/EXAMPLES.md) | Annotated example walkthroughs |
+| [`examples/README.md`](examples/README.md) | Example script index |
+| [`docs/roadmap/PROJECT_STATUS.md`](docs/roadmap/PROJECT_STATUS.md) | Current phase, test counts, deferred items |
+| [`docs/roadmap/IMPLEMENTATION_PLAN.md`](docs/roadmap/IMPLEMENTATION_PLAN.md) | Authoritative phase order |
+| [`docs/architecture/ARCHITECTURE_MASTER.md`](docs/architecture/ARCHITECTURE_MASTER.md) | Frozen architectural decisions |
 
-## Validation Strategy
+---
 
-The framework will be continuously validated against:
+## Architecture philosophy
 
-* Published literature
-* Experimental test benches
-* Reference datasets
-* Existing simulation tools
+The library is built around five principles:
 
-## Project Status
+1. **Explicit inputs only.** No hidden defaults, no automatic property lookup in HX/component/correlation layers.
+2. **Injected correlations.** HX models accept correlation objects as arguments; no registry resolution at evaluation time.
+3. **Immutable value objects.** `FluidState`, `HXSolveRequest`, `HXSolveResult`, scenario bindings, and geometry are all frozen dataclasses.
+4. **Honest diagnostics.** Energy imbalance, out-of-envelope verdicts, and non-convergence are always reported — never suppressed.
+5. **Clean layer boundaries.** CoolProp only in `properties/`; solver only in `solvers/`; network only in `network/`; components do not know their neighbours.
 
-Current stage:
+---
 
-Architecture definition and literature consolidation.
+## Target systems
 
-The project is currently focused on extracting modelling requirements from the scientific literature and defining a robust software architecture before implementation.
+- Mechanically Pumped Loops (MPL)
+- Pumped Two-Phase Loops (P2PL)
+- Electronics cooling loops
+- Space thermal-control systems
+- Experimental two-phase test benches
 
-## Long-Term Vision
+---
 
-Develop an open, modular and scientifically rigorous simulation environment for next-generation two-phase thermal management systems.
+## Project status
 
-## Documentation Structure
+Phase 12B — Examples and User Documentation Quickstart.
+The HX component family (Phases 11A–11U) is implementation-complete as a checkpoint.
+Full-loop convergence, network assembly, validation harness, and moving-boundary modeling remain deferred.
 
-The project documentation is organized as follows:
-
-```text
-docs/
-├── literature/
-├── architecture/
-├── validation/
-├── roadmap/
-└── decisions/
-└── meeting_notes/
-
-Developed at Université de Liège - Andrés Hernández June 2026
+*Developed at Université de Liège — Andrés Hernández, 2026.*
