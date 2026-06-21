@@ -273,6 +273,72 @@ configured scales, pump head, dP breakdown, HX results, and full state history.
 
 ---
 
+## Network Graph Foundation (Phase 13E)
+
+`mpl_sim.network` exports a lightweight, physics-free graph representation
+for two-phase thermal-loop topologies.
+
+```python
+from mpl_sim.network import (
+    GraphNodeId,
+    ComponentInstanceId,
+    GraphNode,
+    ComponentInstance,
+    NetworkGraph,
+)
+
+# Define fluid connection points (named junctions, no physical values).
+node_a = GraphNode(node_id=GraphNodeId("node_A"))
+node_b = GraphNode(node_id=GraphNodeId("node_B"))
+
+# Place a component between two nodes.
+evap = ComponentInstance(
+    instance_id=ComponentInstanceId("evap_1"),
+    component_type="evaporator",
+    inlet_node=GraphNodeId("node_A"),
+    outlet_node=GraphNodeId("node_B"),
+)
+
+# Assemble a graph and inspect its topology.
+graph = NetworkGraph(nodes=[node_a, node_b], instances=[evap])
+print(graph.summary())   # node/component counts and names; no physical values
+print(graph.nodes())     # (GraphNode(node_id=GraphNodeId(value='node_A')), ...)
+print(graph.instances()) # (ComponentInstance(...),)
+
+# Optional: check that the graph forms a closed single loop.
+# graph.validate_closed_single_loop()  # raises ValueError if not a closed loop
+```
+
+**What this is:**
+- Pure topology description: named fluid connection points and named component
+  instances placed between those points.
+- Physics-free: no `FluidState`, `mdot`, pressure, enthalpy, or solver values
+  anywhere in the graph.
+- Foundation for Phase 13F (network residual assembly) and Phase 13G
+  (configurable network solver v1).
+
+**What this is NOT:**
+- Not a network solver — `NetworkGraph` has no `solve()` method.
+- Does not assemble residuals or drive convergence.
+- Does not support arbitrary topology simulation yet.
+- Does not call CoolProp, property backends, or correlation registries.
+- Does not implement physics: no HTC, ΔP, energy balance, or pressure closure.
+
+Validation rules:
+- IDs (`GraphNodeId`, `ComponentInstanceId`) must be non-empty strings.
+- No duplicate node IDs within a graph.
+- No duplicate component instance IDs within a graph.
+- Every component's `inlet_node` and `outlet_node` must exist in the graph.
+- Self-loop components (same inlet and outlet node) are rejected.
+
+The existing Phase 7 network package (`NetworkTopology`, `NetworkNode`,
+`NetworkConnection`, etc.) remains unchanged and is used by the solver
+layer.  Phase 13E's graph types (`GraphNode`, `ComponentInstance`,
+`NetworkGraph`) are a lighter abstraction that does not depend on
+`Component` objects or physics layers.
+
+---
+
 ## What is NOT implemented
 
 | Capability | Status |
@@ -281,8 +347,10 @@ configured scales, pump head, dP breakdown, HX results, and full state history.
 | Minimal fixed-architecture pressure closure | Implemented in Phase 13B (`mpl_sim.closed_loop`) |
 | Residual/unknown/scaling framework | Implemented in Phase 13C (`mpl_sim.closed_loop`) |
 | Coupled energy+pressure closure | Implemented in Phase 13D (`mpl_sim.closed_loop`) |
+| Network graph / topology representation | Implemented in Phase 13E (`mpl_sim.network`) |
 | Generic network solver (`solve(network)`) | Deferred (Phase 13F+) |
-| Network graph, topology, parallel branches | Deferred (Phase 13E+) |
+| Network residual assembly | Deferred (Phase 13F) |
+| Configurable network solve | Deferred (Phase 13G) |
 | Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14+) |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |
