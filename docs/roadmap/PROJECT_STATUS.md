@@ -11,9 +11,9 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-13c-residual-framework-foundation` |
-| **Stage** | Phase 13C Residual/Unknown/Scaling Framework; value objects for residuals, unknowns, and scaled norms added to `mpl_sim.closed_loop` |
-| **Completed phase** | **Phase 13C - Residual / Unknown / Scaling Framework Foundation** |
+| **Branch** | `phase-13d-coupled-fixed-closure` |
+| **Stage** | Phase 13D Coupled Fixed-Architecture Energy+Pressure Closure; nested scalar bisection solver added to `mpl_sim.closed_loop` |
+| **Completed phase** | **Phase 13D - Coupled Fixed-Architecture Energy+Pressure Closure** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -65,6 +65,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11U status** | **Closeout readiness audit complete. 3558 tests passing (3548 pre-audit + 10 new export-consistency tests). Capability matrix and support exceptions documented. Architecture boundaries confirmed clean. Public exports verified. No new physics added. See `PHASE_11U_HX_CLOSEOUT_READINESS_AUDIT.md`.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **The current HX-family checkpoint (11A–11U) is ready. `EpsilonNTUModel` and `SegmentedMarchModel` support all four secondary BC classes; `LMTDModel` intentionally supports only `FixedWallTemp` and `AmbientCoupling`. Co-current, one-pass counterflow, and iterated counterflow are implemented only for segmented `SinkInletTempAndFlow`. Active public closures are injectable, including `ChurchillFrictionGradient` and `MSHTwoPhaseFrictionGradient`. Immutable scenario bindings are implemented. 1575 Phase 11 tests pass across 29 files. Full-loop convergence, network contribution integration, moving boundary, remaining closures, and validation remain deferred.** |
+| **Phase 13D audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 13D status** | **Checkpoint complete. Coupled fixed-architecture energy+pressure closure implemented. `CoupledClosureConfig`, `MinimalCoupledClosureCase`, `MinimalCoupledClosureResult`, `solve_minimal_coupled_closure` added to `mpl_sim.closed_loop`. Nested scalar bisection (Option A): outer bisects primary_mdot for pressure closure; inner bisects Q_cond for energy closure at each outer step. Both residuals driven to zero; ResidualVector provides scaled convergence diagnostics. 112 focused tests in `tests/closed_loop/test_minimal_coupled_closure.py`. Phase 13A/13B solvers and Phase 13C framework unchanged. 4044 tests total.** |
 | **Phase 13C audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 13C status** | **Checkpoint complete. Residual/unknown/scaling framework foundation implemented. `UnknownSpec`, `ResidualSpec`, `ResidualEvaluation`, `ResidualVector` added to `mpl_sim.closed_loop`. Provides named, scaled, validated value objects for residual representation. Does NOT implement a generic `solve(network)` API or simultaneous multi-variable solving. Phase 13A/13B solvers unchanged. 117 focused tests in `tests/closed_loop/test_residual_framework.py`. 3932 tests total.** |
 | **Phase 13B audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
@@ -75,15 +77,23 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 12B status** | **Checkpoint complete. Examples and user documentation quickstart added. See `PHASE_12B_EXAMPLES_USER_DOCS_QUICKSTART_AUDIT.md` and the Phase 12B entry below.** |
 | **Phase 12A audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 12A status** | **Checkpoint complete. Minimal loop assembly acceptance example implemented. `examples/minimal_evaporator_condenser_loop.py` provides `MinimalLoopResult` frozen dataclass and `evaluate_minimal_evaporator_condenser_loop(...)` function. 33 focused acceptance tests in `tests/loops/test_minimal_loop_example.py` cover all 12 required items. Not a full network solver; no loop convergence; no moving-boundary model; no property lookup. Net energy imbalance and enthalpy drift reported explicitly. 3591 tests passing. See `PHASE_12A_MINIMAL_LOOP_ASSEMBLY_AUDIT.md`.** |
-| **Branch status** | **Phase 13C implemented on `phase-13c-residual-framework-foundation`.** |
-| **Current active phase** | **Phase 13C - Residual / Unknown / Scaling Framework Foundation** |
-| **Next immediate slice** | Phase 13D — coupled fixed-architecture energy+pressure closure using the Phase 13C residual framework |
-| **Working tree before this phase** | Phase 13B: 3815 tests |
-| **Test status** | **3932 passed, verified 2026-06-21 with repository-local pytest temp roots; no skips, xfails, or deselections** |
+| **Branch status** | **Phase 13D implemented on `phase-13d-coupled-fixed-closure`.** |
+| **Current active phase** | **Phase 13D - Coupled Fixed-Architecture Energy+Pressure Closure** |
+| **Next immediate slice** | Phase 13E — network graph foundation |
+| **Working tree before this phase** | Phase 13C: 3932 tests |
+| **Test status** | **4044 passed, verified 2026-06-21 with repository-local pytest temp roots; no skips, xfails, or deselections** |
 | **Lint status** | `ruff check src tests examples` clean, verified 2026-06-21 |
-| **Format status** | `black --check --no-cache --verbose src tests examples` passed; 156 files unchanged, verified 2026-06-21 |
+| **Format status** | `black --check --no-cache --verbose src tests examples` passed; 159 files unchanged, verified 2026-06-21 |
 
-Phase 13C residual/unknown/scaling framework foundation is complete as a checkpoint.
+Phase 13D coupled fixed-architecture energy+pressure closure is complete as a checkpoint.
+
+- **`src/mpl_sim/closed_loop/coupled_solver.py`** added — fixed one-evaporator + one-condenser coupled closure using nested bounded scalar bisection.
+- **Unknowns:** `Q_cond` and `primary_mdot`; **residuals:** `h_return - h_reference` and `pump_head(mdot) - dP_total(mdot)`.
+- **`ResidualVector`** is returned with explicit energy and pressure scales plus scaled convergence diagnostics.
+- **`tests/closed_loop/test_minimal_coupled_closure.py`** contains 112 focused tests, including analytical roots, endpoint handling, explicit non-convergence, strict configuration/case validation, architecture boundaries, public imports, and Phase 13A/13B regressions.
+- **No generic network API, arbitrary topology, new physics, property lookup, registry resolution, validation harness, or additional component family was introduced.**
+
+Phase 13C residual/unknown/scaling framework foundation remains complete as a checkpoint.
 
 - **`src/mpl_sim/closed_loop/residuals.py`** added — Phase 13C public module; four frozen dataclasses: `UnknownSpec`, `ResidualSpec`, `ResidualEvaluation`, `ResidualVector`.
 - **`UnknownSpec`** — declares a scalar unknown with `name`, `unit`, and optional `lower`/`upper` bounds. All fields strictly validated; bool rejected as bound.
@@ -624,6 +634,7 @@ Closeout artifacts:
 - `docs/validation/audits/PHASE_13A_MINIMAL_CLOSED_MPL_SOLVER_AUDIT.md`
 - `docs/validation/audits/PHASE_13B_PRESSURE_CLOSURE_FOUNDATION_AUDIT.md`
 - `docs/validation/audits/PHASE_13C_RESIDUAL_FRAMEWORK_FOUNDATION_AUDIT.md`
+- `docs/validation/audits/PHASE_13D_COUPLED_FIXED_CLOSURE_AUDIT.md`
 
 ---
 
@@ -652,16 +663,16 @@ Phase boundaries to preserve:
 - Do not make Pipe, Pump, or Accumulator network-aware or solver-aware.
 - Do not move pressure, enthalpy, mass flow, derived properties, or solver vectors onto component or Port objects.
 - Keep `SystemState` as the only owner of numerical values.
-- Keep coupled closure, arbitrary topology, moving boundaries, validation,
-  valves, manifolds, recuperators, and pre/post-heaters in later phases.
+- Keep arbitrary topology, moving boundaries, validation, valves, manifolds,
+  recuperators, and pre/post-heaters in later phases.
 
 ---
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-13c-residual-framework-foundation` into `main` as the Phase 13C checkpoint.
-2. Continue with Phase 13D coupled fixed-architecture energy+pressure closure,
-   using the Phase 13C residual representation without introducing arbitrary topology.
+1. Merge `phase-13d-coupled-fixed-closure` into `main` as the Phase 13D checkpoint after audit approval.
+2. Continue with Phase 13E network graph foundation without broadening the
+   Phase 13D helper into a generic solver.
 3. Preserve frozen architecture boundaries while completing the remaining work.
 4. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
 5. Preserve the Phase 7 boundary: Network owns topology and assembly/reference wiring only.

@@ -1,6 +1,6 @@
 # Examples
 
-Annotated walkthrough of the four runnable examples in [`examples/`](../../examples/).
+Annotated walkthrough of the six runnable examples in [`examples/`](../../examples/).
 
 ---
 
@@ -276,10 +276,79 @@ NOTE: Phase 13B — fixed architecture; not a generic network solver.
 **What it is NOT:**
 
 - Not a generic network solver (fixed one-evaporator + one-condenser architecture only).
-- Not a combined pressure + energy solver (deferred to Phase 13D).
+- Not a combined pressure + energy solver (use `solve_minimal_coupled_closure` for that — Phase 13D).
 - Not a validated physical model (no experimental data).
 - Not a moving-boundary or quality-marching model.
 - Not a multi-component loop (no parallel evaporators, valves, manifolds, or recuperator).
+- Does not support arbitrary topology changes.
+
+---
+
+## 6. Minimal Coupled Fixed-Architecture Closure
+
+**File:** [`examples/minimal_coupled_closure.py`](../../examples/minimal_coupled_closure.py)
+
+**Run:**
+```bash
+python examples/minimal_coupled_closure.py
+```
+
+**What it demonstrates:**
+
+- Phase 13D coupled fixed-architecture energy+pressure closure.
+- Solve for **both** `Q_cond` and `primary_mdot` simultaneously:
+  - `energy_residual   = h_return - h_reference = 0`
+  - `pressure_residual = pump_head(mdot) - dP_total(mdot) = 0`
+- Solver strategy: nested scalar bisection (Option A):
+  - Outer: bisect `primary_mdot` for pressure closure.
+  - Inner: at each outer trial, bisect `Q_cond` for energy closure.
+- Explicit `PumpHeadCurve`; explicit `q_cond_bounds` and `mdot_bounds` brackets.
+- Explicit evaporator and condenser flow areas; mass flux is `G = mdot / flow_area`.
+- `ResidualVector` provides scaled convergence diagnostics (`max_abs_scaled`, `l2_scaled`, `is_converged`).
+- All diagnostics explicit: both residuals, pump head, dP breakdown, HX results, state history.
+
+**Key API:**
+
+```python
+from mpl_sim.closed_loop import (
+    CoupledClosureConfig,
+    MinimalCoupledClosureCase,
+    PumpHeadCurve,
+    solve_minimal_coupled_closure,
+)
+
+case = MinimalCoupledClosureCase(
+    reference_state=...,
+    pump_head_curve=PumpHeadCurve(head_Pa=5625.0, slope_Pa_s_kg=100_000.0),
+    evap_component=..., evap_scenario=..., evap_flow_area=0.01,
+    cond_component=..., cond_scenario=..., cond_flow_area=0.02,
+    q_cond_bounds=(-500.0, 0.0),   # inner bracket for Q_cond [W]
+    mdot_bounds=(0.01, 0.50),      # outer bracket for primary_mdot [kg/s]
+)
+config = CoupledClosureConfig(
+    energy_tolerance=1e-6, pressure_tolerance=0.01,
+    energy_scale=1000.0, pressure_scale=100.0,
+    inner_max_iter=60, outer_max_iter=60,
+)
+result = solve_minimal_coupled_closure(case, config)
+# result.converged              True if BOTH residuals below tolerance
+# result.solved_q_cond          condenser heat rate [W] at solution
+# result.solved_primary_mdot    primary mass flow [kg/s] at solution
+# result.energy_residual        h_return - h_reference [J/kg]
+# result.pressure_residual      pump_head - dP_total [Pa]
+# result.residual_vector        ResidualVector with both evaluations and scales
+# result.max_abs_scaled         L∞ norm of (energy/scale, pressure/scale)
+# result.pump_head              [Pa] at solved_primary_mdot
+# result.dP_total               dP_evap + dP_cond [Pa]
+```
+
+**What it is NOT:**
+
+- Not a generic network solver — architecture is fixed at one evaporator + one condenser.
+- Not arbitrary topology — no `Network`, `Node`, `Branch`, or `Junction` classes.
+- Not validated against experimental data.
+- Not a moving-boundary or quality-marching model.
+- Does not support parallel evaporators, valves, manifolds, recuperators, or pre/post-heaters.
 - Does not support arbitrary topology changes.
 
 ---

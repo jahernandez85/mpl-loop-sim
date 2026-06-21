@@ -201,6 +201,78 @@ be a finite, strictly-positive, non-bool float; `value` must be finite and non-b
 
 ---
 
+## Coupled Fixed-Architecture Energy+Pressure Closure (Phase 13D)
+
+`mpl_sim.closed_loop` exports a coupled closure that solves **both** `Q_cond` and
+`primary_mdot` simultaneously so that:
+
+```
+energy_residual   = h_return - h_reference = 0   (energy closure)
+pressure_residual = pump_head(mdot) - dP_total(mdot) = 0  (pressure closure)
+```
+
+**Solver strategy:** Option A — nested scalar bisection.
+- Outer: bisect `primary_mdot` until pressure residual = 0.
+- Inner: at each outer trial `mdot`, bisect `Q_cond` until energy residual = 0.
+
+```python
+from mpl_sim.closed_loop import (
+    CoupledClosureConfig,
+    MinimalCoupledClosureCase,
+    PumpHeadCurve,
+    solve_minimal_coupled_closure,
+)
+
+case = MinimalCoupledClosureCase(
+    reference_state=reference_state,
+    pump_head_curve=PumpHeadCurve(head_Pa=5625.0, slope_Pa_s_kg=100_000.0),
+    evap_component=evap_component,
+    evap_scenario=evap_scenario,          # dp_primary required
+    evap_flow_area=0.01,                  # G_evap = mdot / evap_flow_area
+    cond_component=cond_component,
+    cond_scenario=cond_scenario,          # secondary_bc must be FixedHeatRate
+    cond_flow_area=0.02,                  # G_cond = mdot / cond_flow_area
+    q_cond_bounds=(-500.0, 0.0),          # inner bracket for Q_cond [W]
+    mdot_bounds=(0.01, 0.50),             # outer bracket for primary_mdot [kg/s]
+)
+config = CoupledClosureConfig(
+    energy_tolerance=1e-6,    # [J/kg]
+    pressure_tolerance=0.01,  # [Pa]
+    energy_scale=1000.0,      # for ResidualVector scaled norm
+    pressure_scale=100.0,
+    inner_max_iter=60,
+    outer_max_iter=60,
+)
+result = solve_minimal_coupled_closure(case, config)
+
+print(result.converged)             # True if both residuals below tolerance
+print(result.solved_q_cond)         # condenser heat rate at solution [W]
+print(result.solved_primary_mdot)   # mass flow at solution [kg/s]
+print(result.energy_residual)       # h_return - h_reference [J/kg]
+print(result.pressure_residual)     # pump_head - dP_total [Pa]
+print(result.residual_vector.max_abs_scaled())  # L∞ norm of scaled residuals
+print(result.dP_total)              # dP_evap + dP_cond [Pa]
+print(result.pump_head)             # pump_head_curve.evaluate(solved_primary_mdot) [Pa]
+```
+
+`MinimalCoupledClosureResult` carries both residuals, a `ResidualVector` with
+configured scales, pump head, dP breakdown, HX results, and full state history.
+
+**What this is:**
+- A coupled fixed-architecture closure (one evaporator, one condenser, one pump law).
+- The first solver to drive both energy and pressure residuals to zero simultaneously.
+- A direct preparation step toward the network graph (Phase 13E) and configurable
+  solver (Phase 13F).
+
+**What this is NOT:**
+- A generic `solve(network)` call — architecture is fixed at one evaporator + one condenser.
+- Arbitrary topology — no `Network`, `Node`, `Branch`, or `Junction` classes.
+- Not a network solver. Does not support parallel evaporator branches, valves,
+  manifolds, recuperators, or pre/post-heaters.
+- Not validated against experimental data.
+
+---
+
 ## What is NOT implemented
 
 | Capability | Status |
@@ -208,9 +280,10 @@ be a finite, strictly-positive, non-bool float; `value` must be finite and non-b
 | Minimal fixed-architecture energy closure | Implemented in Phase 13A (`mpl_sim.closed_loop`) |
 | Minimal fixed-architecture pressure closure | Implemented in Phase 13B (`mpl_sim.closed_loop`) |
 | Residual/unknown/scaling framework | Implemented in Phase 13C (`mpl_sim.closed_loop`) |
-| Coupled energy+pressure closure | Deferred (Phase 13D) |
+| Coupled energy+pressure closure | Implemented in Phase 13D (`mpl_sim.closed_loop`) |
 | Generic network solver (`solve(network)`) | Deferred (Phase 13F+) |
-| Network graph, topology, parallel branches | Deferred |
+| Network graph, topology, parallel branches | Deferred (Phase 13E+) |
+| Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14+) |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |
 | Automatic phase inference | Not planned for this layer |

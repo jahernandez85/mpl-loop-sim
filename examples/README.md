@@ -82,7 +82,26 @@ Demonstrates the minimal fixed-architecture pressure closure.
 - Energy residual `h_return - h_reference` is reported as a diagnostic only (Option A; not solved).
 - All inputs explicit; no hidden defaults; no property lookup.
 
-**Not:** a generic network solver, a combined pressure+energy solver (Phase 13D), a validated physical model.
+**Not:** a generic network solver, a combined pressure+energy solver (see Phase 13D below), a validated physical model.
+
+---
+
+### `minimal_coupled_closure.py` (Phase 13D)
+
+Demonstrates the first coupled fixed-architecture energy+pressure closure.
+
+- Solves for **both** `Q_cond` and `primary_mdot` simultaneously:
+  - Energy closure: `h_return = h_reference`
+  - Pressure closure: `pump_head(mdot) = dP_total(mdot)`
+- Fixed architecture: `reference_state -> evaporator -> condenser`.
+- Solver: nested scalar bisection (Option A) — outer bisects `mdot` for pressure; inner bisects `Q_cond` for energy at each outer step.
+- Explicit brackets for both unknowns; sign-change validated at startup.
+- Explicit `PumpHeadCurve` and primary flow areas; mass flux `G = mdot / flow_area`.
+- `ResidualVector` provides scaled convergence diagnostics.
+- Reports `converged`, `outer_iterations`, `inner_iterations_total`, `solved_q_cond`, `solved_primary_mdot`, `energy_residual`, `pressure_residual`, `max_abs_scaled`, `pump_head`, `dP_total`.
+- All inputs explicit; no hidden defaults; no property lookup.
+
+**Not:** a generic network solver, arbitrary topology, parallel evaporators, valves, manifolds, recuperator, pre/post-heaters, or a validated physical model. Fixed architecture only.
 
 ---
 
@@ -94,6 +113,7 @@ python examples/fixed_heat_rate_hx.py
 python examples/segmented_counterflow_hx.py
 python examples/minimal_closed_mpl_solver.py
 python examples/minimal_pressure_closure.py
+python examples/minimal_coupled_closure.py
 ```
 
 ## Running example tests
