@@ -1,18 +1,31 @@
-"""closed_loop — Phase 13A minimal closed MPL solver.
+"""closed_loop — Phase 13A/13B minimal closed MPL solvers.
 
-Exports the fixed-architecture one-variable energy-closure solver for the
-reference → evaporator → condenser → return path.
+Exports fixed-architecture loop-closure solvers:
 
-This package does NOT implement a generic network solver.  The architecture is
-fixed at one evaporator and one condenser.  Pressure closure is deferred to
-Phase 13B.
+Phase 13A — one-variable energy closure:
+  Solves Q_cond such that h_return = h_reference.
+
+Phase 13B — one-variable pressure closure:
+  Solves primary_mdot such that pump_head(mdot) = dP_total(mdot).
+  This is a pressure-only closure (Option A); energy residual is diagnostic.
+
+Neither solver implements a generic network solver.  The architecture is
+fixed at one evaporator and one condenser.
 
 Exports
 -------
-ClosedLoopSolveConfig    — explicit solver configuration (max_iter, tolerance)
-MinimalClosedMPLCase     — fully specified loop case (components + scenarios + bracket)
-MinimalClosedMPLResult   — structured result with residuals, states, and diagnostics
-solve_minimal_closed_mpl — entry-point solve function
+Phase 13A:
+  ClosedLoopSolveConfig    — solver config (max_iter, tolerance)
+  MinimalClosedMPLCase     — loop case (components + scenarios + Q bracket)
+  MinimalClosedMPLResult   — result with residuals, states, diagnostics
+  solve_minimal_closed_mpl — energy-closure entry point
+
+Phase 13B:
+  PumpHeadCurve                  — explicit pump-head law value object
+  PressureClosureConfig          — solver config (max_iter, tolerance)
+  MinimalPressureClosureCase     — loop case (components + scenarios + mdot bracket)
+  MinimalPressureClosureResult   — result with pressure residuals, states, diagnostics
+  solve_minimal_pressure_closure — pressure-closure entry point
 
 Architectural constraints
 -------------------------
@@ -28,10 +41,24 @@ from mpl_sim.closed_loop.minimal_solver import (
     MinimalClosedMPLResult,
     solve_minimal_closed_mpl,
 )
+from mpl_sim.closed_loop.pressure_solver import (
+    MinimalPressureClosureCase,
+    MinimalPressureClosureResult,
+    PressureClosureConfig,
+    PumpHeadCurve,
+    solve_minimal_pressure_closure,
+)
 
 __all__ = [
+    # Phase 13A — energy closure
     "ClosedLoopSolveConfig",
     "MinimalClosedMPLCase",
     "MinimalClosedMPLResult",
     "solve_minimal_closed_mpl",
+    # Phase 13B — pressure closure
+    "PumpHeadCurve",
+    "PressureClosureConfig",
+    "MinimalPressureClosureCase",
+    "MinimalPressureClosureResult",
+    "solve_minimal_pressure_closure",
 ]

@@ -11,9 +11,9 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-13a-minimal-closed-mpl-solver` |
-| **Stage** | Phase 13A Minimal Closed MPL Solver; first energy-closure bisection solver added; `mpl_sim.closed_loop` package added |
-| **Completed phase** | **Phase 13A - Minimal Closed MPL Solver** |
+| **Branch** | `phase-13b-pressure-closure-foundation` |
+| **Stage** | Phase 13B Minimal Pressure Closure; pressure-residual / pump-head foundation added to `mpl_sim.closed_loop` |
+| **Completed phase** | **Phase 13B - Minimal Pressure Closure / Pump-Head Residual Foundation** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -65,19 +65,35 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11U status** | **Closeout readiness audit complete. 3558 tests passing (3548 pre-audit + 10 new export-consistency tests). Capability matrix and support exceptions documented. Architecture boundaries confirmed clean. Public exports verified. No new physics added. See `PHASE_11U_HX_CLOSEOUT_READINESS_AUDIT.md`.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **The current HX-family checkpoint (11A–11U) is ready. `EpsilonNTUModel` and `SegmentedMarchModel` support all four secondary BC classes; `LMTDModel` intentionally supports only `FixedWallTemp` and `AmbientCoupling`. Co-current, one-pass counterflow, and iterated counterflow are implemented only for segmented `SinkInletTempAndFlow`. Active public closures are injectable, including `ChurchillFrictionGradient` and `MSHTwoPhaseFrictionGradient`. Immutable scenario bindings are implemented. 1575 Phase 11 tests pass across 29 files. Full-loop convergence, network contribution integration, moving boundary, remaining closures, and validation remain deferred.** |
+| **Phase 13B audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
+| **Phase 13B status** | **Checkpoint complete. Minimal pressure closure solver implemented. `solve_minimal_pressure_closure`, `PumpHeadCurve`, `PressureClosureConfig`, `MinimalPressureClosureCase`, `MinimalPressureClosureResult` added to `mpl_sim.closed_loop`. Fixed architecture: reference_state -> evaporator -> condenser. Solves for primary_mdot via bounded bisection (pressure closure: pump_head(mdot) = dP_total(mdot)). Explicit component flow areas set trial `G = mdot/A`; both DP closures are required. Pressure-only (Option A); energy_residual is diagnostic. Private `_scalar_solve._bisect_bounded` refactored from Phase 13A. Focused tests in `tests/closed_loop/test_minimal_pressure_closure.py`.** |
 | **Phase 13A audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 13A status** | **Checkpoint complete. Minimal closed MPL solver implemented. `mpl_sim.closed_loop` package added with `solve_minimal_closed_mpl`, `MinimalClosedMPLCase`, `MinimalClosedMPLResult`, and `ClosedLoopSolveConfig`. Fixed architecture: reference_state -> evaporator -> condenser -> return. Solves for Q_cond via bounded bisection (energy closure: h_return = h_reference). Bracket sign change and exact endpoint roots are handled explicitly. Pressure closure is diagnostic only (dP_total). 85 focused tests in `tests/closed_loop/test_minimal_closed_mpl_solver.py`. See `PHASE_13A_MINIMAL_CLOSED_MPL_SOLVER_AUDIT.md`.** |
 | **Phase 12B audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 12B status** | **Checkpoint complete. Examples and user documentation quickstart added. See `PHASE_12B_EXAMPLES_USER_DOCS_QUICKSTART_AUDIT.md` and the Phase 12B entry below.** |
 | **Phase 12A audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 12A status** | **Checkpoint complete. Minimal loop assembly acceptance example implemented. `examples/minimal_evaporator_condenser_loop.py` provides `MinimalLoopResult` frozen dataclass and `evaluate_minimal_evaporator_condenser_loop(...)` function. 33 focused acceptance tests in `tests/loops/test_minimal_loop_example.py` cover all 12 required items. Not a full network solver; no loop convergence; no moving-boundary model; no property lookup. Net energy imbalance and enthalpy drift reported explicitly. 3591 tests passing. See `PHASE_12A_MINIMAL_LOOP_ASSEMBLY_AUDIT.md`.** |
-| **Branch status** | **Phase 13A implemented on `phase-13a-minimal-closed-mpl-solver`.** |
-| **Current active phase** | **Phase 13A - Minimal Closed MPL Solver** |
-| **Next immediate slice** | Options: (A) Phase 13B pressure closure — solve for pump head such that loop dP balances; (B) migrate remaining two-phase DP closures (Homogeneous/Cicchitti, Kim-Mudawar 2013); (C) Phase 12 validation harness |
-| **Working tree before this phase** | Phase 12B: 3625 tests |
-| **Test status** | **3722 passed, verified 2026-06-20** with no skips, xfails, or deselections; all 4 `TestExamplesDoNotWriteFiles` tests ran and passed |
-| **Lint status** | `ruff check src tests examples` clean, verified 2026-06-20 |
-| **Format status** | `black --check --no-cache src tests examples` passed, verified 2026-06-20 |
+| **Branch status** | **Phase 13B implemented on `phase-13b-pressure-closure-foundation`.** |
+| **Current active phase** | **Phase 13B - Minimal Pressure Closure / Pump-Head Residual Foundation** |
+| **Next immediate slice** | Options: (A) Phase 13C combined pressure+energy closure; (B) migrate remaining two-phase DP closures (Homogeneous/Cicchitti, Kim-Mudawar 2013); (C) Phase 12 validation harness |
+| **Working tree before this phase** | Phase 13A: 3722 tests |
+| **Test status** | **3815 passed, verified 2026-06-21 with repository-local pytest temp roots; no skips, xfails, or deselections** |
+| **Lint status** | `ruff check src tests examples` clean, verified 2026-06-21 |
+| **Format status** | `black --check --no-cache --verbose src tests examples` passed; 154 files unchanged, verified 2026-06-21 |
+
+Phase 13B minimal pressure closure solver is complete as a checkpoint.
+
+- **`src/mpl_sim/closed_loop/_scalar_solve.py`** added — private bounded bisection utility shared by Phase 13A and 13B solvers. Not part of the public API.
+- **`src/mpl_sim/closed_loop/minimal_solver.py`** refactored to use `_bisect_bounded`; behaviour is identical; all 85 Phase 13A tests continue to pass.
+- **`src/mpl_sim/closed_loop/pressure_solver.py`** added — Phase 13B core; `solve_minimal_pressure_closure` finds `primary_mdot` such that `pump_head(mdot) = dP_evap(mdot) + dP_cond(mdot)` using bounded bisection over a caller-supplied bracket.
+- **`PumpHeadCurve`** — explicit pump-head law: constant or linear `ΔP_pump(mdot) = head_Pa - slope_Pa_s_kg * mdot`. Validated; frozen dataclass.
+- **`PressureClosureConfig`** — solver config with same validation rules as `ClosedLoopSolveConfig`.
+- **`MinimalPressureClosureCase`** — fixed architecture case; requires `mdot_bounds`, explicit positive evaporator/condenser flow areas, and an injected `dp_primary` closure for each HX scenario.
+- **`MinimalPressureClosureResult`** — full result: `converged`, `iterations`, `evaluations`, `pressure_residual`, `solved_primary_mdot`, `pump_head`, `dP_evap`, `dP_cond`, `dP_total`, component results, states, `energy_residual` (diagnostic only), `warnings`.
+- **`mpl_sim.closed_loop.__init__.py`** updated: nine total public exports (four Phase 13A + five Phase 13B).
+- **`tests/closed_loop/test_minimal_pressure_closure.py`** contains focused tests covering all 15 required coverage items plus PumpHeadCurve unit tests and Phase 13A regression.
+- **`examples/minimal_pressure_closure.py`** is standalone, import-safe, public-API-only, property-lookup-free, and explicit that energy closure, combined pressure+energy closure, arbitrary topology, validation, and additional components remain deferred.
+- **Formulation (Option A):** pressure-only closure; energy_residual = h_return - h_reference is reported but not solved. Combined closure is deferred to Phase 13C.
 
 Phase 13A minimal closed MPL solver is complete as a checkpoint.
 
@@ -548,6 +564,7 @@ Key authority statements:
 | **Phase 12A Minimal Loop Assembly** | **Complete; implemented on `phase-12a-minimal-loop-assembly`** |
 | **Phase 12B Examples and User Documentation Quickstart** | **Complete; implemented on `phase-12b-examples-user-docs-quickstart`** |
 | **Phase 13A Minimal Closed MPL Solver** | **Complete; audited and approved checkpoint on `phase-13a-minimal-closed-mpl-solver`** |
+| **Phase 13B Minimal Pressure Closure / Pump-Head Residual Foundation** | **Complete; implemented on `phase-13b-pressure-closure-foundation`** |
 
 Closeout artifacts:
 
@@ -594,16 +611,22 @@ Closeout artifacts:
 
 ## 4. Current Active Phase
 
-**Phase 13A - Minimal Closed MPL Solver** is complete and approved as a
-checkpoint on `phase-13a-minimal-closed-mpl-solver`.
+**Phase 13B - Minimal Pressure Closure / Pump-Head Residual Foundation** is
+implemented on `phase-13b-pressure-closure-foundation`.
 
 The implemented capability is intentionally narrow:
 
-- fixed `reference -> evaporator -> condenser -> return` architecture;
-- one explicit primary mass flow;
-- one solved scalar, condenser `FixedHeatRate.Q`;
-- energy closure only, `h_return - h_reference = 0`;
-- pressure-drop accumulation as a diagnostic, not pressure closure.
+- fixed `reference -> evaporator -> condenser` architecture;
+- one solved scalar: primary mass flow rate `primary_mdot`;
+- pressure closure: `pump_head(mdot) = dP_evap(mdot) + dP_cond(mdot)`;
+- explicit component flow areas map each trial mass flow to mass flux `G`;
+- explicit evaporator and condenser primary-side DP closures are required;
+- pressure-only (Option A); energy residual is diagnostic only;
+- explicit `PumpHeadCurve` (constant or linear); no hidden pump model;
+- not a generic network solver; not a combined pressure+energy solver.
+
+Phase 13A (energy closure) remains complete.  The private `_scalar_solve`
+bisection utility is now shared between Phase 13A and 13B solvers.
 
 Phase boundaries to preserve:
 
@@ -621,9 +644,9 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-13a-minimal-closed-mpl-solver` into `main` as the Phase 13A checkpoint.
+1. Merge `phase-13b-pressure-closure-foundation` into `main` as the Phase 13B checkpoint.
 2. Choose next direction:
-   - **Option A:** Phase 13B pressure closure, while preserving the generic solver and Network boundaries.
+   - **Option A:** Phase 13C combined pressure+energy closure (solve both mdot and Q_cond simultaneously).
    - **Option B:** Migrate remaining two-phase DP closures (Homogeneous/Cicchitti, Kim-Mudawar 2013) if safe legacy sources are confirmed.
    - **Option C:** Advance to Phase 12 validation harness (literature data pinning, systematic test plan acceptance).
 3. Preserve frozen architecture boundaries while completing the remaining work.
@@ -731,8 +754,8 @@ Rules for the next implementation session:
 
 | Field | Value |
 |---|---|
-| **Date** | 2026-06-20 |
+| **Date** | 2026-06-21 |
 | **Updated by** | Codex |
-| **Status note** | Phase 13A minimal fixed-architecture energy-closure solver audited and approved on `phase-13a-minimal-closed-mpl-solver`; 4 runnable examples; 85 focused closed-loop tests; 3722 total tests with no deselections; Ruff and Black clean; generic network solving, pressure closure, validation, and moving-boundary work remain deferred |
+| **Status note** | Phase 13B minimal pressure closure solver audited and approved on `phase-13b-pressure-closure-foundation`; 3815 tests passed with no skips, xfails, or deselections; 5 runnable examples; explicit flow-area mapping makes component dP genuinely mass-flow-dependent; pressure-only (Option A); generic network solving, combined pressure+energy closure, validation, and moving-boundary work remain deferred |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
