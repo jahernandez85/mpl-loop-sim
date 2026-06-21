@@ -2,7 +2,7 @@
 
 A modular, explicit-input thermo-hydraulic simulation library for mechanically pumped two-phase loops (MPLs) and related systems.
 
-**Current state:** HX/component/correlation architecture is implementation-complete, with minimal fixed-architecture energy-closure, pressure-closure, and coupled energy+pressure-closure solvers, a physics-free network graph foundation, declaration-only network residual assembly, and 4000+ deterministic tests. Generic network solving, arbitrary-topology simulation, property lookup at the HX layer, moving-boundary modeling, and experimental validation remain deferred.
+**Current state:** HX/component/correlation architecture is implementation-complete, with minimal fixed-architecture energy-closure, pressure-closure, and coupled energy+pressure-closure solvers, a physics-free network graph foundation, declaration-only network residual assembly, explicit one-shot network residual evaluation, and 4000+ deterministic tests. Generic network solving, arbitrary-topology simulation, property lookup at the HX layer, moving-boundary modeling, and experimental validation remain deferred.
 
 ---
 
@@ -32,6 +32,9 @@ A modular, explicit-input thermo-hydraulic simulation library for mechanically p
 - Assemble deterministic, declaration-only network unknown and residual
   specifications from `NetworkGraph` topology (Phase 13F), without numerical
   residual evaluation or component execution.
+- Evaluate those declarations once from explicit unknown values, callbacks,
+  and residual scales (Phase 13G), producing a `ResidualVector` without
+  iteration, component execution, or property lookup.
 - Run 4000+ deterministic, property-lookup-free tests.
 
 ## What it cannot do yet
@@ -143,10 +146,11 @@ The library is built around five principles:
 
 ## Project status
 
-Phase 13F — Network Residual Assembly Foundation.
+Phase 13G — Network Residual Evaluation Foundation.
 The HX component family (Phases 11A–11U), fixed-architecture closure work
 (Phases 13A–13D), the Phase 13E physics-free topology representation, and the
-Phase 13F declaration-only residual assembly are complete checkpoints.
+Phase 13F declaration-only residual assembly, and Phase 13G one-shot residual
+evaluation are complete checkpoints.
 Configurable network solving, validation harness work, and moving-boundary
 modeling remain deferred.
 

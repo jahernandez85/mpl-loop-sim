@@ -408,6 +408,98 @@ assembly = assemble_network_residuals(
 
 ---
 
+## Network Residual Evaluation Foundation (Phase 13G)
+
+`mpl_sim.network` exports a lightweight, explicit residual evaluation layer
+that evaluates declared network residuals from a supplied value map and
+supplied callback functions.  **This is an evaluation layer only — it does
+not solve the network, execute component physics, or look up fluid properties.**
+
+```python
+from mpl_sim.network import (
+    NetworkUnknownValues,
+    NetworkResidualEvaluator,
+    NetworkResidualEvaluationResult,
+    evaluate_network_residuals,
+    assemble_network_residuals,
+)
+
+# Start from a NetworkResidualAssembly (Phase 13F).
+assembly = assemble_network_residuals(graph)
+
+# Provide explicit numeric values for every declared unknown.
+unknown_values = NetworkUnknownValues(
+    values={
+        "mdot:evap": 0.05,   # kg/s
+        "mdot:cond": 0.05,   # kg/s
+        "P:n1": 100_000.0,   # Pa
+        "P:n2":  99_000.0,   # Pa
+    }
+)
+
+# Provide one explicit callback per declared residual.
+# Callbacks receive the full unknown-value mapping and return a float.
+evaluators = [
+    NetworkResidualEvaluator(
+        name="mass_balance:n1",
+        callback=lambda v: v["mdot:evap"] - v["mdot:cond"],
+    ),
+    NetworkResidualEvaluator(
+        name="mass_balance:n2",
+        callback=lambda v: v["mdot:cond"] - v["mdot:evap"],
+    ),
+    NetworkResidualEvaluator(
+        name="pressure_drop:evap",
+        callback=lambda v: v["P:n1"] - v["P:n2"] - 600.0,
+    ),
+    NetworkResidualEvaluator(
+        name="pressure_drop:cond",
+        callback=lambda v: v["P:n2"] - v["P:n1"] + 1000.0,
+    ),
+]
+
+# Provide explicit characteristic scales for each residual.
+scales = {
+    "mass_balance:n1":    0.01,   # kg/s
+    "mass_balance:n2":    0.01,
+    "pressure_drop:evap": 100.0,  # Pa
+    "pressure_drop:cond": 100.0,
+}
+
+# Evaluate — returns a NetworkResidualEvaluationResult.
+result = evaluate_network_residuals(assembly, unknown_values, evaluators, scales)
+
+print(result.max_abs_scaled)      # 4.0  (L-inf norm)
+print(result.l2_scaled)           # 4.0  (L2 norm)
+print(result.scaled_values)       # (0.0, 0.0, 4.0, 0.0)
+print(result.residual_vector)     # ResidualVector (Phase 13C)
+```
+
+**What this is:**
+- An explicit evaluation layer: accepts declared residuals (Phase 13F), an
+  explicit unknown-value map (`NetworkUnknownValues`), explicit callback
+  functions (`NetworkResidualEvaluator`), and explicit scales.
+- Evaluates each callback with the supplied values and builds a `ResidualVector`
+  (Phase 13C) in assembly declaration order.
+- Reports `max_abs_scaled` (L-infinity norm) and `l2_scaled` (Euclidean norm)
+  of the scaled residuals.
+- All validation is strict: missing/extra unknowns, missing/extra evaluators,
+  missing/extra scales, non-finite values, and bool values are all rejected.
+- Callback exceptions propagate without being swallowed.
+- A preparation step toward a future configurable network solver (Phase 13H).
+
+**What this is NOT:**
+- Not a network solver — `evaluate_network_residuals` does not iterate toward
+  a zero, does not call `solve(network)`, and does not drive convergence.
+- Does not execute components automatically — callbacks are supplied by the
+  caller and may represent any explicit computation.
+- Does not look up fluid properties — no CoolProp, no `PropertyBackend`.
+- Does not attach physical state to graph nodes.
+- Does not infer residuals automatically from component physics.
+- Does not implement hidden physical defaults.
+
+---
+
 ## What is NOT implemented
 
 | Capability | Status |
@@ -418,8 +510,9 @@ assembly = assemble_network_residuals(
 | Coupled energy+pressure closure | Implemented in Phase 13D (`mpl_sim.closed_loop`) |
 | Network graph / topology representation | Implemented in Phase 13E (`mpl_sim.network`) |
 | Network residual assembly foundation | Implemented in Phase 13F (`mpl_sim.network`) |
-| Generic network solver (`solve(network)`) | Deferred (Phase 13G+) |
-| Configurable network solve | Deferred (Phase 13G) |
+| Network residual evaluation foundation | Implemented in Phase 13G (`mpl_sim.network`) |
+| Generic network solver (`solve(network)`) | Deferred (Phase 13H+) |
+| Configurable network solve | Deferred (Phase 13H) |
 | Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14+) |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |

@@ -11,9 +11,9 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-13f-network-residual-assembly` |
-| **Stage** | Phase 13F Network Residual Assembly Foundation; declaration-only unknown/residual assembly from graph topology added to `mpl_sim.network` |
-| **Completed phase** | **Phase 13F - Network Residual Assembly Foundation** |
+| **Branch** | `phase-13g-network-residual-evaluation` |
+| **Stage** | Phase 13G Network Residual Evaluation Foundation; explicit residual evaluation layer (value map + callbacks + scales → ResidualVector) added to `mpl_sim.network` |
+| **Completed phase** | **Phase 13G - Network Residual Evaluation Foundation** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -65,6 +65,7 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11U status** | **Closeout readiness audit complete. 3558 tests passing (3548 pre-audit + 10 new export-consistency tests). Capability matrix and support exceptions documented. Architecture boundaries confirmed clean. Public exports verified. No new physics added. See `PHASE_11U_HX_CLOSEOUT_READINESS_AUDIT.md`.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **The current HX-family checkpoint (11A–11U) is ready. `EpsilonNTUModel` and `SegmentedMarchModel` support all four secondary BC classes; `LMTDModel` intentionally supports only `FixedWallTemp` and `AmbientCoupling`. Co-current, one-pass counterflow, and iterated counterflow are implemented only for segmented `SinkInletTempAndFlow`. Active public closures are injectable, including `ChurchillFrictionGradient` and `MSHTwoPhaseFrictionGradient`. Immutable scenario bindings are implemented. 1575 Phase 11 tests pass across 29 files. Full-loop convergence, network contribution integration, moving boundary, remaining closures, and validation remain deferred.** |
+| **Phase 13G status** | **Checkpoint complete. Network residual evaluation foundation implemented. `NetworkUnknownValues`, `NetworkResidualEvaluator`, `NetworkResidualEvaluationResult`, `evaluate_network_residuals` added to `mpl_sim.network` in new `residual_evaluation.py` module. Evaluation-only layer: accepts `NetworkResidualAssembly` (Phase 13F) + explicit unknown values + explicit residual callbacks + explicit scales → `ResidualVector` (Phase 13C) in assembly declaration order. Strict validation: missing/extra unknowns, missing/extra evaluators (with duplicate detection), missing/extra scales, non-finite values, bool values, and non-finite/bool callback returns all rejected. Callback exceptions propagate without being swallowed. No solver, no component execution, no property lookup, no graph physical-state attachment. 95 focused tests in `tests/network/test_residual_evaluation_foundation.py`.** |
 | **Phase 13F status** | **Checkpoint complete. Network residual assembly foundation implemented. `NetworkUnknownDeclaration`, `NetworkResidualDeclaration`, `NetworkUnknownSet`, `NetworkResidualSet`, `NetworkResidualAssembly`, `assemble_network_residuals` added to `mpl_sim.network` in new `residual_assembly.py` module. Declaration-only layer: one mass-flow unknown per component instance (kg/s), one pressure unknown per node (Pa, optional), one mass-balance residual per node (kg/s), one pressure-compatibility residual per component instance (Pa, optional). Deterministic graph-insertion-order assembly. Optional closed-loop structural validation. No solve, no residual evaluation, no component execution, no property lookup. 122 focused tests in `tests/network/test_residual_assembly_foundation.py`; 4281 tests total.** |
 | **Phase 13E status** | **Checkpoint complete. Network graph foundation implemented. `GraphNodeId`, `ComponentInstanceId`, `GraphNode`, `ComponentInstance`, `NetworkGraph` added to `mpl_sim.network` in new `graph.py` module. Physics-free topology representation with strict type/value validation (no blank IDs, wrong ID types, duplicates, dangling references, or self-loops). `validate_closed_single_loop()` structural check added. 115 focused tests in `tests/network/test_graph_foundation.py`. No physics, no solver, no residual assembly. 4159 tests total.** |
 | **Phase 13D audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
@@ -79,13 +80,13 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 12B status** | **Checkpoint complete. Examples and user documentation quickstart added. See `PHASE_12B_EXAMPLES_USER_DOCS_QUICKSTART_AUDIT.md` and the Phase 12B entry below.** |
 | **Phase 12A audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 12A status** | **Checkpoint complete. Minimal loop assembly acceptance example implemented. `examples/minimal_evaporator_condenser_loop.py` provides `MinimalLoopResult` frozen dataclass and `evaluate_minimal_evaporator_condenser_loop(...)` function. 33 focused acceptance tests in `tests/loops/test_minimal_loop_example.py` cover all 12 required items. Not a full network solver; no loop convergence; no moving-boundary model; no property lookup. Net energy imbalance and enthalpy drift reported explicitly. 3591 tests passing. See `PHASE_12A_MINIMAL_LOOP_ASSEMBLY_AUDIT.md`.** |
-| **Branch status** | **Phase 13F implemented on `phase-13f-network-residual-assembly`.** |
-| **Current active phase** | **Phase 13F - Network Residual Assembly Foundation** |
-| **Next immediate slice** | Phase 13G — configurable network solver v1 |
-| **Working tree before this phase** | Phase 13E: 4159 tests |
-| **Test status** | **4281 passed, verified 2026-06-21 with repository-local pytest temp roots; no skips, xfails, or deselections** |
+| **Branch status** | **Phase 13G implemented on `phase-13g-network-residual-evaluation`.** |
+| **Current active phase** | **Phase 13G - Network Residual Evaluation Foundation** |
+| **Next immediate slice** | Phase 13H — configurable network solver v1 |
+| **Working tree before this phase** | Phase 13F: 4281 tests |
+| **Test status** | **4376 passed, verified 2026-06-21 with repository-local pytest temp roots; no skips, xfails, or deselections** |
 | **Lint status** | `ruff check src tests examples` clean, verified 2026-06-21 |
-| **Format status** | `black --check --no-cache src tests examples` passed; 163 files unchanged, verified 2026-06-21 |
+| **Format status** | `black --check --no-cache src tests examples` passed; 165 files unchanged, verified 2026-06-21 |
 
 Phase 13F network residual assembly foundation is complete as a checkpoint.
 
@@ -633,6 +634,7 @@ Key authority statements:
 | **Phase 13D Coupled Fixed-Architecture Energy+Pressure Closure** | **Complete; audited and approved checkpoint on `phase-13d-coupled-fixed-closure`** |
 | **Phase 13E Network Graph Foundation** | **Complete; implemented on `phase-13e-network-graph-foundation`** |
 | **Phase 13F Network Residual Assembly Foundation** | **Complete; implemented on `phase-13f-network-residual-assembly`** |
+| **Phase 13G Network Residual Evaluation Foundation** | **Complete; implemented on `phase-13g-network-residual-evaluation`** |
 
 Closeout artifacts:
 
@@ -683,23 +685,29 @@ Closeout artifacts:
 
 ## 4. Current Active Phase
 
-**Phase 13F - Network Residual Assembly Foundation** is implemented on
-`phase-13f-network-residual-assembly`.
+**Phase 13G - Network Residual Evaluation Foundation** is implemented on
+`phase-13g-network-residual-evaluation`.
 
 The implemented capability is intentionally narrow:
 
-- six declaration-only public types/functions for assembly of unknown and
-  residual declarations from a `NetworkGraph` topology;
-- one mass-flow unknown per component instance; one pressure unknown per node
-  (optional); one mass-balance residual per node; one pressure-compatibility
-  residual per component instance (optional);
-- deterministic graph-insertion-order assembly;
-- optional structural closed-single-loop validation before assembly;
-- no solve algorithm, no residual evaluation, no component execution, and no
-  property lookup;
-- all declarations carry name and unit only — no numerical values stored.
+- four public types/functions for explicit residual evaluation from declared
+  network residuals: `NetworkUnknownValues`, `NetworkResidualEvaluator`,
+  `NetworkResidualEvaluationResult`, `evaluate_network_residuals`;
+- `NetworkUnknownValues` — immutable `MappingProxyType` from unknown name to
+  float; validates finite, non-bool values at construction;
+- `NetworkResidualEvaluator` — frozen (name, callback) pair; validates
+  non-empty name and callable at construction;
+- `evaluate_network_residuals` — accepts assembly, values, evaluators, and
+  scales; validates all inputs strictly; evaluates each callback in assembly
+  declaration order; builds `ResidualVector` (Phase 13C); reports
+  `max_abs_scaled` and `l2_scaled`;
+- `NetworkResidualEvaluationResult` — immutable result with all inputs and
+  outputs, including `evaluations` tuple, `residual_vector`, `scaled_values`,
+  `max_abs_scaled`, and `l2_scaled`;
+- no solve algorithm, no iteration, no component execution, and no property
+  lookup; purely evaluative.
 
-Phase 13A through Phase 13E work remains complete and unchanged by this phase.
+Phase 13A through Phase 13F work remains complete and unchanged by this phase.
 
 Phase boundaries to preserve:
 
@@ -717,11 +725,11 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-13f-network-residual-assembly` into `main` as the Phase 13F checkpoint after audit approval.
-2. Continue with Phase 13G configurable network solver v1 without adding arbitrary topology simulation.
+1. Merge `phase-13g-network-residual-evaluation` into `main` as the Phase 13G checkpoint after audit approval.
+2. Continue with Phase 13H configurable network solver v1 without adding arbitrary topology simulation.
 3. Preserve frozen architecture boundaries while completing the remaining work.
 4. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
-5. Preserve the Phase 7/13E/13F boundary: Network owns topology, assembly/reference wiring, and declaration-only residual specs — not numerical solving.
+5. Preserve the Phase 7/13E/13F/13G boundary: Network owns topology, assembly/reference wiring, declaration-only residual specs, and explicit residual evaluation — not iterative solving.
 6. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
 7. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
 8. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests examples` before reporting the next implementation task complete.
@@ -729,7 +737,7 @@ Phase boundaries to preserve:
 Recommended commit message:
 
 ```text
-feat: add network residual assembly foundation
+feat: add network residual evaluation foundation
 ```
 
 ---
@@ -826,6 +834,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-21 |
 | **Updated by** | Codex |
-| **Status note** | Phase 13B minimal pressure closure solver audited and approved on `phase-13b-pressure-closure-foundation`; 3815 tests passed with no skips, xfails, or deselections; 5 runnable examples; explicit flow-area mapping makes component dP genuinely mass-flow-dependent; pressure-only (Option A); generic network solving, combined pressure+energy closure, validation, and moving-boundary work remain deferred |
+| **Status note** | Phase 13G network residual evaluation foundation implemented on `phase-13g-network-residual-evaluation`; 4376 tests passed with no skips, xfails, or deselections; 6 runnable examples; explicit value map + callback evaluation + scaled norms added to `mpl_sim.network`; no solver, no component execution, no property lookup; generic network solving remains deferred to Phase 13H |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
