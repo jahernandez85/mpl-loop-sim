@@ -397,6 +397,6 @@ for v in result.verdicts:
 - Plotting (no matplotlib dependency yet).
 - Phase-change examples with `ShahBoilingHTC` or `YanCondensationHTC` (require explicit quality scalars; `evaluate_scenario` path ready, dedicated example deferred).
 - Combined pressure + energy closure (Phase 13D): solving mdot and Q_cond simultaneously.
-- Generic network solver (Phase 13F+): arbitrary topology, multiple parallel components.
+- Generic network solver (Phase 13G+): arbitrary topology, multiple parallel components.
 - Parallel evaporators, valves, manifolds, recuperators, pre/post-heaters (Phase 14+).
 - Validation against published HX data (Phase 12+ validation harness, deferred).

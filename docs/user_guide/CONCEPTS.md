@@ -339,6 +339,75 @@ layer.  Phase 13E's graph types (`GraphNode`, `ComponentInstance`,
 
 ---
 
+## Network Residual Assembly Foundation (Phase 13F)
+
+`mpl_sim.network` exports lightweight, declaration-only types that map a
+`NetworkGraph` topology into explicit structural unknown and residual
+declarations.  **This is a specification layer only — it does not solve,
+evaluate residuals numerically, or execute component physics.**
+
+```python
+from mpl_sim.network import (
+    NetworkUnknownDeclaration,
+    NetworkResidualDeclaration,
+    NetworkUnknownSet,
+    NetworkResidualSet,
+    NetworkResidualAssembly,
+    assemble_network_residuals,
+)
+
+# Given a NetworkGraph (from Phase 13E), assemble structural declarations.
+assembly = assemble_network_residuals(graph)
+
+# Inspect declared unknowns (names and units only — no values).
+print(assembly.unknowns.names())
+# e.g. ('mdot:evap', 'mdot:cond', 'P:node_a', 'P:node_b', 'P:node_c')
+
+# Inspect declared residuals.
+print(assembly.residuals.names())
+# e.g. ('mass_balance:node_a', 'mass_balance:node_b', 'mass_balance:node_c',
+#        'pressure_drop:evap', 'pressure_drop:cond')
+
+# Summary: counts and names only.
+print(assembly.summary())
+# {'unknown_count': 5, 'unknown_names': [...],
+#  'residual_count': 5, 'residual_names': [...]}
+
+# Optional: require a closed single loop before assembling.
+assembly = assemble_network_residuals(graph, require_closed_loop=True)
+
+# Optional: suppress pressure unknowns/residuals.
+assembly = assemble_network_residuals(
+    graph,
+    include_pressure_unknowns=False,
+    include_pressure_residuals=False,
+)
+```
+
+**What this is:**
+- Structural unknown declarations: one mass-flow unknown per component
+  instance (``"mdot:<id>"``, kg/s), and optionally one pressure unknown per
+  node (``"P:<id>"``, Pa).
+- Structural residual declarations: one mass-conservation residual per node
+  (``"mass_balance:<id>"``, kg/s), and optionally one pressure-compatibility
+  residual per component instance (``"pressure_drop:<id>"``, Pa).
+- Assembly order is deterministic (graph insertion order).
+- A summary with counts and names only — no physical values anywhere.
+- Foundation for Phase 13G (configurable network solver v1) and later
+  component family integration.
+
+**What this is NOT:**
+- Not a network solver — ``NetworkResidualAssembly`` has no ``solve()`` method.
+- Does not evaluate residuals numerically.
+- Does not execute component physics.
+- Does not call CoolProp, property backends, or correlation registries.
+- Does not store ``FluidState``, ``mdot`` values, pressure values, enthalpy
+  values, quality, temperature, or any physical state.
+- Does not yet support arbitrary topology simulation.
+- Does not implement the full network solver path (deferred to Phase 13G).
+
+---
+
 ## What is NOT implemented
 
 | Capability | Status |
@@ -348,8 +417,8 @@ layer.  Phase 13E's graph types (`GraphNode`, `ComponentInstance`,
 | Residual/unknown/scaling framework | Implemented in Phase 13C (`mpl_sim.closed_loop`) |
 | Coupled energy+pressure closure | Implemented in Phase 13D (`mpl_sim.closed_loop`) |
 | Network graph / topology representation | Implemented in Phase 13E (`mpl_sim.network`) |
-| Generic network solver (`solve(network)`) | Deferred (Phase 13F+) |
-| Network residual assembly | Deferred (Phase 13F) |
+| Network residual assembly foundation | Implemented in Phase 13F (`mpl_sim.network`) |
+| Generic network solver (`solve(network)`) | Deferred (Phase 13G+) |
 | Configurable network solve | Deferred (Phase 13G) |
 | Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14+) |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |

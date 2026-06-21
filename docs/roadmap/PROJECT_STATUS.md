@@ -11,9 +11,9 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-13e-network-graph-foundation` |
-| **Stage** | Phase 13E Network Graph Foundation; physics-free topology data structures added to `mpl_sim.network` |
-| **Completed phase** | **Phase 13E - Network Graph Foundation** |
+| **Branch** | `phase-13f-network-residual-assembly` |
+| **Stage** | Phase 13F Network Residual Assembly Foundation; declaration-only unknown/residual assembly from graph topology added to `mpl_sim.network` |
+| **Completed phase** | **Phase 13F - Network Residual Assembly Foundation** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -65,6 +65,7 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11U status** | **Closeout readiness audit complete. 3558 tests passing (3548 pre-audit + 10 new export-consistency tests). Capability matrix and support exceptions documented. Architecture boundaries confirmed clean. Public exports verified. No new physics added. See `PHASE_11U_HX_CLOSEOUT_READINESS_AUDIT.md`.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **The current HX-family checkpoint (11A–11U) is ready. `EpsilonNTUModel` and `SegmentedMarchModel` support all four secondary BC classes; `LMTDModel` intentionally supports only `FixedWallTemp` and `AmbientCoupling`. Co-current, one-pass counterflow, and iterated counterflow are implemented only for segmented `SinkInletTempAndFlow`. Active public closures are injectable, including `ChurchillFrictionGradient` and `MSHTwoPhaseFrictionGradient`. Immutable scenario bindings are implemented. 1575 Phase 11 tests pass across 29 files. Full-loop convergence, network contribution integration, moving boundary, remaining closures, and validation remain deferred.** |
+| **Phase 13F status** | **Checkpoint complete. Network residual assembly foundation implemented. `NetworkUnknownDeclaration`, `NetworkResidualDeclaration`, `NetworkUnknownSet`, `NetworkResidualSet`, `NetworkResidualAssembly`, `assemble_network_residuals` added to `mpl_sim.network` in new `residual_assembly.py` module. Declaration-only layer: one mass-flow unknown per component instance (kg/s), one pressure unknown per node (Pa, optional), one mass-balance residual per node (kg/s), one pressure-compatibility residual per component instance (Pa, optional). Deterministic graph-insertion-order assembly. Optional closed-loop structural validation. No solve, no residual evaluation, no component execution, no property lookup. 122 focused tests in `tests/network/test_residual_assembly_foundation.py`; 4281 tests total.** |
 | **Phase 13E status** | **Checkpoint complete. Network graph foundation implemented. `GraphNodeId`, `ComponentInstanceId`, `GraphNode`, `ComponentInstance`, `NetworkGraph` added to `mpl_sim.network` in new `graph.py` module. Physics-free topology representation with strict type/value validation (no blank IDs, wrong ID types, duplicates, dangling references, or self-loops). `validate_closed_single_loop()` structural check added. 115 focused tests in `tests/network/test_graph_foundation.py`. No physics, no solver, no residual assembly. 4159 tests total.** |
 | **Phase 13D audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 13D status** | **Checkpoint complete. Coupled fixed-architecture energy+pressure closure implemented. `CoupledClosureConfig`, `MinimalCoupledClosureCase`, `MinimalCoupledClosureResult`, `solve_minimal_coupled_closure` added to `mpl_sim.closed_loop`. Nested scalar bisection (Option A): outer bisects primary_mdot for pressure closure; inner bisects Q_cond for energy closure at each outer step. Both residuals driven to zero; ResidualVector provides scaled convergence diagnostics. 112 focused tests in `tests/closed_loop/test_minimal_coupled_closure.py`. Phase 13A/13B solvers and Phase 13C framework unchanged. 4044 tests total.** |
@@ -78,13 +79,32 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 12B status** | **Checkpoint complete. Examples and user documentation quickstart added. See `PHASE_12B_EXAMPLES_USER_DOCS_QUICKSTART_AUDIT.md` and the Phase 12B entry below.** |
 | **Phase 12A audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 12A status** | **Checkpoint complete. Minimal loop assembly acceptance example implemented. `examples/minimal_evaporator_condenser_loop.py` provides `MinimalLoopResult` frozen dataclass and `evaluate_minimal_evaporator_condenser_loop(...)` function. 33 focused acceptance tests in `tests/loops/test_minimal_loop_example.py` cover all 12 required items. Not a full network solver; no loop convergence; no moving-boundary model; no property lookup. Net energy imbalance and enthalpy drift reported explicitly. 3591 tests passing. See `PHASE_12A_MINIMAL_LOOP_ASSEMBLY_AUDIT.md`.** |
-| **Branch status** | **Phase 13E implemented on `phase-13e-network-graph-foundation`.** |
-| **Current active phase** | **Phase 13E - Network Graph Foundation** |
-| **Next immediate slice** | Phase 13F — network residual assembly foundation |
-| **Working tree before this phase** | Phase 13D: 4044 tests |
-| **Test status** | **4159 passed, verified 2026-06-21 with repository-local pytest temp roots; no skips, xfails, or deselections** |
+| **Branch status** | **Phase 13F implemented on `phase-13f-network-residual-assembly`.** |
+| **Current active phase** | **Phase 13F - Network Residual Assembly Foundation** |
+| **Next immediate slice** | Phase 13G — configurable network solver v1 |
+| **Working tree before this phase** | Phase 13E: 4159 tests |
+| **Test status** | **4281 passed, verified 2026-06-21 with repository-local pytest temp roots; no skips, xfails, or deselections** |
 | **Lint status** | `ruff check src tests examples` clean, verified 2026-06-21 |
-| **Format status** | `black --check --no-cache src tests examples` passed; 161 files unchanged, verified 2026-06-21 |
+| **Format status** | `black --check --no-cache src tests examples` passed; 163 files unchanged, verified 2026-06-21 |
+
+Phase 13F network residual assembly foundation is complete as a checkpoint.
+
+- **`src/mpl_sim/network/residual_assembly.py`** added — declaration-only assembly module within `mpl_sim.network`.
+- **`NetworkUnknownDeclaration`** — frozen dataclass declaring one scalar unknown (name + unit only; no value, no bounds, no initial guess).
+- **`NetworkResidualDeclaration`** — frozen dataclass declaring one residual equation (name + unit only; no value, no scale, no evaluation).
+- **`NetworkUnknownSet`** — immutable ordered collection of `NetworkUnknownDeclaration`; duplicate names rejected; provides `names()` and `count()`.
+- **`NetworkResidualSet`** — immutable ordered collection of `NetworkResidualDeclaration`; duplicate names rejected; provides `names()` and `count()`.
+- **`NetworkResidualAssembly`** — immutable result of assembly; holds `NetworkUnknownSet` and `NetworkResidualSet`; `summary()` returns counts/names with no physical values; no `solve()` method.
+- **`assemble_network_residuals(graph, *, require_closed_loop, include_pressure_unknowns, include_pressure_residuals)`** — factory function mapping `NetworkGraph` → `NetworkResidualAssembly`. Declares: one mass-flow unknown per component instance (`"mdot:<id>"`, kg/s); one pressure unknown per node (`"P:<id>"`, Pa, optional default enabled); one mass-balance residual per node (`"mass_balance:<id>"`, kg/s); one pressure-compatibility residual per component instance (`"pressure_drop:<id>"`, Pa, optional default enabled). Assembly order follows graph insertion order (deterministic). Validates input type, non-empty graph, and optionally closed-loop structure.
+- **`mpl_sim.network.__init__.py`** updated — six Phase 13F symbols added to `__all__`; Phase 7 and 13E exports unchanged.
+- **`tests/network/test_residual_assembly_foundation.py`** added — 122 focused tests covering all 24 required coverage items: declaration types, collection types, units, deterministic ordering, summary content, empty-graph rejection, non-graph rejection, strict Boolean option validation, closed-loop mode, no-solve boundary, no-value boundary, no-component-execution boundary, no-property-lookup boundary, public exports, and docs honest-claims check.
+- **`docs/user_guide/CONCEPTS.md`** updated — "Network Residual Assembly Foundation (Phase 13F)" section added; "What is NOT implemented" table updated.
+- **`docs/roadmap/PROJECT_STATUS.md`** updated — Phase 13F status, milestone, history.
+- **Architecture boundary:** `residual_assembly.py` imports only stdlib (`__future__`, `dataclasses`) and `mpl_sim.network.graph`. MUST NOT and does NOT import `mpl_sim.closed_loop`, `mpl_sim.components`, `mpl_sim.solvers`, `mpl_sim.properties`, `mpl_sim.correlations`, `mpl_sim.calibration`, `mpl_sim.hx_models`, or CoolProp.
+- **No physics added:** no FluidState, mdot values, pressure values, enthalpy values, quality, HTC, ΔP, property lookup, or solver in the assembly module.
+- **No solve() method:** `NetworkResidualAssembly` has no `solve()`, `evaluate()`, or convergence method.
+- **No residual evaluation:** declarations carry only name and unit; no numerical values computed or stored.
+- **Phase 13E and all prior tests unchanged.** All existing tests continue to pass.
 
 Phase 13E network graph foundation is complete as a checkpoint.
 
@@ -97,7 +117,7 @@ Phase 13E network graph foundation is complete as a checkpoint.
 - **`mpl_sim.network.__init__.py`** updated — five Phase 13E types added to `__all__`; Phase 7 exports (NetworkTopology, NetworkNode, etc.) unchanged.
 - **`tests/network/test_graph_foundation.py`** added — 115 focused tests covering all 22 required coverage items: strict ID/type validation, graph construction, deterministic ordering, duplicate rejection, unknown node rejection, self-loop rejection, summary content, architecture boundaries (no CoolProp, no solvers, no closed_loop imports), public exports, and docs honest-claims checks.
 - **`docs/user_guide/CONCEPTS.md`** updated — "Network Graph Foundation (Phase 13E)" section added; "What is NOT implemented" table updated.
-- **`README.md` and `docs/user_guide/QUICKSTART.md`** updated — Phase 13E topology representation is listed as implemented while network residual assembly and configurable solving remain deferred.
+- **`README.md` and `docs/user_guide/QUICKSTART.md`** were updated at the Phase 13E checkpoint to list topology representation as implemented while residual assembly and configurable solving were still deferred; Phase 13F documentation above supersedes that historical capability statement.
 - **`docs/roadmap/PROJECT_STATUS.md`** updated — Phase 13E status, milestone, history.
 - **Architecture boundary:** `graph.py` imports only stdlib (`__future__`, `collections.abc`, `dataclasses`); does NOT import `mpl_sim.closed_loop`, `mpl_sim.components`, `mpl_sim.solvers`, `mpl_sim.properties`, `mpl_sim.correlations`, `mpl_sim.calibration`, `mpl_sim.hx_models`, or CoolProp.
 - **No physics added:** no FluidState, mdot, pressure, enthalpy, quality, HTC, ΔP, property lookup, or solver in the graph module.
@@ -612,6 +632,7 @@ Key authority statements:
 | **Phase 13C Residual / Unknown / Scaling Framework Foundation** | **Complete; implemented on `phase-13c-residual-framework-foundation`** |
 | **Phase 13D Coupled Fixed-Architecture Energy+Pressure Closure** | **Complete; audited and approved checkpoint on `phase-13d-coupled-fixed-closure`** |
 | **Phase 13E Network Graph Foundation** | **Complete; implemented on `phase-13e-network-graph-foundation`** |
+| **Phase 13F Network Residual Assembly Foundation** | **Complete; implemented on `phase-13f-network-residual-assembly`** |
 
 Closeout artifacts:
 
@@ -662,20 +683,23 @@ Closeout artifacts:
 
 ## 4. Current Active Phase
 
-**Phase 13E - Network Graph Foundation** is implemented on
-`phase-13e-network-graph-foundation`.
+**Phase 13F - Network Residual Assembly Foundation** is implemented on
+`phase-13f-network-residual-assembly`.
 
 The implemented capability is intentionally narrow:
 
-- five topology-only public types for graph node IDs, component instance IDs,
-  nodes, component placements, and graph containment;
-- strict type/value, duplicate-ID, dangling-reference, and self-loop validation;
-- deterministic insertion order and structural closed-single-loop validation;
-- no solve algorithm, residual assembly, component execution, or arbitrary-topology simulation;
-- no property lookup, registry resolution, or new physics.
+- six declaration-only public types/functions for assembly of unknown and
+  residual declarations from a `NetworkGraph` topology;
+- one mass-flow unknown per component instance; one pressure unknown per node
+  (optional); one mass-balance residual per node; one pressure-compatibility
+  residual per component instance (optional);
+- deterministic graph-insertion-order assembly;
+- optional structural closed-single-loop validation before assembly;
+- no solve algorithm, no residual evaluation, no component execution, and no
+  property lookup;
+- all declarations carry name and unit only — no numerical values stored.
 
-Phase 13A through Phase 13D fixed-architecture closure work remains complete
-and unchanged by this phase.
+Phase 13A through Phase 13E work remains complete and unchanged by this phase.
 
 Phase boundaries to preserve:
 
@@ -693,11 +717,11 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-13e-network-graph-foundation` into `main` as the Phase 13E checkpoint after audit approval.
-2. Continue with Phase 13F network residual assembly without adding a network solve.
+1. Merge `phase-13f-network-residual-assembly` into `main` as the Phase 13F checkpoint after audit approval.
+2. Continue with Phase 13G configurable network solver v1 without adding arbitrary topology simulation.
 3. Preserve frozen architecture boundaries while completing the remaining work.
 4. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
-5. Preserve the Phase 7/13E boundary: Network owns topology and assembly/reference wiring only.
+5. Preserve the Phase 7/13E/13F boundary: Network owns topology, assembly/reference wiring, and declaration-only residual specs — not numerical solving.
 6. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
 7. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
 8. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests examples` before reporting the next implementation task complete.
@@ -705,7 +729,7 @@ Phase boundaries to preserve:
 Recommended commit message:
 
 ```text
-feat: add network graph foundation
+feat: add network residual assembly foundation
 ```
 
 ---

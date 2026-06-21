@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B/7C/10I + Phase 13E.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E + Phase 13F.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -28,6 +28,20 @@ Phase 13E exports (physics-free graph foundation):
   Graph container:
     NetworkGraph
 
+Phase 13F exports (network residual assembly foundation):
+
+  Declaration types:
+    NetworkUnknownDeclaration, NetworkResidualDeclaration
+
+  Collection types:
+    NetworkUnknownSet, NetworkResidualSet
+
+  Assembly result:
+    NetworkResidualAssembly
+
+  Factory function:
+    assemble_network_residuals
+
 MUST NOT import from solvers/.
 """
 
@@ -38,6 +52,14 @@ from mpl_sim.network.graph import (
     GraphNode,
     GraphNodeId,
     NetworkGraph,
+)
+from mpl_sim.network.residual_assembly import (
+    NetworkResidualAssembly,
+    NetworkResidualDeclaration,
+    NetworkResidualSet,
+    NetworkUnknownDeclaration,
+    NetworkUnknownSet,
+    assemble_network_residuals,
 )
 from mpl_sim.network.topology import (
     ConnectionId,
@@ -78,4 +100,14 @@ __all__ = [
     "ComponentInstance",
     # Phase 13E graph container
     "NetworkGraph",
+    # Phase 13F residual assembly declaration types
+    "NetworkUnknownDeclaration",
+    "NetworkResidualDeclaration",
+    # Phase 13F residual assembly collection types
+    "NetworkUnknownSet",
+    "NetworkResidualSet",
+    # Phase 13F assembly result
+    "NetworkResidualAssembly",
+    # Phase 13F factory function
+    "assemble_network_residuals",
 ]
