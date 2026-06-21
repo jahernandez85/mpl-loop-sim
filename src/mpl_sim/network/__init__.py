@@ -1,6 +1,6 @@
-"""Network package -- Phase 7A/7B/7C/10I: topology, validation, assembly, pressure reference.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E.
 
-Exports:
+Phase 7A/7B/7C/10I exports (component-coupled topology):
 
   Identity primitives:
     NetworkId, NodeId, ConnectionId
@@ -8,19 +8,37 @@ Exports:
   Topology data objects:
     NetworkNode, NetworkConnection, NetworkTopology
 
-  Pressure-reference wiring (Phase 10I):
+  Pressure-reference wiring:
     PressureReferenceWiring
 
   Validation:
     NetworkValidationResult, validate_topology
 
-  Assembly (Phase 7C):
+  Assembly:
     NetworkAssembly, assemble_network
+
+Phase 13E exports (physics-free graph foundation):
+
+  Graph identity primitives:
+    GraphNodeId, ComponentInstanceId
+
+  Graph element types:
+    GraphNode, ComponentInstance
+
+  Graph container:
+    NetworkGraph
 
 MUST NOT import from solvers/.
 """
 
 from mpl_sim.network.assembly import NetworkAssembly, assemble_network
+from mpl_sim.network.graph import (
+    ComponentInstance,
+    ComponentInstanceId,
+    GraphNode,
+    GraphNodeId,
+    NetworkGraph,
+)
 from mpl_sim.network.topology import (
     ConnectionId,
     NetworkConnection,
@@ -36,20 +54,28 @@ from mpl_sim.network.validation import (
 )
 
 __all__ = [
-    # Identity primitives
+    # Phase 7 identity primitives
     "NetworkId",
     "NodeId",
     "ConnectionId",
-    # Topology data objects
+    # Phase 7 topology data objects
     "NetworkNode",
     "NetworkConnection",
     "NetworkTopology",
-    # Pressure-reference wiring
+    # Phase 7 pressure-reference wiring
     "PressureReferenceWiring",
-    # Validation
+    # Phase 7 validation
     "NetworkValidationResult",
     "validate_topology",
-    # Assembly
+    # Phase 7 assembly
     "NetworkAssembly",
     "assemble_network",
+    # Phase 13E graph identity primitives
+    "GraphNodeId",
+    "ComponentInstanceId",
+    # Phase 13E graph element types
+    "GraphNode",
+    "ComponentInstance",
+    # Phase 13E graph container
+    "NetworkGraph",
 ]

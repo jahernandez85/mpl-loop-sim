@@ -2,7 +2,7 @@
 
 A modular, explicit-input thermo-hydraulic simulation library for mechanically pumped two-phase loops (MPLs) and related systems.
 
-**Current state:** HX/component/correlation architecture is implementation-complete, with minimal fixed-architecture energy-closure, pressure-closure, and coupled energy+pressure-closure solvers and 4000+ deterministic tests. Generic network solving, arbitrary topology, property lookup at the HX layer, moving-boundary modeling, and experimental validation remain deferred.
+**Current state:** HX/component/correlation architecture is implementation-complete, with minimal fixed-architecture energy-closure, pressure-closure, and coupled energy+pressure-closure solvers, a physics-free network graph foundation, and 4000+ deterministic tests. Generic network solving, arbitrary-topology simulation, property lookup at the HX layer, moving-boundary modeling, and experimental validation remain deferred.
 
 ---
 
@@ -27,14 +27,16 @@ A modular, explicit-input thermo-hydraulic simulation library for mechanically p
   `ResidualVector` provides scaled convergence diagnostics.
 - Represent unknowns and residuals with explicit names, units, scales, scaled
   vectors, and convergence norms through the Phase 13C residual framework.
+- Represent configurable loop topology with the physics-free Phase 13E
+  `NetworkGraph`, without solving or residual assembly.
 - Run 4000+ deterministic, property-lookup-free tests.
 
 ## What it cannot do yet
 
 - Generic full-loop convergence beyond the fixed one-evaporator + one-condenser
-  architecture (network graph deferred to Phase 13E, configurable solver to 13F).
+  architecture (residual assembly and configurable solving remain deferred).
 - Parallel evaporators, valves, manifolds, recuperator, pre/post-heaters (deferred to Phase 14+).
-- Network flow-pressure solving with arbitrary topology (no `Network`/`Node`/`Branch`).
+- Network flow-pressure solving or arbitrary-topology simulation.
 - Property lookup at the HX/component/correlation layer (CoolProp is only in `mpl_sim.properties`).
 - Moving-boundary two-phase zone modeling.
 - Automatic phase inference or quality marching.
@@ -138,11 +140,10 @@ The library is built around five principles:
 
 ## Project status
 
-Phase 13C — Residual / Unknown / Scaling Framework Foundation.
-The HX component family (Phases 11A–11U), Phase 13A energy closure, and Phase 13B
-pressure closure are complete. Phase 13C adds representation and scaling value
-objects only; it does not add a coupled or generic network solver.
-Combined pressure + energy closure, generic network solving, validation harness, and
-moving-boundary modeling remain deferred.
+Phase 13E — Network Graph Foundation.
+The HX component family (Phases 11A–11U), fixed-architecture closure work
+(Phases 13A–13D), and the Phase 13E physics-free topology representation are
+complete checkpoints. Network residual assembly, configurable network solving,
+validation harness work, and moving-boundary modeling remain deferred.
 
 *Developed at Université de Liège — Andrés Hernández, 2026.*
