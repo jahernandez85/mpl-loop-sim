@@ -11,9 +11,9 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-13g-network-residual-evaluation` |
-| **Stage** | Phase 13G Network Residual Evaluation Foundation; explicit residual evaluation layer (value map + callbacks + scales → ResidualVector) added to `mpl_sim.network` |
-| **Completed phase** | **Phase 13G - Network Residual Evaluation Foundation** |
+| **Branch** | `phase-13h-configurable-network-solver-v1` |
+| **Stage** | Phase 13H Configurable Network Solver v1; damped finite-difference Newton solver iterates explicit unknown values to reduce explicit residual callbacks using the Phase 13G evaluation layer |
+| **Completed phase** | **Phase 13H - Configurable Network Solver v1** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -65,6 +65,7 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11U status** | **Closeout readiness audit complete. 3558 tests passing (3548 pre-audit + 10 new export-consistency tests). Capability matrix and support exceptions documented. Architecture boundaries confirmed clean. Public exports verified. No new physics added. See `PHASE_11U_HX_CLOSEOUT_READINESS_AUDIT.md`.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **The current HX-family checkpoint (11A–11U) is ready. `EpsilonNTUModel` and `SegmentedMarchModel` support all four secondary BC classes; `LMTDModel` intentionally supports only `FixedWallTemp` and `AmbientCoupling`. Co-current, one-pass counterflow, and iterated counterflow are implemented only for segmented `SinkInletTempAndFlow`. Active public closures are injectable, including `ChurchillFrictionGradient` and `MSHTwoPhaseFrictionGradient`. Immutable scenario bindings are implemented. 1575 Phase 11 tests pass across 29 files. Full-loop convergence, network contribution integration, moving boundary, remaining closures, and validation remain deferred.** |
+| **Phase 13H status** | **Checkpoint complete. Configurable network solver v1 implemented. `NetworkSolveConfig`, `NetworkSolveResult`, `solve_network_residual_problem` added to `mpl_sim.network` in new `solver.py` module. Damped finite-difference Newton method: forward FD Jacobian (n perturbed evaluations per iteration), Gaussian elimination with partial pivoting, damped update `x_new = x + damping * dx`. Convergence: `max_abs_scaled <= tolerance`. Singularity detection: pivot below `1e-14` → `converged=False`. Only square systems (`n_unknowns == n_residuals`) accepted. Initial convergence check: if already converged before first iteration returns `iteration_count=0`. Callback exceptions propagate without being swallowed. No scipy, no numpy root-finders, no component execution, no property lookup, no physical state on graph nodes. 113 focused tests in `tests/network/test_configurable_solver_v1.py`; 628 total network tests; 4489 tests total.** |
 | **Phase 13G status** | **Checkpoint complete. Network residual evaluation foundation implemented. `NetworkUnknownValues`, `NetworkResidualEvaluator`, `NetworkResidualEvaluationResult`, `evaluate_network_residuals` added to `mpl_sim.network` in new `residual_evaluation.py` module. Evaluation-only layer: accepts `NetworkResidualAssembly` (Phase 13F) + explicit unknown values + explicit residual callbacks + explicit scales → `ResidualVector` (Phase 13C) in assembly declaration order. Strict validation: missing/extra unknowns, missing/extra evaluators (with duplicate detection), missing/extra scales, non-finite values, bool values, and non-finite/bool callback returns all rejected. Callback exceptions propagate without being swallowed. No solver, no component execution, no property lookup, no graph physical-state attachment. 95 focused tests in `tests/network/test_residual_evaluation_foundation.py`.** |
 | **Phase 13F status** | **Checkpoint complete. Network residual assembly foundation implemented. `NetworkUnknownDeclaration`, `NetworkResidualDeclaration`, `NetworkUnknownSet`, `NetworkResidualSet`, `NetworkResidualAssembly`, `assemble_network_residuals` added to `mpl_sim.network` in new `residual_assembly.py` module. Declaration-only layer: one mass-flow unknown per component instance (kg/s), one pressure unknown per node (Pa, optional), one mass-balance residual per node (kg/s), one pressure-compatibility residual per component instance (Pa, optional). Deterministic graph-insertion-order assembly. Optional closed-loop structural validation. No solve, no residual evaluation, no component execution, no property lookup. 122 focused tests in `tests/network/test_residual_assembly_foundation.py`; 4281 tests total.** |
 | **Phase 13E status** | **Checkpoint complete. Network graph foundation implemented. `GraphNodeId`, `ComponentInstanceId`, `GraphNode`, `ComponentInstance`, `NetworkGraph` added to `mpl_sim.network` in new `graph.py` module. Physics-free topology representation with strict type/value validation (no blank IDs, wrong ID types, duplicates, dangling references, or self-loops). `validate_closed_single_loop()` structural check added. 115 focused tests in `tests/network/test_graph_foundation.py`. No physics, no solver, no residual assembly. 4159 tests total.** |
@@ -80,13 +81,26 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 12B status** | **Checkpoint complete. Examples and user documentation quickstart added. See `PHASE_12B_EXAMPLES_USER_DOCS_QUICKSTART_AUDIT.md` and the Phase 12B entry below.** |
 | **Phase 12A audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 12A status** | **Checkpoint complete. Minimal loop assembly acceptance example implemented. `examples/minimal_evaporator_condenser_loop.py` provides `MinimalLoopResult` frozen dataclass and `evaluate_minimal_evaporator_condenser_loop(...)` function. 33 focused acceptance tests in `tests/loops/test_minimal_loop_example.py` cover all 12 required items. Not a full network solver; no loop convergence; no moving-boundary model; no property lookup. Net energy imbalance and enthalpy drift reported explicitly. 3591 tests passing. See `PHASE_12A_MINIMAL_LOOP_ASSEMBLY_AUDIT.md`.** |
-| **Branch status** | **Phase 13G implemented on `phase-13g-network-residual-evaluation`.** |
-| **Current active phase** | **Phase 13G - Network Residual Evaluation Foundation** |
-| **Next immediate slice** | Phase 13H — configurable network solver v1 |
-| **Working tree before this phase** | Phase 13F: 4281 tests |
-| **Test status** | **4376 passed, verified 2026-06-21 with repository-local pytest temp roots; no skips, xfails, or deselections** |
+| **Branch status** | **Phase 13H implemented on `phase-13h-configurable-network-solver-v1`.** |
+| **Current active phase** | **Phase 13H - Configurable Network Solver v1** |
+| **Next immediate slice** | Phase 14+ — physical network residual construction from components |
+| **Working tree before this phase** | Phase 13G: 4376 tests |
+| **Test status** | **4489 passed, verified 2026-06-21 with separate repository-local system-temp and pytest base-temp roots; no skips, xfails, deselections, or fixture errors** |
 | **Lint status** | `ruff check src tests examples` clean, verified 2026-06-21 |
-| **Format status** | `black --check --no-cache src tests examples` passed; 165 files unchanged, verified 2026-06-21 |
+| **Format status** | `black --check --no-cache src tests examples` passed; 167 files unchanged, verified 2026-06-21 |
+
+Phase 13H configurable network solver v1 is complete as a checkpoint.
+
+- **`src/mpl_sim/network/solver.py`** added — configurable algebraic residual solver within `mpl_sim.network`.
+- **`NetworkSolveConfig`** — frozen dataclass: `max_iterations: int`, `tolerance: float`, `finite_difference_step: float`, `damping: float = 1.0`, `record_history: bool = False`. Strict validation: bool rejected on all numeric fields; `max_iterations >= 1`; all floats finite and > 0; `damping <= 1.0`; `record_history` must be bool.
+- **`NetworkSolveResult`** — frozen dataclass: `converged: bool`, `iteration_count: int`, `reason: str`, `final_unknown_values: NetworkUnknownValues`, `final_evaluation: NetworkResidualEvaluationResult`, `initial_evaluation: NetworkResidualEvaluationResult`, `residual_norm_history: tuple[float, ...] | None`.
+- **`solve_network_residual_problem(assembly, initial_values, evaluators, scales, config) -> NetworkSolveResult`** — damped forward finite-difference Newton solver. Accepts `NetworkUnknownValues` or a plain `Mapping` as initial values. Delegates all residual evaluation to Phase 13G `evaluate_network_residuals`. Requires square system (`n_unknowns == n_residuals`); returns non-converged result immediately if mismatched. Checks initial convergence before first iteration (returns `iteration_count=0` if already converged). Each iteration: builds n×n FD Jacobian (n perturbed evaluations), solves `J dx = -r` via Gaussian elimination with partial pivoting (`_SINGULAR_THRESHOLD = 1e-14`), applies damped update `x_new = x + damping * dx`, checks finite values, evaluates new residuals, checks convergence. Singularity returns non-converged. Callback exceptions propagate unchanged. When `record_history=True`, `max_abs_scaled` is appended after each iteration.
+- **`mpl_sim.network.__init__.py`** updated — three Phase 13H symbols added to `__all__`; Phase 7, 13E, 13F, 13G exports unchanged.
+- **`tests/network/test_configurable_solver_v1.py`** added — 113 focused tests covering all 30 required coverage items; AST-based boundary checks confirm no scipy/fsolve/root/least_squares imports and no `contribute(` call in solver source.
+- **`docs/user_guide/CONCEPTS.md`** updated — "Configurable Network Solver v1 (Phase 13H)" section added with code example, solver method description, and "What this is NOT" list; "What is NOT implemented" table updated.
+- **Architecture boundary:** `solver.py` imports only `math`, `collections.abc.Mapping`, `dataclasses`, `mpl_sim.network.residual_assembly`, `mpl_sim.network.residual_evaluation`. No scipy, numpy root-finders, CoolProp, PropertyBackend, CorrelationRegistry, component modules. No `contribute(` call. No `def solve(self` method.
+- **No physics added:** no FluidState, fluid properties, component execution, or physical residual construction. All residuals are explicitly caller-supplied callbacks.
+- **Phase 13A through 13G and all prior tests unchanged.** 4489 tests pass with no skips, xfails, deselections, or fixture errors.
 
 Phase 13F network residual assembly foundation is complete as a checkpoint.
 
@@ -635,6 +649,7 @@ Key authority statements:
 | **Phase 13E Network Graph Foundation** | **Complete; implemented on `phase-13e-network-graph-foundation`** |
 | **Phase 13F Network Residual Assembly Foundation** | **Complete; implemented on `phase-13f-network-residual-assembly`** |
 | **Phase 13G Network Residual Evaluation Foundation** | **Complete; implemented on `phase-13g-network-residual-evaluation`** |
+| **Phase 13H Configurable Network Solver v1** | **Complete; implemented on `phase-13h-configurable-network-solver-v1`** |
 
 Closeout artifacts:
 
@@ -685,29 +700,33 @@ Closeout artifacts:
 
 ## 4. Current Active Phase
 
-**Phase 13G - Network Residual Evaluation Foundation** is implemented on
-`phase-13g-network-residual-evaluation`.
+**Phase 13H - Configurable Network Solver v1** is implemented on
+`phase-13h-configurable-network-solver-v1`.
 
 The implemented capability is intentionally narrow:
 
-- four public types/functions for explicit residual evaluation from declared
-  network residuals: `NetworkUnknownValues`, `NetworkResidualEvaluator`,
-  `NetworkResidualEvaluationResult`, `evaluate_network_residuals`;
-- `NetworkUnknownValues` — immutable `MappingProxyType` from unknown name to
-  float; validates finite, non-bool values at construction;
-- `NetworkResidualEvaluator` — frozen (name, callback) pair; validates
-  non-empty name and callable at construction;
-- `evaluate_network_residuals` — accepts assembly, values, evaluators, and
-  scales; validates all inputs strictly; evaluates each callback in assembly
-  declaration order; builds `ResidualVector` (Phase 13C); reports
-  `max_abs_scaled` and `l2_scaled`;
-- `NetworkResidualEvaluationResult` — immutable result with all inputs and
-  outputs, including `evaluations` tuple, `residual_vector`, `scaled_values`,
-  `max_abs_scaled`, and `l2_scaled`;
-- no solve algorithm, no iteration, no component execution, and no property
-  lookup; purely evaluative.
+- three public names: `NetworkSolveConfig`, `NetworkSolveResult`,
+  `solve_network_residual_problem` added to `mpl_sim.network` via new
+  `src/mpl_sim/network/solver.py`;
+- `NetworkSolveConfig` — frozen dataclass with `max_iterations`, `tolerance`,
+  `finite_difference_step`, `damping` (default 1.0), `record_history` (default
+  False); strict validation rejects bool on all numeric fields, requires
+  `max_iterations >= 1`, `damping <= 1.0`;
+- `NetworkSolveResult` — frozen dataclass with `converged`, `iteration_count`,
+  `reason`, `final_unknown_values`, `final_evaluation`, `initial_evaluation`,
+  `residual_norm_history`;
+- `solve_network_residual_problem(assembly, initial_values, evaluators, scales,
+  config)` — damped forward-FD Newton solver; Gaussian elimination with partial
+  pivoting; convergence criterion `max_abs_scaled <= tolerance`; singularity
+  detection (pivot < 1e-14); square system required; initial convergence check
+  before first iteration; callback exceptions propagate unchanged; no scipy, no
+  numpy root-finders, no component execution, no property lookup;
+- builds on Phase 13G `evaluate_network_residuals` for all residual evaluations
+  (both initial and perturbed states);
+- 113 focused tests in `tests/network/test_configurable_solver_v1.py` covering
+  all 30 required coverage items.
 
-Phase 13A through Phase 13F work remains complete and unchanged by this phase.
+Phase 13A through Phase 13G work remains complete and unchanged by this phase.
 
 Phase boundaries to preserve:
 
@@ -725,11 +744,11 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-13g-network-residual-evaluation` into `main` as the Phase 13G checkpoint after audit approval.
-2. Continue with Phase 13H configurable network solver v1 without adding arbitrary topology simulation.
+1. Merge `phase-13h-configurable-network-solver-v1` into `main` as the Phase 13H checkpoint after audit approval.
+2. Continue with Phase 14+ physical network residual construction from components.
 3. Preserve frozen architecture boundaries while completing the remaining work.
 4. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
-5. Preserve the Phase 7/13E/13F/13G boundary: Network owns topology, assembly/reference wiring, declaration-only residual specs, and explicit residual evaluation — not iterative solving.
+5. Preserve the Phase 7/13E/13F/13G/13H boundary: graph and assembly types remain topology/declaration/evaluation objects with no solve methods or solver dependency; the Phase 13H entry point solves only explicit callback problems and does not construct physical residuals from components.
 6. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
 7. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
 8. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests examples` before reporting the next implementation task complete.
@@ -737,7 +756,7 @@ Phase boundaries to preserve:
 Recommended commit message:
 
 ```text
-feat: add network residual evaluation foundation
+feat: add configurable network solver v1
 ```
 
 ---
@@ -821,6 +840,7 @@ Rules for the next implementation session:
 - Continue Pump and Accumulator only for focused fixes or hardening; continue Phase 11 from the Phase 11F HX checkpoint. Keep dynamic controls, fitting, optimization, DOE, literature validation, Newton/Jacobian expansion, and transient solving deferred unless explicitly requested.
 - Run `pytest`, appropriate scoped lint, and `black --check src tests` before reporting any implementation task complete. Keep scoped audit commands tied to the requested branch surface.
 - Do not include `Co-Authored-By` lines unless explicitly requested.
+- Phase 13H added `NetworkSolveConfig`, `NetworkSolveResult`, `solve_network_residual_problem` to `mpl_sim.network`. The solver is a damped FD Newton method with internal Gaussian elimination — no scipy, no numpy root-finders. Accepts explicit evaluator callbacks and scales only; does NOT construct residuals from component physics. Physical network residual construction (from Pipe, Pump, Accumulator component contributions) is deferred to Phase 14+.
 - Phase 11P added `HXSolveRequest.dp_primary_is_two_phase: bool = False`. When `True`, HX models build `TwoPhaseDPInput` with `rho_l`, `rho_v`, `mu_l`, `mu_v` from `geom_scalars` into `property_scalars`, and multiply `value[0] * L_cell` for gradient-to-drop conversion. Single-phase DP path (default `False`) is unchanged.
 - Two-phase DP is now injectable into all three HX models using `MSHTwoPhaseFrictionGradient` when the caller supplies required scalars in `geom_scalars` and sets `dp_primary_is_two_phase=True`.
 - Phase 11Q added `q_flux_primary: float | None = None` and `dp_primary_is_two_phase: bool = False` to both `EvaporatorHXInput` and `CondenserHXInput`, forwarding both fields explicitly to `HXSolveRequest`. Evaporator scenarios with `ShahBoilingHTC` + q_flux + two-phase DP, and condenser scenarios with `YanCondensationHTC` + two-phase DP, are now representable through the component wrappers without hidden defaults or automatic closure selection.
@@ -834,6 +854,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-21 |
 | **Updated by** | Codex |
-| **Status note** | Phase 13G network residual evaluation foundation implemented on `phase-13g-network-residual-evaluation`; 4376 tests passed with no skips, xfails, or deselections; 6 runnable examples; explicit value map + callback evaluation + scaled norms added to `mpl_sim.network`; no solver, no component execution, no property lookup; generic network solving remains deferred to Phase 13H |
+| **Status note** | Phase 13H configurable network solver v1 implemented on `phase-13h-configurable-network-solver-v1`; 4489 tests passed with separate repository-local temp roots and no skips, xfails, deselections, or fixture errors; 628 total network tests; 113 new Phase 13H solver tests; `NetworkSolveConfig`, `NetworkSolveResult`, `solve_network_residual_problem` added to `mpl_sim.network`; damped FD Newton solver with Gaussian elimination, singularity detection, and optional history recording; no scipy, no component execution, no property lookup; physical network residual construction from components remains deferred to Phase 14+ |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
