@@ -31,7 +31,7 @@ Its current strength is a clean, explicit, well-tested HX/component/correlation 
 
 ## 3. What can it NOT yet do?
 
-- **Fixed-architecture closures only.** Both `solve_minimal_closed_mpl` (energy) and `solve_minimal_pressure_closure` (pressure) operate on a fixed one-evaporator + one-condenser architecture. Generic network topology, combined pressure+energy closure (Phase 13C), and multi-component loops remain deferred.
+- **Fixed-architecture closures only.** Both `solve_minimal_closed_mpl` (energy) and `solve_minimal_pressure_closure` (pressure) operate on a fixed one-evaporator + one-condenser architecture. Generic network topology, combined pressure+energy closure (Phase 13D), and multi-component loops remain deferred.
 - **No network solver.** Components cannot be connected through an arbitrary flow-pressure network.
 - **No property lookup.** `FluidState` carries only `(P, h, identity)`; no CoolProp or REFPROP call occurs in the HX/component/correlation layers.
 - **No moving-boundary model.** Two-phase zone tracking is not implemented.
@@ -189,7 +189,7 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 1. Check `docs/roadmap/PROJECT_STATUS.md` for the current phase and deferred items.
 2. Check `docs/roadmap/IMPLEMENTATION_PLAN.md` for the authoritative phase order.
 3. The next recommended directions are:
-   - Combined pressure + energy closure (Phase 13C): solve mdot and Q_cond simultaneously.
+   - Combined pressure + energy closure (Phase 13D): solve mdot and Q_cond simultaneously.
    - Remaining two-phase DP closures: Homogeneous/Cicchitti, Kim-Mudawar 2013.
    - Validation harness: pin literature data as acceptance tests.
 4. Preserve the architecture boundaries in `docs/architecture/ARCHITECTURE_MASTER.md`.

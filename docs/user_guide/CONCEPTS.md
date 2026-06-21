@@ -152,13 +152,65 @@ Required `geom_scalars` for this path: `G`, `x`, `D_h`, `L_cell`, `A_ht`, and th
 
 ---
 
+## Residual / Unknown / Scaling Framework (Phase 13C)
+
+`mpl_sim.closed_loop` exports four value objects for representing residuals and unknowns
+as explicit, named, scaled quantities.
+
+```python
+from mpl_sim.closed_loop import (
+    UnknownSpec,
+    ResidualSpec,
+    ResidualEvaluation,
+    ResidualVector,
+)
+
+# Declare a scalar unknown with optional bounds.
+q_cond_unknown = UnknownSpec(name="Q_cond", unit="W", lower=-5000.0, upper=-100.0)
+mdot_unknown = UnknownSpec(name="primary_mdot", unit="kg/s", lower=0.001, upper=1.0)
+
+# Declare a residual equation with a characteristic scale for non-dimensionalisation.
+energy_spec = ResidualSpec(name="energy", unit="J/kg", scale=1000.0)
+pressure_spec = ResidualSpec(name="pressure", unit="Pa", scale=100.0)
+
+# Evaluate residuals at a given iterate.
+energy_eval = ResidualEvaluation(spec=energy_spec, value=h_return - h_reference)
+pressure_eval = ResidualEvaluation(spec=pressure_spec, value=pump_head - dP_total)
+
+# Assemble a residual vector and query scaled norms.
+vec = ResidualVector(evaluations=(energy_eval, pressure_eval))
+print(vec.scaled_values())   # (value/scale, ...)  — one per residual
+print(vec.max_abs_scaled())  # L-infinity norm of scaled residuals
+print(vec.l2_scaled())       # Euclidean norm of scaled residuals
+print(vec.is_converged(1e-6))  # True if max_abs_scaled() <= 1e-6
+```
+
+**What this is:**
+- Pure value objects for representing named, scaled residuals and unknowns.
+- A foundation for Phase 13D (coupled energy+pressure closure) and later network solving.
+
+**What this is NOT:**
+- A generic `solve(network)` call.
+- A simultaneous energy+pressure nonlinear solver.
+- Any network topology, graph, or parallel-branch logic.
+
+Validation rules are strict: `name` and `unit` must be non-empty strings; `scale` must
+be a finite, strictly-positive, non-bool float; `value` must be finite and non-bool;
+`evaluations` must be non-empty and contain unique `spec.name` values;
+`is_converged(tolerance)` requires finite, strictly-positive, non-bool tolerance.
+
+---
+
 ## What is NOT implemented
 
 | Capability | Status |
 |---|---|
 | Minimal fixed-architecture energy closure | Implemented in Phase 13A (`mpl_sim.closed_loop`) |
-| Generic network and pressure closure | Deferred |
-| Network flow-pressure solver | Deferred |
+| Minimal fixed-architecture pressure closure | Implemented in Phase 13B (`mpl_sim.closed_loop`) |
+| Residual/unknown/scaling framework | Implemented in Phase 13C (`mpl_sim.closed_loop`) |
+| Coupled energy+pressure closure | Deferred (Phase 13D) |
+| Generic network solver (`solve(network)`) | Deferred (Phase 13F+) |
+| Network graph, topology, parallel branches | Deferred |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |
 | Automatic phase inference | Not planned for this layer |

@@ -28,7 +28,7 @@ What this does NOT demonstrate
 -------------------------------
 - Generic network solving (deferred to Phase 13D).
 - Energy closure (deferred; energy_residual is diagnostic only in Phase 13B).
-- Combined pressure + energy closure (deferred to Phase 13C).
+- Combined pressure + energy closure (deferred to Phase 13D).
 - Moving-boundary modeling (deferred).
 - Automatic phase inference or quality marching (deferred).
 - Parallel evaporators, valves, manifolds, or recuperator (deferred).
@@ -301,7 +301,7 @@ if __name__ == "__main__":
     print("NOTE: Phase 13B — fixed architecture; not a generic network solver.")
     print("      Pressure closure solves mdot, not Q_cond.  Energy balance is")
     print("      diagnostic only (Option A).  Combined pressure + energy closure")
-    print("      is deferred to Phase 13C.")
+    print("      is deferred to Phase 13D.")
     print("      Parallel evaporators, valves, manifolds, recuperator: all deferred.")
     print("      Validation against experimental data: deferred to Phase 12 harness.")
     print("      This is not a validated physical model.")
