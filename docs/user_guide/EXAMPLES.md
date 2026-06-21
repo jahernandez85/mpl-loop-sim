@@ -396,9 +396,8 @@ for v in result.verdicts:
 
 - Plotting (no matplotlib dependency yet).
 - Phase-change examples with `ShahBoilingHTC` or `YanCondensationHTC` (require explicit quality scalars; `evaluate_scenario` path ready, dedicated example deferred).
-- Combined pressure + energy closure (Phase 13D): solving mdot and Q_cond simultaneously.
-- Automatic physical network residual construction and arbitrary-topology
-  simulation (Phase 14+). Phase 13H's callback-only algebraic solver has no
+- Automatic component binding and physical network residual construction
+  (Phase 14B+). Phase 14A's explicit callback adapter foundation has no
   dedicated runnable example in this guide.
-- Parallel evaporators, valves, manifolds, recuperators, pre/post-heaters (Phase 14+).
+- Parallel evaporators, valves, manifolds, recuperators, pre/post-heaters (Phase 14D+).
 - Validation against published HX data (Phase 12+ validation harness, deferred).

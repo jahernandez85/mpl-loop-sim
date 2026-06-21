@@ -36,15 +36,19 @@ Its current strength is a clean, explicit, well-tested HX/component/correlation 
 - Iterate explicit unknown values with the Phase 13H configurable algebraic
   solver to reduce caller-supplied residual callbacks. It does not execute
   graph components or construct physical residuals automatically.
+- Wrap explicit physical-style residual callbacks in Phase 13G-compatible
+  evaluators with the Phase 14A adapter foundation. Adapter callbacks and
+  metadata are caller-supplied; no component execution or property lookup is
+  performed.
 - Run 4000+ deterministic, property-lookup-free tests.
 
 ---
 
 ## 3. What can it NOT yet do?
 
-- **No automatic physical network simulation.** The Phase 13H solver handles
-  explicit algebraic callbacks only. It does not derive residuals from graph
-  components, execute component physics, or perform property lookup.
+- **No automatic physical network simulation.** Phase 14A only adapts explicit
+  caller callbacks. It does not derive residuals from component types, execute
+  component physics, call properties/correlations, or attach state to graphs.
 - **No arbitrary flow-pressure network simulation.** Parallel branches,
   valves, manifolds, recuperators, and pre/post-heaters remain deferred.
 - **No property lookup.** `FluidState` carries only `(P, h, identity)`; no CoolProp or REFPROP call occurs in the HX/component/correlation layers.
@@ -186,6 +190,7 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 | Calibration | Never inside a correlation. Applied as a multiplier after the correlation call. |
 | Network topology | Only in `mpl_sim.network`. Components do not know their neighbours or the network. |
 | Configurable callback solver | Phase 13H exposes `solve_network_residual_problem` for explicit algebraic residual callbacks. It does not construct or execute physical network models. |
+| Physical residual adapters | Phase 14A converts explicit caller callbacks into Phase 13G evaluators. It does not infer or execute component physics. |
 | Generic physical Solver | The architecture-level physical solver remains in `mpl_sim.solvers`. Phase 13A's `mpl_sim.closed_loop` API remains a fixed case-specific orchestration helper. |
 | `SystemState` | The only owner of numerical state values. Not the ports or components. |
 
@@ -205,7 +210,8 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 1. Check `docs/roadmap/PROJECT_STATUS.md` for the current phase and deferred items.
 2. Check `docs/roadmap/IMPLEMENTATION_PLAN.md` for the authoritative phase order.
 3. The next recommended directions are:
-   - Automatic physical network residual construction and arbitrary-topology simulation (Phase 14+).
+   - Component binding and state-vector mapping (Phase 14B).
+   - Minimal physical single-loop residual construction (Phase 14C).
    - Remaining two-phase DP closures: Homogeneous/Cicchitti, Kim-Mudawar 2013.
    - Validation harness: pin literature data as acceptance tests.
 4. Preserve the architecture boundaries in `docs/architecture/ARCHITECTURE_MASTER.md`.

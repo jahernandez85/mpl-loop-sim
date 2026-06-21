@@ -10,9 +10,10 @@ All examples:
 - write no files;
 - have corresponding smoke tests in `tests/examples/test_examples.py`.
 
-Phase 13H's configurable callback-only algebraic residual solver is available
-through `mpl_sim.network`, but no new runnable example is added in this phase.
-It does not execute graph components or construct physical residuals.
+Phase 14A's explicit physical residual adapter foundation is available through
+`mpl_sim.network`, but no new runnable example is added in this phase. Adapters
+are caller-supplied callback bridges; they do not execute graph components,
+call properties/correlations, or construct physics from component types.
 
 ---
 
