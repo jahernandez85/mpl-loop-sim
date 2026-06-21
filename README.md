@@ -21,14 +21,16 @@ A modular, explicit-input thermo-hydraulic simulation library for mechanically p
   for condenser heat rate so that `h_return = h_reference` (energy closure).
 - Solve the fixed `reference -> evaporator -> condenser` architecture for
   primary mass flow so that `pump_head(mdot) = dP_total(mdot)` (pressure closure).
-  Energy residual is diagnostic in Phase 13B; combined closure is Phase 13C.
+  Energy residual is diagnostic in Phase 13B; combined closure is Phase 13D.
+- Represent unknowns and residuals with explicit names, units, scales, scaled
+  vectors, and convergence norms through the Phase 13C residual framework.
 - Run 3700+ deterministic, property-lookup-free tests.
 
 ## What it cannot do yet
 
 - Generic full-loop convergence beyond the fixed one-evaporator + one-condenser
   architecture.
-- Combined pressure + energy closure (deferred to Phase 13C).
+- Combined pressure + energy closure (deferred to Phase 13D).
 - Network flow-pressure solving (components are not connected through a network).
 - Property lookup at the HX/component/correlation layer (CoolProp is only in `mpl_sim.properties`).
 - Moving-boundary two-phase zone modeling.
@@ -132,10 +134,10 @@ The library is built around five principles:
 
 ## Project status
 
-Phase 13B — Minimal Pressure Closure / Pump-Head Residual Foundation.
-The HX component family (Phases 11A–11U) and Phase 13A energy closure are complete.
-Phase 13B adds a fixed-architecture pressure closure: `solve_minimal_pressure_closure` finds
-`primary_mdot` such that `pump_head(mdot) = dP_evap(mdot) + dP_cond(mdot)`.
+Phase 13C — Residual / Unknown / Scaling Framework Foundation.
+The HX component family (Phases 11A–11U), Phase 13A energy closure, and Phase 13B
+pressure closure are complete. Phase 13C adds representation and scaling value
+objects only; it does not add a coupled or generic network solver.
 Combined pressure + energy closure, generic network solving, validation harness, and
 moving-boundary modeling remain deferred.
 

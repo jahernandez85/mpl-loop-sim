@@ -276,7 +276,7 @@ NOTE: Phase 13B — fixed architecture; not a generic network solver.
 **What it is NOT:**
 
 - Not a generic network solver (fixed one-evaporator + one-condenser architecture only).
-- Not a combined pressure + energy solver (deferred to Phase 13C).
+- Not a combined pressure + energy solver (deferred to Phase 13D).
 - Not a validated physical model (no experimental data).
 - Not a moving-boundary or quality-marching model.
 - Not a multi-component loop (no parallel evaporators, valves, manifolds, or recuperator).
@@ -327,7 +327,7 @@ for v in result.verdicts:
 
 - Plotting (no matplotlib dependency yet).
 - Phase-change examples with `ShahBoilingHTC` or `YanCondensationHTC` (require explicit quality scalars; `evaluate_scenario` path ready, dedicated example deferred).
-- Combined pressure + energy closure (Phase 13C): solving mdot and Q_cond simultaneously.
-- Generic network solver (Phase 13D): arbitrary topology, multiple parallel components.
+- Combined pressure + energy closure (Phase 13D): solving mdot and Q_cond simultaneously.
+- Generic network solver (Phase 13F+): arbitrary topology, multiple parallel components.
 - Parallel evaporators, valves, manifolds, recuperators, pre/post-heaters (Phase 14+).
 - Validation against published HX data (Phase 12+ validation harness, deferred).

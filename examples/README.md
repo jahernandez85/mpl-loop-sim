@@ -82,7 +82,7 @@ Demonstrates the minimal fixed-architecture pressure closure.
 - Energy residual `h_return - h_reference` is reported as a diagnostic only (Option A; not solved).
 - All inputs explicit; no hidden defaults; no property lookup.
 
-**Not:** a generic network solver, a combined pressure+energy solver (Phase 13C), a validated physical model.
+**Not:** a generic network solver, a combined pressure+energy solver (Phase 13D), a validated physical model.
 
 ---
 

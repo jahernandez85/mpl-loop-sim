@@ -1,6 +1,7 @@
-"""closed_loop — Phase 13A/13B minimal closed MPL solvers.
+"""closed_loop — Phase 13A/13B/13C minimal closed MPL solvers and residual framework.
 
-Exports fixed-architecture loop-closure solvers:
+Exports fixed-architecture loop-closure solvers and a residual/unknown/scaling
+framework foundation.
 
 Phase 13A — one-variable energy closure:
   Solves Q_cond such that h_return = h_reference.
@@ -8,6 +9,12 @@ Phase 13A — one-variable energy closure:
 Phase 13B — one-variable pressure closure:
   Solves primary_mdot such that pump_head(mdot) = dP_total(mdot).
   This is a pressure-only closure (Option A); energy residual is diagnostic.
+
+Phase 13C — residual/unknown/scaling framework:
+  Value objects for declaring unknowns, residual equations, and scaled residual
+  vectors.  Does NOT implement a generic solve(network) API.  Does NOT implement
+  simultaneous energy+pressure closure.  Prepares the path toward Phase 13D
+  (coupled fixed-architecture closure) and later network solving.
 
 Neither solver implements a generic network solver.  The architecture is
 fixed at one evaporator and one condenser.
@@ -26,6 +33,12 @@ Phase 13B:
   MinimalPressureClosureCase     — loop case (components + scenarios + mdot bracket)
   MinimalPressureClosureResult   — result with pressure residuals, states, diagnostics
   solve_minimal_pressure_closure — pressure-closure entry point
+
+Phase 13C:
+  UnknownSpec        — declares a scalar unknown (name, unit, optional bounds)
+  ResidualSpec       — declares a residual equation (name, unit, scale)
+  ResidualEvaluation — pairs a ResidualSpec with a raw residual value
+  ResidualVector     — ordered collection with scaled norms and convergence check
 
 Architectural constraints
 -------------------------
@@ -48,6 +61,12 @@ from mpl_sim.closed_loop.pressure_solver import (
     PumpHeadCurve,
     solve_minimal_pressure_closure,
 )
+from mpl_sim.closed_loop.residuals import (
+    ResidualEvaluation,
+    ResidualSpec,
+    ResidualVector,
+    UnknownSpec,
+)
 
 __all__ = [
     # Phase 13A — energy closure
@@ -61,4 +80,9 @@ __all__ = [
     "MinimalPressureClosureCase",
     "MinimalPressureClosureResult",
     "solve_minimal_pressure_closure",
+    # Phase 13C — residual/unknown/scaling framework
+    "UnknownSpec",
+    "ResidualSpec",
+    "ResidualEvaluation",
+    "ResidualVector",
 ]
