@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B/7C/10I + Phase 13E + Phase 13F + Phase 13G + Phase 13H.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -67,6 +67,20 @@ Phase 13H exports (configurable network solver v1):
   Solver entry point:
     solve_network_residual_problem
 
+Phase 14A exports (physical residual adapter foundation):
+
+  Adapter context:
+    PhysicalResidualContext
+
+  Single adapter:
+    PhysicalResidualAdapter
+
+  Adapter collection:
+    PhysicalResidualAdapterSet
+
+  Builder function:
+    build_network_residual_evaluators
+
 MUST NOT import from solvers/.
 """
 
@@ -77,6 +91,12 @@ from mpl_sim.network.graph import (
     GraphNode,
     GraphNodeId,
     NetworkGraph,
+)
+from mpl_sim.network.physical_adapters import (
+    PhysicalResidualAdapter,
+    PhysicalResidualAdapterSet,
+    PhysicalResidualContext,
+    build_network_residual_evaluators,
 )
 from mpl_sim.network.residual_assembly import (
     NetworkResidualAssembly,
@@ -160,4 +180,12 @@ __all__ = [
     "NetworkSolveResult",
     # Phase 13H solver entry point
     "solve_network_residual_problem",
+    # Phase 14A adapter context
+    "PhysicalResidualContext",
+    # Phase 14A single adapter
+    "PhysicalResidualAdapter",
+    # Phase 14A adapter collection
+    "PhysicalResidualAdapterSet",
+    # Phase 14A builder function
+    "build_network_residual_evaluators",
 ]

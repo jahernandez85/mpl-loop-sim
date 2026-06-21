@@ -577,6 +577,99 @@ print(result.initial_evaluation)     # evaluation at the initial guess
 
 ---
 
+## Physical Residual Adapter Foundation (Phase 14A)
+
+`mpl_sim.network` exports an explicit adapter layer that converts
+caller-supplied physical component residual callbacks into Phase 13G/13H-
+compatible `NetworkResidualEvaluator` objects.  **This is an adapter
+foundation only — it does NOT constitute a full physical network simulator.**
+
+```python
+from mpl_sim.network import (
+    PhysicalResidualContext,
+    PhysicalResidualAdapter,
+    PhysicalResidualAdapterSet,
+    build_network_residual_evaluators,
+)
+
+# Each adapter binds one residual declaration name to a caller-supplied
+# callback that receives a PhysicalResidualContext.
+adapters = [
+    PhysicalResidualAdapter(
+        residual_name="mass_balance:n1",
+        callback=lambda ctx: ctx.unknown_values["mdot:evap"] - ctx.unknown_values["mdot:cond"],
+    ),
+    PhysicalResidualAdapter(
+        residual_name="mass_balance:n2",
+        callback=lambda ctx: ctx.unknown_values["mdot:cond"] - ctx.unknown_values["mdot:evap"],
+    ),
+    PhysicalResidualAdapter(
+        residual_name="pressure_drop:evap",
+        callback=lambda ctx: ctx.unknown_values["P:n1"] - ctx.unknown_values["P:n2"] - 600.0,
+    ),
+    PhysicalResidualAdapter(
+        residual_name="pressure_drop:cond",
+        callback=lambda ctx: ctx.unknown_values["P:n2"] - ctx.unknown_values["P:n1"] + 1000.0,
+    ),
+]
+
+# Optionally group adapters into a validated, ordered set.
+adapter_set = PhysicalResidualAdapterSet(adapters=tuple(adapters))
+
+# Convert to NetworkResidualEvaluator objects (Phase 13G-compatible).
+# Names must match assembly residual declarations exactly.
+evaluators = build_network_residual_evaluators(
+    assembly,       # NetworkResidualAssembly from Phase 13F
+    adapter_set,    # or a plain list of PhysicalResidualAdapter
+    metadata={"run_id": "example"},  # optional caller metadata
+)
+
+# Pass the evaluators directly to Phase 13G or Phase 13H.
+result = evaluate_network_residuals(assembly, unknown_values, evaluators, scales)
+```
+
+The constants in this snippet are toy algebraic values only. They are not
+library defaults, physical correlations, or validation data.
+
+`PhysicalResidualContext` carries the current unknown-value mapping and
+optional caller metadata.  It is created per evaluation and passed to the
+adapter callback:
+
+```python
+def my_adapter(ctx: PhysicalResidualContext) -> float:
+    v = ctx.unknown_values   # MappingProxyType[str, float] — read-only
+    meta = ctx.metadata      # MappingProxyType[str, object] | None
+    return v["P:n1"] - v["P:n2"] - 600.0
+```
+
+**What this is:**
+- An explicit adapter layer: caller-supplied callback functions are bound to
+  residual declaration names and converted to `NetworkResidualEvaluator`
+  objects compatible with Phase 13G and Phase 13H.
+- Adapter names must match assembly residual declarations exactly (missing
+  and extra adapters are rejected).
+- Assembly residual order is preserved in the generated evaluator tuple.
+- `PhysicalResidualContext` is immutable; unknown values and metadata are
+  defensively copied.
+- A preparation step toward Phase 14B component binding and Phase 14C
+  minimal physical single-loop solve.
+
+**What this is NOT:**
+- Does NOT construct residuals automatically from graph component physics.
+- Does NOT execute component instances or call component physics methods.
+- Does NOT call the frozen `contribute(...)` component contribution method.
+- Does NOT look up fluid properties — no CoolProp, no `PropertyBackend`.
+- Does NOT call `CorrelationRegistry` or any correlation registry.
+- Does NOT attach physical state (`FluidState`, mdot, pressure, enthalpy)
+  to graph nodes.
+- Does NOT infer residual form from `component_type`.
+- Does NOT implement `solve(network)`.
+- Is NOT a full MPL network simulator — physical residual logic must be
+  supplied entirely by the caller through explicit adapter callbacks.
+- Is NOT validation against experiment or literature data.
+
+---
+
 ## What is NOT implemented
 
 | Capability | Status |
@@ -589,9 +682,11 @@ print(result.initial_evaluation)     # evaluation at the initial guess
 | Network residual assembly foundation | Implemented in Phase 13F (`mpl_sim.network`) |
 | Network residual evaluation foundation | Implemented in Phase 13G (`mpl_sim.network`) |
 | Configurable network solver v1 | Implemented in Phase 13H (`mpl_sim.network`) |
-| Generic network solver (`solve(network)`) | Deferred (Phase 14+) |
-| Physical network residual construction | Deferred (Phase 14+) |
-| Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14+) |
+| Physical residual adapter foundation | Implemented in Phase 14A (`mpl_sim.network`) |
+| Generic network solver (`solve(network)`) | Deferred (Phase 14C+) |
+| Component binding and state-vector mapping | Deferred (Phase 14B) |
+| Minimal physical single-loop solve | Deferred (Phase 14C) |
+| Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14D+) |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |
 | Automatic phase inference | Not planned for this layer |
