@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B/7C/10I + Phase 13E + Phase 13F + Phase 13G.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E + Phase 13F + Phase 13G + Phase 13H.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -56,6 +56,17 @@ Phase 13G exports (network residual evaluation foundation):
   Evaluation function:
     evaluate_network_residuals
 
+Phase 13H exports (configurable network solver v1):
+
+  Solver configuration:
+    NetworkSolveConfig
+
+  Solve result:
+    NetworkSolveResult
+
+  Solver entry point:
+    solve_network_residual_problem
+
 MUST NOT import from solvers/.
 """
 
@@ -80,6 +91,11 @@ from mpl_sim.network.residual_evaluation import (
     NetworkResidualEvaluator,
     NetworkUnknownValues,
     evaluate_network_residuals,
+)
+from mpl_sim.network.solver import (
+    NetworkSolveConfig,
+    NetworkSolveResult,
+    solve_network_residual_problem,
 )
 from mpl_sim.network.topology import (
     ConnectionId,
@@ -138,4 +154,10 @@ __all__ = [
     "NetworkResidualEvaluationResult",
     # Phase 13G evaluation function
     "evaluate_network_residuals",
+    # Phase 13H solver configuration
+    "NetworkSolveConfig",
+    # Phase 13H solve result
+    "NetworkSolveResult",
+    # Phase 13H solver entry point
+    "solve_network_residual_problem",
 ]

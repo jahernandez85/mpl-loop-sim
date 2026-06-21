@@ -500,6 +500,83 @@ print(result.residual_vector)     # ResidualVector (Phase 13C)
 
 ---
 
+## Configurable Network Solver v1 (Phase 13H)
+
+`mpl_sim.network` exports a minimal configurable algebraic residual solver
+that iterates explicit unknown values to reduce explicit residual callbacks.
+**This is a mathematical solve layer over explicit declarations and explicit
+callbacks — it does not construct residuals from physical components.**
+
+```python
+from mpl_sim.network import (
+    NetworkSolveConfig,
+    NetworkSolveResult,
+    solve_network_residual_problem,
+)
+
+# Configure the solver.
+config = NetworkSolveConfig(
+    max_iterations=100,
+    tolerance=1e-10,
+    finite_difference_step=1e-6,
+)
+
+# Provide the assembly (Phase 13F), initial values, explicit callbacks,
+# and explicit scales (Phase 13G), then solve.
+result = solve_network_residual_problem(
+    assembly,       # NetworkResidualAssembly from Phase 13F
+    initial_values, # NetworkUnknownValues or dict[str, float]
+    evaluators,     # list of NetworkResidualEvaluator (Phase 13G)
+    scales,         # dict[str, float] — one scale per residual
+    config,
+)
+
+print(result.converged)              # True if final max_abs_scaled <= tolerance
+print(result.iteration_count)        # number of Newton iterations performed
+print(result.reason)                 # human-readable status string
+print(result.final_unknown_values)   # NetworkUnknownValues at solution
+print(result.final_evaluation)       # NetworkResidualEvaluationResult (Phase 13G)
+print(result.initial_evaluation)     # evaluation at the initial guess
+```
+
+**Solver method:** Damped finite-difference Newton.
+
+- Forward finite differences build the n×n Jacobian at each iterate.
+- Gaussian elimination with partial pivoting solves the linear system.
+- Update: `x_new = x + damping * dx`.
+- Convergence criterion: `max_abs_scaled <= tolerance`.
+- Singular Jacobian detection: returns `converged=False` with a descriptive
+  reason rather than raising.
+- Only square systems (`n_unknowns == n_residuals`) are accepted.
+
+**Validation rules:**
+
+- `max_iterations`: positive integer, bool rejected.
+- `tolerance`: finite, positive, non-bool.
+- `finite_difference_step`: finite, positive, non-bool.
+- `damping`: finite, in (0, 1], non-bool. Default 1.0 (full Newton step).
+- Assembly must be a `NetworkResidualAssembly`.
+- Initial values must be `NetworkUnknownValues` or a `Mapping[str, float]`.
+- Evaluators and scales are validated by `evaluate_network_residuals` (Phase 13G).
+
+**What this is:**
+
+- A configurable algebraic residual solver over Phase 13G evaluation.
+- Drives `max_abs_scaled` below `tolerance` by updating explicit unknowns.
+- Uses explicit callback functions supplied by the caller.
+- A preparation step toward physical residual construction (Phase 14+).
+
+**What this is NOT:**
+
+- Does not construct residuals from physical components automatically.
+- Does not execute component instances or call component physics.
+- Does not perform property lookup (no thermodynamic backends).
+- Does not attach physical state to graph nodes.
+- Does not implement the full MPL simulator — this is an algebraic layer.
+- Not validated against experimental data.
+
+---
+
 ## What is NOT implemented
 
 | Capability | Status |
@@ -511,8 +588,9 @@ print(result.residual_vector)     # ResidualVector (Phase 13C)
 | Network graph / topology representation | Implemented in Phase 13E (`mpl_sim.network`) |
 | Network residual assembly foundation | Implemented in Phase 13F (`mpl_sim.network`) |
 | Network residual evaluation foundation | Implemented in Phase 13G (`mpl_sim.network`) |
-| Generic network solver (`solve(network)`) | Deferred (Phase 13H+) |
-| Configurable network solve | Deferred (Phase 13H) |
+| Configurable network solver v1 | Implemented in Phase 13H (`mpl_sim.network`) |
+| Generic network solver (`solve(network)`) | Deferred (Phase 14+) |
+| Physical network residual construction | Deferred (Phase 14+) |
 | Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14+) |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |

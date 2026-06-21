@@ -10,6 +10,10 @@ All examples:
 - write no files;
 - have corresponding smoke tests in `tests/examples/test_examples.py`.
 
+Phase 13H's configurable callback-only algebraic residual solver is available
+through `mpl_sim.network`, but no new runnable example is added in this phase.
+It does not execute graph components or construct physical residuals.
+
 ---
 
 ## Examples
