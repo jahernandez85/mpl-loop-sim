@@ -2,7 +2,7 @@
 
 A modular, explicit-input thermo-hydraulic simulation library for mechanically pumped two-phase loops (MPLs) and related systems.
 
-**Current state:** HX/component/correlation architecture is implementation-complete, with minimal fixed-architecture energy-closure and pressure-closure solvers and 3700+ deterministic tests. Generic network solving, combined pressure+energy closure, property lookup at the HX layer, moving-boundary modeling, and experimental validation remain deferred.
+**Current state:** HX/component/correlation architecture is implementation-complete, with minimal fixed-architecture energy-closure, pressure-closure, and coupled energy+pressure-closure solvers and 4000+ deterministic tests. Generic network solving, arbitrary topology, property lookup at the HX layer, moving-boundary modeling, and experimental validation remain deferred.
 
 ---
 
@@ -21,17 +21,20 @@ A modular, explicit-input thermo-hydraulic simulation library for mechanically p
   for condenser heat rate so that `h_return = h_reference` (energy closure).
 - Solve the fixed `reference -> evaporator -> condenser` architecture for
   primary mass flow so that `pump_head(mdot) = dP_total(mdot)` (pressure closure).
-  Energy residual is diagnostic in Phase 13B; combined closure is Phase 13D.
+  Energy residual is diagnostic in Phase 13B.
+- Solve the fixed architecture for **both** `Q_cond` and `primary_mdot` simultaneously
+  (coupled energy+pressure closure, Phase 13D) using nested scalar bisection.
+  `ResidualVector` provides scaled convergence diagnostics.
 - Represent unknowns and residuals with explicit names, units, scales, scaled
   vectors, and convergence norms through the Phase 13C residual framework.
-- Run 3700+ deterministic, property-lookup-free tests.
+- Run 4000+ deterministic, property-lookup-free tests.
 
 ## What it cannot do yet
 
 - Generic full-loop convergence beyond the fixed one-evaporator + one-condenser
-  architecture.
-- Combined pressure + energy closure (deferred to Phase 13D).
-- Network flow-pressure solving (components are not connected through a network).
+  architecture (network graph deferred to Phase 13E, configurable solver to 13F).
+- Parallel evaporators, valves, manifolds, recuperator, pre/post-heaters (deferred to Phase 14+).
+- Network flow-pressure solving with arbitrary topology (no `Network`/`Node`/`Branch`).
 - Property lookup at the HX/component/correlation layer (CoolProp is only in `mpl_sim.properties`).
 - Moving-boundary two-phase zone modeling.
 - Automatic phase inference or quality marching.
@@ -51,6 +54,7 @@ python examples/fixed_heat_rate_hx.py
 python examples/segmented_counterflow_hx.py
 python examples/minimal_closed_mpl_solver.py
 python examples/minimal_pressure_closure.py
+python examples/minimal_coupled_closure.py
 
 # Lint and format checks
 ruff check src tests examples

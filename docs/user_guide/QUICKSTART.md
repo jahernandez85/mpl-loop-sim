@@ -25,13 +25,14 @@ Its current strength is a clean, explicit, well-tested HX/component/correlation 
 - Assemble a minimal forward evaporator-to-condenser path and report energy imbalance explicitly.
 - Solve a minimal closed loop for energy closure: find the condenser heat rate `Q_cond` such that `h_return = h_reference` using bounded bisection (`solve_minimal_closed_mpl`).
 - Solve a minimal closed loop for pressure closure: find the primary mass flow `primary_mdot` such that `pump_head(mdot) = dP_total(mdot)` using bounded bisection (`solve_minimal_pressure_closure`). Energy residual is reported as a diagnostic (Phase 13B, Option A).
-- Run 3700+ deterministic, property-lookup-free tests.
+- Solve a minimal closed loop for **coupled** energy+pressure closure: find both `Q_cond` and `primary_mdot` simultaneously so that `h_return = h_reference` and `pump_head(mdot) = dP_total(mdot)` (`solve_minimal_coupled_closure`, Phase 13D). Uses nested scalar bisection; `ResidualVector` provides scaled convergence diagnostics.
+- Run 4000+ deterministic, property-lookup-free tests.
 
 ---
 
 ## 3. What can it NOT yet do?
 
-- **Fixed-architecture closures only.** Both `solve_minimal_closed_mpl` (energy) and `solve_minimal_pressure_closure` (pressure) operate on a fixed one-evaporator + one-condenser architecture. Generic network topology, combined pressure+energy closure (Phase 13D), and multi-component loops remain deferred.
+- **Fixed-architecture closures only.** `solve_minimal_closed_mpl` (energy), `solve_minimal_pressure_closure` (pressure), and `solve_minimal_coupled_closure` (coupled energy+pressure) all operate on a fixed one-evaporator + one-condenser architecture. Generic network topology, arbitrary topology changes, parallel branches, valves, manifolds, recuperators, and pre/post-heaters remain deferred.
 - **No network solver.** Components cannot be connected through an arbitrary flow-pressure network.
 - **No property lookup.** `FluidState` carries only `(P, h, identity)`; no CoolProp or REFPROP call occurs in the HX/component/correlation layers.
 - **No moving-boundary model.** Two-phase zone tracking is not implemented.
@@ -75,9 +76,10 @@ python examples/fixed_heat_rate_hx.py
 python examples/segmented_counterflow_hx.py
 python examples/minimal_closed_mpl_solver.py
 python examples/minimal_pressure_closure.py
+python examples/minimal_coupled_closure.py
 ```
 
-All five examples are standalone scripts. They print diagnostics to stdout, write no files, and make no network or property-lookup calls.
+All six examples are standalone scripts. They print diagnostics to stdout, write no files, and make no network or property-lookup calls.
 
 ---
 

@@ -1,4 +1,4 @@
-"""closed_loop — Phase 13A/13B/13C minimal closed MPL solvers and residual framework.
+"""closed_loop — Phase 13A/13B/13C/13D minimal closed MPL solvers and residual framework.
 
 Exports fixed-architecture loop-closure solvers and a residual/unknown/scaling
 framework foundation.
@@ -15,6 +15,16 @@ Phase 13C — residual/unknown/scaling framework:
   vectors.  Does NOT implement a generic solve(network) API.  Does NOT implement
   simultaneous energy+pressure closure.  Prepares the path toward Phase 13D
   (coupled fixed-architecture closure) and later network solving.
+
+Phase 13D — coupled fixed-architecture energy+pressure closure:
+  Solves both Q_cond and primary_mdot simultaneously so that:
+    energy_residual   = h_return - h_reference = 0   (energy closure)
+    pressure_residual = pump_head(mdot) - dP_total(mdot) = 0  (pressure closure)
+  Uses nested scalar bisection (Option A): outer bisect over mdot for
+  pressure closure; inner bisect over Q_cond for energy closure at each
+  outer trial.  Uses ResidualVector for convergence diagnostics.
+  This is NOT a generic network solver.  Architecture is fixed at one
+  evaporator and one condenser.  No arbitrary topology.
 
 Neither solver implements a generic network solver.  The architecture is
 fixed at one evaporator and one condenser.
@@ -40,6 +50,12 @@ Phase 13C:
   ResidualEvaluation — pairs a ResidualSpec with a raw residual value
   ResidualVector     — ordered collection with scaled norms and convergence check
 
+Phase 13D:
+  CoupledClosureConfig           — solver config (tolerances, scales, max_iters)
+  MinimalCoupledClosureCase      — loop case (components + scenarios + both brackets)
+  MinimalCoupledClosureResult    — result with both residuals, ResidualVector, diagnostics
+  solve_minimal_coupled_closure  — coupled energy+pressure closure entry point
+
 Architectural constraints
 -------------------------
 - MUST NOT import from mpl_sim.network or mpl_sim.solvers.
@@ -48,6 +64,12 @@ Architectural constraints
 - FluidState remains (P, h, identity); no property lookup occurs here.
 """
 
+from mpl_sim.closed_loop.coupled_solver import (
+    CoupledClosureConfig,
+    MinimalCoupledClosureCase,
+    MinimalCoupledClosureResult,
+    solve_minimal_coupled_closure,
+)
 from mpl_sim.closed_loop.minimal_solver import (
     ClosedLoopSolveConfig,
     MinimalClosedMPLCase,
@@ -85,4 +107,9 @@ __all__ = [
     "ResidualSpec",
     "ResidualEvaluation",
     "ResidualVector",
+    # Phase 13D — coupled energy+pressure closure
+    "CoupledClosureConfig",
+    "MinimalCoupledClosureCase",
+    "MinimalCoupledClosureResult",
+    "solve_minimal_coupled_closure",
 ]
