@@ -30,13 +30,16 @@ Its current strength is a clean, explicit, well-tested HX/component/correlation 
   physics-free `NetworkGraph` topology API (Phase 13E).
 - Assemble declaration-only network unknown and residual specifications from
   a `NetworkGraph` without evaluating physics (Phase 13F).
+- Evaluate declared network residuals once from explicit unknown values,
+  callbacks, and scales, returning Phase 13C residual-vector diagnostics
+  without solving or iterating (Phase 13G).
 - Run 4000+ deterministic, property-lookup-free tests.
 
 ---
 
 ## 3. What can it NOT yet do?
 
-- **Fixed-architecture closures only.** `solve_minimal_closed_mpl` (energy), `solve_minimal_pressure_closure` (pressure), and `solve_minimal_coupled_closure` (coupled energy+pressure) all operate on a fixed one-evaporator + one-condenser architecture. The Phase 13E graph and Phase 13F declaration assembly describe a future solve problem but cannot simulate it. Arbitrary-topology solving, parallel branches, valves, manifolds, recuperators, and pre/post-heaters remain deferred.
+- **Fixed-architecture closures only.** `solve_minimal_closed_mpl` (energy), `solve_minimal_pressure_closure` (pressure), and `solve_minimal_coupled_closure` (coupled energy+pressure) all operate on a fixed one-evaporator + one-condenser architecture. The Phase 13E graph, Phase 13F declaration assembly, and Phase 13G one-shot residual evaluation describe and evaluate a future solve problem but cannot simulate or solve it. Arbitrary-topology solving, parallel branches, valves, manifolds, recuperators, and pre/post-heaters remain deferred.
 - **No network solver.** Components cannot be connected through an arbitrary flow-pressure network.
 - **No property lookup.** `FluidState` carries only `(P, h, identity)`; no CoolProp or REFPROP call occurs in the HX/component/correlation layers.
 - **No moving-boundary model.** Two-phase zone tracking is not implemented.
@@ -195,8 +198,7 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 1. Check `docs/roadmap/PROJECT_STATUS.md` for the current phase and deferred items.
 2. Check `docs/roadmap/IMPLEMENTATION_PLAN.md` for the authoritative phase order.
 3. The next recommended directions are:
-   - Configurable network residual evaluation and solving (Phase 13G+).
-   - Configurable network solving (Phase 13G).
+   - Configurable network solving (Phase 13H+).
    - Remaining two-phase DP closures: Homogeneous/Cicchitti, Kim-Mudawar 2013.
    - Validation harness: pin literature data as acceptance tests.
 4. Preserve the architecture boundaries in `docs/architecture/ARCHITECTURE_MASTER.md`.
