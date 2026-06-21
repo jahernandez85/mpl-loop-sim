@@ -5,7 +5,7 @@ reference → evaporator → condenser → return path.
 
 Solved unknown: condenser heat rate Q_cond [W] (via FixedHeatRate BC).
 Solved condition: h_return = h_reference  (energy loop closure).
-Solver method: bisection over an explicit caller-supplied bracket.
+Solver method: bisection via the private _bisect_bounded helper.
 
 This is NOT a generic network solver.
 Architecture is fixed: one evaporator, one condenser, one mass flow.
@@ -35,6 +35,7 @@ import dataclasses
 import math
 from dataclasses import dataclass
 
+from mpl_sim.closed_loop._scalar_solve import _bisect_bounded
 from mpl_sim.components import (
     CondenserComponent,
     CondenserScenarioBinding,
@@ -312,43 +313,38 @@ def solve_minimal_closed_mpl(
             f"sign. Widen or correct the q_cond_bounds bracket."
         )
 
-    # --- Step 4: Bisection. ---
-    iterations = 0
+    # --- Step 4: Bisection (uses shared private utility). ---
+    # Pre-select the captured condenser result for the endpoint-root case.
+    # If _bisect_bounded detects an endpoint root it returns without calling
+    # _residual_only, so _last_cond must already hold the correct result.
     if abs(r_lo) <= config.tolerance:
-        converged = True
-        q_mid = q_lo
-        r_mid = r_lo
-        last_cond_result = cond_lo
+        _last_cond: list[HXSolveResult] = [cond_lo]
     elif abs(r_hi) <= config.tolerance:
-        converged = True
-        q_mid = q_hi
-        r_mid = r_hi
-        last_cond_result = cond_hi
+        _last_cond = [cond_hi]
     else:
-        converged = False
-        q_mid = 0.5 * (q_lo + q_hi)
-        r_mid = r_lo
-        last_cond_result = cond_lo
+        _last_cond = [cond_lo]  # overwritten on every midpoint evaluation
 
-        for _ in range(config.max_iter):
-            q_mid = 0.5 * (q_lo + q_hi)
-            r_mid, cond_result_trial = _energy_residual(q_mid)
-            iterations += 1
-            last_cond_result = cond_result_trial
+    def _residual_only(q: float) -> float:
+        r, cond_r = _energy_residual(q)
+        _last_cond[0] = cond_r
+        return r
 
-            if abs(r_mid) <= config.tolerance:
-                converged = True
-                break
-
-            if r_lo * r_mid < 0:
-                q_hi = q_mid
-                r_hi = r_mid
-            else:
-                q_lo = q_mid
-                r_lo = r_mid
+    bres = _bisect_bounded(
+        _residual_only,
+        q_lo,
+        r_lo,
+        q_hi,
+        r_hi,
+        config.max_iter,
+        config.tolerance,
+    )
+    q_mid = bres.x
+    r_mid = bres.residual
+    converged = bres.converged
+    iterations = bres.iterations
 
     # --- Step 5: Assemble result. ---
-    final_cond_result = last_cond_result
+    final_cond_result = _last_cond[0]
     return_state = final_cond_result.primary_state_out
     h_return = return_state.h
     energy_residual = h_return - h_reference

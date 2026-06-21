@@ -2,7 +2,7 @@
 
 A modular, explicit-input thermo-hydraulic simulation library for mechanically pumped two-phase loops (MPLs) and related systems.
 
-**Current state:** HX/component/correlation architecture is implementation-complete, with a minimal fixed-architecture one-variable energy-closure solver and 3700+ deterministic tests. Generic network solving, pressure closure, property lookup at the HX layer, moving-boundary modeling, and experimental validation remain deferred.
+**Current state:** HX/component/correlation architecture is implementation-complete, with minimal fixed-architecture energy-closure and pressure-closure solvers and 3700+ deterministic tests. Generic network solving, combined pressure+energy closure, property lookup at the HX layer, moving-boundary modeling, and experimental validation remain deferred.
 
 ---
 
@@ -18,14 +18,17 @@ A modular, explicit-input thermo-hydraulic simulation library for mechanically p
 - Evaluate `EvaporatorComponent` and `CondenserComponent` through immutable scenario bindings.
 - Assemble and run a minimal evaporator-to-condenser forward pass.
 - Solve the fixed `reference -> evaporator -> condenser -> return` architecture
-  for condenser heat rate so that `h_return = h_reference`.
+  for condenser heat rate so that `h_return = h_reference` (energy closure).
+- Solve the fixed `reference -> evaporator -> condenser` architecture for
+  primary mass flow so that `pump_head(mdot) = dP_total(mdot)` (pressure closure).
+  Energy residual is diagnostic in Phase 13B; combined closure is Phase 13C.
 - Run 3700+ deterministic, property-lookup-free tests.
 
 ## What it cannot do yet
 
-- Generic full-loop convergence beyond the Phase 13A fixed architecture and
-  one-variable energy closure.
-- Pressure closure; accumulated pressure drop remains diagnostic only.
+- Generic full-loop convergence beyond the fixed one-evaporator + one-condenser
+  architecture.
+- Combined pressure + energy closure (deferred to Phase 13C).
 - Network flow-pressure solving (components are not connected through a network).
 - Property lookup at the HX/component/correlation layer (CoolProp is only in `mpl_sim.properties`).
 - Moving-boundary two-phase zone modeling.
@@ -45,6 +48,7 @@ python examples/minimal_evaporator_condenser_loop.py
 python examples/fixed_heat_rate_hx.py
 python examples/segmented_counterflow_hx.py
 python examples/minimal_closed_mpl_solver.py
+python examples/minimal_pressure_closure.py
 
 # Lint and format checks
 ruff check src tests examples
@@ -128,8 +132,11 @@ The library is built around five principles:
 
 ## Project status
 
-Phase 13A — Minimal Closed MPL Solver.
-The HX component family (Phases 11A–11U) is implementation-complete as a checkpoint.
-Generic network/pressure closure, validation harness, and moving-boundary modeling remain deferred.
+Phase 13B — Minimal Pressure Closure / Pump-Head Residual Foundation.
+The HX component family (Phases 11A–11U) and Phase 13A energy closure are complete.
+Phase 13B adds a fixed-architecture pressure closure: `solve_minimal_pressure_closure` finds
+`primary_mdot` such that `pump_head(mdot) = dP_evap(mdot) + dP_cond(mdot)`.
+Combined pressure + energy closure, generic network solving, validation harness, and
+moving-boundary modeling remain deferred.
 
 *Developed at Université de Liège — Andrés Hernández, 2026.*

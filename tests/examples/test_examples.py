@@ -82,6 +82,9 @@ class TestExampleFilesExist:
     def test_minimal_closed_mpl_solver_exists(self) -> None:
         assert (EXAMPLES_DIR / "minimal_closed_mpl_solver.py").is_file()
 
+    def test_minimal_pressure_closure_exists(self) -> None:
+        assert (EXAMPLES_DIR / "minimal_pressure_closure.py").is_file()
+
     def test_examples_readme_exists(self) -> None:
         docs = (
             REPO_ROOT / "README.md",
@@ -96,6 +99,7 @@ class TestExampleFilesExist:
                 "fixed_heat_rate_hx.py",
                 "segmented_counterflow_hx.py",
                 "minimal_closed_mpl_solver.py",
+                "minimal_pressure_closure.py",
             ):
                 assert filename in text, f"{doc} does not reference {filename}"
                 assert (EXAMPLES_DIR / filename).is_file()
@@ -128,6 +132,11 @@ class TestExampleImports:
         # All logic is under __main__; importing must succeed with no side effects.
         assert not hasattr(mod, "result")
 
+    def test_minimal_pressure_closure_importable(self) -> None:
+        mod = _import_example("minimal_pressure_closure.py")
+        # All logic is under __main__; importing must succeed with no side effects.
+        assert not hasattr(mod, "result")
+
 
 # ---------------------------------------------------------------------------
 # 2 — examples run as standalone scripts (exit code 0)
@@ -149,6 +158,10 @@ class TestExampleRuns:
 
     def test_minimal_closed_mpl_solver_runs(self) -> None:
         proc = _run_example("minimal_closed_mpl_solver.py")
+        assert proc.returncode == 0, proc.stderr
+
+    def test_minimal_pressure_closure_runs(self) -> None:
+        proc = _run_example("minimal_pressure_closure.py")
         assert proc.returncode == 0, proc.stderr
 
 
@@ -197,6 +210,9 @@ class TestPublicAPIOnly:
 
     def test_minimal_closed_mpl_solver_public_api(self) -> None:
         self._check("minimal_closed_mpl_solver.py")
+
+    def test_minimal_pressure_closure_public_api(self) -> None:
+        self._check("minimal_pressure_closure.py")
 
 
 # ---------------------------------------------------------------------------
@@ -283,6 +299,9 @@ class TestExamplesDoNotWriteFiles:
     def test_minimal_closed_mpl_solver_no_file_writes(self, tmp_path: Path) -> None:
         self._check("minimal_closed_mpl_solver.py", tmp_path)
 
+    def test_minimal_pressure_closure_no_file_writes(self, tmp_path: Path) -> None:
+        self._check("minimal_pressure_closure.py", tmp_path)
+
 
 # ---------------------------------------------------------------------------
 # 6 — examples do not use external data or internet
@@ -309,6 +328,9 @@ class TestExamplesNoExternalDependencies:
 
     def test_minimal_closed_mpl_solver_no_external(self) -> None:
         self._check("minimal_closed_mpl_solver.py")
+
+    def test_minimal_pressure_closure_no_external(self) -> None:
+        self._check("minimal_pressure_closure.py")
 
 
 # ---------------------------------------------------------------------------
@@ -363,6 +385,17 @@ class TestExamplesHonestClaims:
         text = (EXAMPLES_DIR / "minimal_closed_mpl_solver.py").read_text(encoding="utf-8")
         assert "not a generic" in text.lower()
 
+    def test_minimal_pressure_closure_honest_claims(self) -> None:
+        self._check("minimal_pressure_closure.py")
+
+    def test_minimal_pressure_closure_states_not_generic(self) -> None:
+        text = (EXAMPLES_DIR / "minimal_pressure_closure.py").read_text(encoding="utf-8")
+        assert "not a generic" in text.lower()
+
+    def test_minimal_pressure_closure_states_not_validated(self) -> None:
+        text = (EXAMPLES_DIR / "minimal_pressure_closure.py").read_text(encoding="utf-8")
+        assert "not a validated" in text.lower()
+
 
 # ---------------------------------------------------------------------------
 # Phase 13A — closed-loop solver output diagnostics
@@ -397,3 +430,44 @@ class TestPhase13AMinimalClosedSolverDiagnostics:
     def test_pressure_note_present(self) -> None:
         proc = _run_example("minimal_closed_mpl_solver.py")
         assert "Pressure closure is NOT implemented" in proc.stdout
+
+
+# ---------------------------------------------------------------------------
+# Phase 13B — pressure closure solver output diagnostics
+# ---------------------------------------------------------------------------
+
+
+class TestPhase13BMinimalPressureClosureDiagnostics:
+    """Run the Phase 13B example as a script and inspect its stdout."""
+
+    def test_converged_reported(self) -> None:
+        proc = _run_example("minimal_pressure_closure.py")
+        assert "Converged:            True" in proc.stdout
+
+    def test_pressure_residual_small(self) -> None:
+        import re
+
+        proc = _run_example("minimal_pressure_closure.py")
+        m = re.search(r"Pressure residual:\s+([+-]?\d+\.\d+e[+-]\d+)", proc.stdout)
+        assert m is not None, "Pressure residual line not found in output"
+        residual = float(m.group(1))
+        assert abs(residual) < 1.0, f"Pressure residual too large: {residual} Pa"
+
+    def test_solved_mdot_near_analytical(self) -> None:
+        import re
+
+        proc = _run_example("minimal_pressure_closure.py")
+        m = re.search(r"Solved primary_mdot:\s+([0-9.]+)", proc.stdout)
+        assert m is not None, "Solved primary_mdot line not found in output"
+        mdot = float(m.group(1))
+        assert abs(mdot - 0.05) < 1e-3, f"Solved mdot not near 0.05 kg/s: {mdot}"
+
+    def test_energy_residual_reported_not_solved(self) -> None:
+        proc = _run_example("minimal_pressure_closure.py")
+        assert "Energy residual" in proc.stdout or "energy residual" in proc.stdout.lower()
+        # Energy residual should be non-zero (diagnostic, not solved).
+        assert "NOT solved" in proc.stdout or "diagnostic" in proc.stdout.lower()
+
+    def test_fixed_architecture_note_present(self) -> None:
+        proc = _run_example("minimal_pressure_closure.py")
+        assert "fixed architecture" in proc.stdout.lower() or "Phase 13B" in proc.stdout

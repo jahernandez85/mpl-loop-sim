@@ -24,13 +24,14 @@ Its current strength is a clean, explicit, well-tested HX/component/correlation 
 - Evaluate `EvaporatorComponent` and `CondenserComponent` through scenario bindings.
 - Assemble a minimal forward evaporator-to-condenser path and report energy imbalance explicitly.
 - Solve a minimal closed loop for energy closure: find the condenser heat rate `Q_cond` such that `h_return = h_reference` using bounded bisection (`solve_minimal_closed_mpl`).
+- Solve a minimal closed loop for pressure closure: find the primary mass flow `primary_mdot` such that `pump_head(mdot) = dP_total(mdot)` using bounded bisection (`solve_minimal_pressure_closure`). Energy residual is reported as a diagnostic (Phase 13B, Option A).
 - Run 3700+ deterministic, property-lookup-free tests.
 
 ---
 
 ## 3. What can it NOT yet do?
 
-- **Minimal energy closure only.** `solve_minimal_closed_mpl` closes the energy balance for a fixed one-evaporator + one-condenser architecture. Generic network topology, pressure closure, and multi-component loops remain deferred.
+- **Fixed-architecture closures only.** Both `solve_minimal_closed_mpl` (energy) and `solve_minimal_pressure_closure` (pressure) operate on a fixed one-evaporator + one-condenser architecture. Generic network topology, combined pressure+energy closure (Phase 13C), and multi-component loops remain deferred.
 - **No network solver.** Components cannot be connected through an arbitrary flow-pressure network.
 - **No property lookup.** `FluidState` carries only `(P, h, identity)`; no CoolProp or REFPROP call occurs in the HX/component/correlation layers.
 - **No moving-boundary model.** Two-phase zone tracking is not implemented.
@@ -73,9 +74,10 @@ python examples/minimal_evaporator_condenser_loop.py
 python examples/fixed_heat_rate_hx.py
 python examples/segmented_counterflow_hx.py
 python examples/minimal_closed_mpl_solver.py
+python examples/minimal_pressure_closure.py
 ```
 
-All four examples are standalone scripts. They print diagnostics to stdout, write no files, and make no network or property-lookup calls.
+All five examples are standalone scripts. They print diagnostics to stdout, write no files, and make no network or property-lookup calls.
 
 ---
 
@@ -187,7 +189,7 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 1. Check `docs/roadmap/PROJECT_STATUS.md` for the current phase and deferred items.
 2. Check `docs/roadmap/IMPLEMENTATION_PLAN.md` for the authoritative phase order.
 3. The next recommended directions are:
-   - Pressure closure (Phase 13B): extend the closed-loop solver to also balance loop ΔP.
+   - Combined pressure + energy closure (Phase 13C): solve mdot and Q_cond simultaneously.
    - Remaining two-phase DP closures: Homogeneous/Cicchitti, Kim-Mudawar 2013.
    - Validation harness: pin literature data as acceptance tests.
 4. Preserve the architecture boundaries in `docs/architecture/ARCHITECTURE_MASTER.md`.

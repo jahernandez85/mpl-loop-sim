@@ -68,6 +68,24 @@ Demonstrates the first minimal closed-loop MPL energy closure.
 
 ---
 
+### `minimal_pressure_closure.py` (Phase 13B)
+
+Demonstrates the minimal fixed-architecture pressure closure.
+
+- Solves for primary mass flow rate `primary_mdot` such that `pump_head(mdot) = dP_total(mdot)` (pressure closure).
+- Fixed architecture: `reference_state -> evaporator -> condenser`.
+- Explicit `PumpHeadCurve` (linear curve); no hidden pump model.
+- Explicit primary flow areas and pressure-drop closures; trial mass flux is
+  recomputed from `primary_mdot` for each heat exchanger evaluation.
+- Uses bounded bisection with an explicit `mdot_bounds` bracket.
+- Reports `converged`, `iterations`, `evaluations`, `pressure_residual`, `solved_primary_mdot`, `pump_head`, `dP_total`.
+- Energy residual `h_return - h_reference` is reported as a diagnostic only (Option A; not solved).
+- All inputs explicit; no hidden defaults; no property lookup.
+
+**Not:** a generic network solver, a combined pressure+energy solver (Phase 13C), a validated physical model.
+
+---
+
 ## Running examples
 
 ```bash
@@ -75,6 +93,7 @@ python examples/minimal_evaporator_condenser_loop.py
 python examples/fixed_heat_rate_hx.py
 python examples/segmented_counterflow_hx.py
 python examples/minimal_closed_mpl_solver.py
+python examples/minimal_pressure_closure.py
 ```
 
 ## Running example tests

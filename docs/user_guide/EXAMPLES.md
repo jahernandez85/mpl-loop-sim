@@ -201,6 +201,89 @@ NOTE: Phase 13A - fixed architecture; not a generic network solver.
 
 ---
 
+## 5. Minimal Pressure Closure Solver
+
+**File:** [`examples/minimal_pressure_closure.py`](../../examples/minimal_pressure_closure.py)
+
+**Run:**
+```bash
+python examples/minimal_pressure_closure.py
+```
+
+**What it demonstrates:**
+
+- Phase 13B minimal fixed-architecture pressure closure.
+- Solve for primary mass flow rate `primary_mdot` such that `pump_head(mdot) = dP_total(mdot)`.
+- Explicit `PumpHeadCurve` value object (constant or linear pump curve; no hidden pump model).
+- Explicit evaporator and condenser flow areas; trial mass flux is
+  `G = primary_mdot / flow_area` for each component evaluation.
+- Explicit primary-side pressure-drop closures for both heat exchangers.
+- Fixed architecture: `reference_state -> evaporator -> condenser`.
+- Explicit `mdot_bounds` bracket; sign change validated at startup.
+- Pressure residual, pump head, and loop ΔP are all reported.
+- Energy residual `h_return - h_reference` is reported as a diagnostic (Option A; not solved).
+
+**Key API:**
+
+```python
+from mpl_sim.closed_loop import (
+    MinimalPressureClosureCase,
+    PressureClosureConfig,
+    PumpHeadCurve,
+    solve_minimal_pressure_closure,
+)
+
+pump = PumpHeadCurve(head_Pa=5625.0, slope_Pa_s_kg=100_000.0)
+
+case = MinimalPressureClosureCase(
+    reference_state=...,
+    pump_head_curve=pump,
+    evap_component=..., evap_scenario=..., evap_flow_area=0.01,
+    cond_component=..., cond_scenario=..., cond_flow_area=0.02,
+    mdot_bounds=(0.01, 0.50),  # explicit bracket; must enclose root
+)
+result = solve_minimal_pressure_closure(case, PressureClosureConfig(max_iter=60, tolerance=0.01))
+# result.converged            True when abs(pressure_residual) <= tolerance
+# result.evaluations          complete evaporator+condenser evaluations
+# result.solved_primary_mdot  primary_mdot [kg/s] at pressure balance
+# result.pressure_residual    pump_head - dP_total [Pa]
+# result.pump_head            pump head at solution [Pa]
+# result.dP_total             dP_evap + dP_cond [Pa]
+# result.energy_residual      h_return - h_reference [J/kg] — diagnostic only
+```
+
+**Representative output:**
+
+```
+=== Minimal Pressure Closure Solver (Phase 13B) ===
+
+  Solved primary_mdot:  0.050000 kg/s
+  Pump head at solution:+625.0019 Pa
+  dP_total (evap+cond): 624.9998 Pa
+  Pressure residual:    +2.1e-03 Pa  [near zero when converged]
+  Converged:            True
+  Iterations:           19
+  Evaluations:          21
+
+  Energy residual (diagnostic only, NOT solved):
+    h_return - h_reference = +4000.00 J/kg
+
+NOTE: Phase 13B — fixed architecture; not a generic network solver.
+      Pressure closure solves mdot, not Q_cond.  Energy balance is
+      diagnostic only (Option A).
+```
+
+**What it is NOT:**
+
+- Not a generic network solver (fixed one-evaporator + one-condenser architecture only).
+- Not a combined pressure + energy solver (deferred to Phase 13C).
+- Not a validated physical model (no experimental data).
+- Not a moving-boundary or quality-marching model.
+- Not a multi-component loop (no parallel evaporators, valves, manifolds, or recuperator).
+- Does not support arbitrary topology changes.
+
+---
+
 ## Common Patterns
 
 ### Changing the HX model strategy
@@ -244,6 +327,7 @@ for v in result.verdicts:
 
 - Plotting (no matplotlib dependency yet).
 - Phase-change examples with `ShahBoilingHTC` or `YanCondensationHTC` (require explicit quality scalars; `evaluate_scenario` path ready, dedicated example deferred).
-- Pressure closure (Phase 13B): solving for pump head such that the loop ΔP balances.
+- Combined pressure + energy closure (Phase 13C): solving mdot and Q_cond simultaneously.
 - Generic network solver (Phase 13D): arbitrary topology, multiple parallel components.
+- Parallel evaporators, valves, manifolds, recuperators, pre/post-heaters (Phase 14+).
 - Validation against published HX data (Phase 12+ validation harness, deferred).
