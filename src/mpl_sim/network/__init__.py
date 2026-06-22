@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G + Block 15A.1.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G + Block 15A.1 + Block 15A.2.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -201,6 +201,20 @@ Block 15A.1 exports (production component bridge boundary MVP):
   Convenience conversion wrapper:
     build_component_contribution_from_production_bridge_execution
 
+Block 15A.2 exports (read-only unknown/state bridge MVP):
+
+  Full unknown-vector view:
+    ReadOnlyUnknownView
+
+  Component-scoped unknown view:
+    ComponentUnknownView
+
+  Node-scoped unknown view:
+    NodeUnknownView
+
+  Factory function:
+    build_readonly_unknown_view
+
 MUST NOT import from solvers/.
 """
 
@@ -260,6 +274,12 @@ from mpl_sim.network.production_component_inspection import (
     ProductionComponentInspectionResult,
     inspect_known_production_component_contracts,
     inspect_production_component_contract,
+)
+from mpl_sim.network.readonly_state_bridge import (
+    ComponentUnknownView,
+    NodeUnknownView,
+    ReadOnlyUnknownView,
+    build_readonly_unknown_view,
 )
 from mpl_sim.network.residual_assembly import (
     NetworkResidualAssembly,
@@ -429,4 +449,12 @@ __all__ = [
     "execute_production_bridge_contributions",
     # Block 15A.1 convenience conversion wrapper
     "build_component_contribution_from_production_bridge_execution",
+    # Block 15A.2 full unknown-vector view
+    "ReadOnlyUnknownView",
+    # Block 15A.2 component-scoped unknown view
+    "ComponentUnknownView",
+    # Block 15A.2 node-scoped unknown view
+    "NodeUnknownView",
+    # Block 15A.2 factory function
+    "build_readonly_unknown_view",
 ]
