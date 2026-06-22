@@ -13,9 +13,11 @@ All examples:
 Phase 14A's explicit physical residual adapters, Phase 14B's declarative
 component binding/state-name mappings, and Phase 14C's explicit
 component-contribution callback adapters, and Phase 14D's explicit
-contribution-record/residual-map contracts are available through
-`mpl_sim.network`, but no new runnable example is added for these foundations.
-They do not execute graph components, call `Component.contribute(...)`, call
+contribution-record/residual-map contracts, plus Phase 14E's controlled toy
+execution harness, are available through `mpl_sim.network`, but no new runnable
+example is added for these foundations. Phase 14E executes only explicit
+caller-supplied toy functions. These APIs do not execute production graph
+components, call `Component.contribute(...)`, call
 properties/correlations, store numerical network state, or construct physics
 from component types.
 

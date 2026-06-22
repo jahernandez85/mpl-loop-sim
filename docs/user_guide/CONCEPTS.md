@@ -979,8 +979,8 @@ The conversion function:
 - Compatible with Phase 14C `ComponentContributionAdapter` callbacks: a
   callback may call `map_contribution_records_to_component_contribution`
   with a pre-built `ContributionRecordSet` and `ContributionResidualMap`.
-- A preparation step toward future controlled component contribution
-  integration (Phase 14E+).
+- A preparation step toward controlled component contribution integration;
+  toy-only execution is Phase 14E and production integration remains Phase 14F+.
 
 **What this is NOT:**
 - Does NOT execute real component classes.
@@ -993,6 +993,137 @@ The conversion function:
 - Does NOT attach physical state to graph nodes.
 - Does NOT implement `solve(network)`.
 - Is NOT a full MPL network simulator.
+- Is NOT validated against experiment or literature data.
+
+---
+
+## Controlled Toy Component Execution Harness (Phase 14E)
+
+`mpl_sim.network` exports a minimal, controlled execution harness for **toy
+component contribution functions only**.  **This is a toy execution harness —
+it does NOT execute real component classes, does NOT call
+`Component.contribute(...)`, does NOT assemble `SystemState`, does NOT create
+or attach `FluidState`, does NOT perform property lookup, and does NOT infer
+physics from `component_type`.**
+
+```python
+from mpl_sim.network import (
+    ToyComponentExecutionContext,
+    ToyComponentExecutor,
+    ToyComponentExecutorSet,
+    execute_toy_component_contributions,
+    build_component_contribution_from_toy_execution,
+    ComponentInstanceId,
+    ContributionResidualMap,
+)
+
+evap_id = ComponentInstanceId("evap")
+cond_id = ComponentInstanceId("cond")
+
+# Toy functions: caller-supplied, NOT real component physics.
+def toy_evap(ctx: ToyComponentExecutionContext):
+    v = ctx.unknown_values
+    return {
+        "mass_balance": v["mdot:evap"] - v["mdot:cond"],
+        "pressure_drop": v["P:n1"] - v["P:n2"] - 600.0,
+    }
+
+def toy_cond(ctx: ToyComponentExecutionContext):
+    v = ctx.unknown_values
+    return {
+        "mass_balance": v["mdot:cond"] - v["mdot:evap"],
+        "pressure_drop": v["P:n2"] - v["P:n1"] + 1000.0,
+    }
+
+# Declare one toy executor per bound component.
+executor_set = ToyComponentExecutorSet(
+    executors=(
+        ToyComponentExecutor(component_id=evap_id, callback=toy_evap),
+        ToyComponentExecutor(component_id=cond_id, callback=toy_cond),
+    )
+)
+
+# Assume `binding_context` is a NetworkBindingContext from Phase 14B.
+unknown_values = {
+    "mdot:evap": 0.05, "mdot:cond": 0.05,
+    "P:n1": 1000.0, "P:n2": 400.0,
+}
+
+# Execute all toy callbacks → ContributionRecordSet (Phase 14D).
+record_set = execute_toy_component_contributions(
+    binding_context, executor_set, unknown_values
+)
+# → ContributionRecordSet with records for both evap and cond.
+
+# Translate records to Phase 14C ComponentContribution via Phase 14D map.
+residual_map = ContributionResidualMap(
+    mapping={
+        (evap_id, "mass_balance"): "mass_balance:n1",
+        (evap_id, "pressure_drop"): "pressure_drop:evap",
+        (cond_id, "mass_balance"): "mass_balance:n2",
+        (cond_id, "pressure_drop"): "pressure_drop:cond",
+    }
+)
+evap_contribution = build_component_contribution_from_toy_execution(
+    evap_id, binding_context, executor_set, residual_map, unknown_values
+)
+# → ComponentContribution(residual_values={
+#       "mass_balance:n1": 0.0,
+#       "pressure_drop:evap": 0.0,
+#   })
+```
+
+The constants in this snippet are toy test constants only. They are not
+physical defaults, library parameters, or validated experimental values.
+
+`ToyComponentExecutionContext` carries the binding context, a defensively
+copied read-only unknown-value mapping, and optional metadata:
+
+```python
+def my_toy_cb(ctx: ToyComponentExecutionContext):
+    v = ctx.unknown_values   # MappingProxyType[str, float] — read-only
+    meta = ctx.metadata      # MappingProxyType[str, object] | None
+    return {"my_residual": v["P:n1"] - v["P:n2"] - 600.0}
+```
+
+`execute_toy_component_contributions` validates:
+
+- Every bound component in the `NetworkBindingContext` has exactly one toy
+  executor (missing executors are rejected).
+- No toy executor references a component not bound in the context
+  (extra/unbound executors are rejected).
+- Callback return values are either `Mapping[str, float]` or
+  `ContributionRecordSet` for the same component.
+- Mapping values must be finite numeric (not bool, NaN, or infinite).
+- Contribution names must be non-empty, non-whitespace strings.
+- No duplicate `(component_id, name)` pairs across all outputs.
+- Callback exceptions propagate to the caller without being swallowed.
+
+**What this is:**
+- A controlled toy execution harness that drives caller-supplied explicit
+  toy functions and collects their outputs into a `ContributionRecordSet`.
+- Toy executors are caller-supplied functions — they are NOT real component
+  classes and NOT the existing `contribute(...)` API.
+- Outputs feed into Phase 14D `ContributionResidualMap` and
+  `map_contribution_records_to_component_contribution`, then into Phase 14C
+  `ComponentContributionAdapter`, and ultimately into Phase 14A/13G/13H
+  evaluation and solve paths.
+- A preparation step toward future controlled real component contribution
+  integration (Phase 14F+).
+
+**What this is NOT:**
+- Does NOT execute real component classes.
+- Does NOT call the frozen `contribute(...)` component contribution method.
+- Does NOT assemble `SystemState` or `FluidState`.
+- Does NOT create or attach `FluidState` to graph nodes.
+- Does NOT compute or look up thermodynamic properties — no CoolProp, no
+  `PropertyBackend`.
+- Does NOT call `CorrelationRegistry` or any registry.
+- Does NOT construct physical residuals automatically from `component_type`.
+- Does NOT attach physical state to graph nodes.
+- Does NOT implement `solve(network)`.
+- Is NOT a full MPL network simulator — it is a toy-function execution layer
+  only.
 - Is NOT validated against experiment or literature data.
 
 ---
@@ -1013,9 +1144,10 @@ The conversion function:
 | Component binding and state-vector mapping | Implemented in Phase 14B (`mpl_sim.network`) |
 | Minimal component contribution adapter foundation | Implemented in Phase 14C (`mpl_sim.network`) |
 | Component contribution contract adapter prep | Implemented in Phase 14D (`mpl_sim.network`) |
-| Generic network solver (`solve(network)`) | Deferred (Phase 14E+) |
-| Controlled toy component execution harness | Deferred (Phase 14E) |
-| Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14E+) |
+| Controlled toy component execution harness | Implemented in Phase 14E (`mpl_sim.network`) |
+| Minimal real component contribution interface adapter | Deferred (Phase 14F) |
+| Generic network solver (`solve(network)`) | Deferred (Phase 14F+) |
+| Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14F+) |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |
 | Automatic phase inference | Not planned for this layer |

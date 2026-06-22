@@ -49,14 +49,18 @@ Its current strength is a clean, explicit, well-tested HX/component/correlation 
 - Convert explicit pre-built contribution records into Phase 14C
   `ComponentContribution` outputs with the Phase 14D contract-preparation
   layer. Name translation is explicit; no component or property path runs.
+- Execute caller-supplied toy component functions with the Phase 14E controlled
+  harness, producing Phase 14D records for conversion through the existing
+  Phase 14C/14A/13G stack. Production components are not executed.
 - Run 4000+ deterministic, property-lookup-free tests.
 
 ---
 
 ## 3. What can it NOT yet do?
 
-- **No automatic physical network simulation.** Phases 14A–14D only adapt
-  explicit caller callbacks and declare bindings/name mappings. They do not
+- **No automatic physical network simulation.** Phases 14A–14E only adapt
+  explicit caller callbacks, declare bindings/name mappings, and execute
+  explicitly supplied toy functions. They do not
   derive residuals from component types, invoke real component classes or
   `Component.contribute(...)`, call properties/correlations, assemble
   `SystemState`, or attach state to graphs.
@@ -205,6 +209,7 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 | Component binding/state mapping | Phase 14B binds graph instance IDs to caller labels and assembly names to graph IDs. It is declaration-only and stores no physical values. |
 | Component contribution adapters | Phase 14C converts explicit caller-supplied contribution callbacks into Phase 14A physical residual adapters. It does not invoke real component classes. |
 | Contribution contract prep | Phase 14D maps explicit pre-built contribution records through explicit residual-name mappings to Phase 14C `ComponentContribution` values. It executes no component. |
+| Controlled toy execution | Phase 14E executes only explicit caller-supplied toy functions and returns Phase 14D records. It does not execute production components or call `Component.contribute(...)`. |
 | Generic physical Solver | The architecture-level physical solver remains in `mpl_sim.solvers`. Phase 13A's `mpl_sim.closed_loop` API remains a fixed case-specific orchestration helper. |
 | `SystemState` | The only owner of numerical state values. Not the ports or components. |
 
@@ -224,7 +229,7 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 1. Check `docs/roadmap/PROJECT_STATUS.md` for the current phase and deferred items.
 2. Check `docs/roadmap/IMPLEMENTATION_PLAN.md` for the authoritative phase order.
 3. The next recommended directions are:
-   - Controlled toy component execution harness (Phase 14E).
+   - Minimal real component contribution interface adapter (Phase 14F).
    - Remaining two-phase DP closures: Homogeneous/Cicchitti, Kim-Mudawar 2013.
    - Validation harness: pin literature data as acceptance tests.
 4. Preserve the architecture boundaries in `docs/architecture/ARCHITECTURE_MASTER.md`.
