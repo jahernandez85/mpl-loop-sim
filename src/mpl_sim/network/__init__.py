@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G + Block 15A.1.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -181,6 +181,26 @@ Phase 14F exports (minimal component-like contribution provider adapter):
   Convenience conversion wrapper:
     build_component_contribution_from_provider_execution
 
+Block 15A.1 exports (production component bridge boundary MVP):
+
+  Bridge execution context:
+    ProductionBridgeExecutionContext
+
+  Bridge protocol:
+    ProductionContributionBridgeProtocol
+
+  Single bridge binding:
+    ProductionComponentBridgeBinding
+
+  Bridge binding collection:
+    ProductionComponentBridgeSet
+
+  Bridge execution driver:
+    execute_production_bridge_contributions
+
+  Convenience conversion wrapper:
+    build_component_contribution_from_production_bridge_execution
+
 MUST NOT import from solvers/.
 """
 
@@ -225,6 +245,14 @@ from mpl_sim.network.physical_adapters import (
     PhysicalResidualAdapterSet,
     PhysicalResidualContext,
     build_network_residual_evaluators,
+)
+from mpl_sim.network.production_component_bridge import (
+    ProductionBridgeExecutionContext,
+    ProductionComponentBridgeBinding,
+    ProductionComponentBridgeSet,
+    ProductionContributionBridgeProtocol,
+    build_component_contribution_from_production_bridge_execution,
+    execute_production_bridge_contributions,
 )
 from mpl_sim.network.production_component_inspection import (
     ProductionComponentContractStatus,
@@ -389,4 +417,16 @@ __all__ = [
     "execute_component_provider_contributions",
     # Phase 14F convenience conversion wrapper
     "build_component_contribution_from_provider_execution",
+    # Block 15A.1 bridge execution context
+    "ProductionBridgeExecutionContext",
+    # Block 15A.1 bridge protocol
+    "ProductionContributionBridgeProtocol",
+    # Block 15A.1 single bridge binding
+    "ProductionComponentBridgeBinding",
+    # Block 15A.1 bridge binding collection
+    "ProductionComponentBridgeSet",
+    # Block 15A.1 bridge execution driver
+    "execute_production_bridge_contributions",
+    # Block 15A.1 convenience conversion wrapper
+    "build_component_contribution_from_production_bridge_execution",
 ]
