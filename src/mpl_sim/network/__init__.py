@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14C.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14D.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -115,6 +115,20 @@ Phase 14C exports (minimal component contribution adapter foundation):
   Builder function:
     build_physical_adapters_from_contributions
 
+Phase 14D exports (component contribution contract adapter prep):
+
+  Contribution record value object:
+    ContributionRecord
+
+  Contribution record collection:
+    ContributionRecordSet
+
+  Contribution-to-residual name mapping:
+    ContributionResidualMap
+
+  Conversion function:
+    map_contribution_records_to_component_contribution
+
 MUST NOT import from solvers/.
 """
 
@@ -132,6 +146,12 @@ from mpl_sim.network.contribution_adapters import (
     ComponentContributionAdapterSet,
     ComponentContributionContext,
     build_physical_adapters_from_contributions,
+)
+from mpl_sim.network.contribution_contract import (
+    ContributionRecord,
+    ContributionRecordSet,
+    ContributionResidualMap,
+    map_contribution_records_to_component_contribution,
 )
 from mpl_sim.network.graph import (
     ComponentInstance,
@@ -256,4 +276,12 @@ __all__ = [
     "ComponentContributionAdapterSet",
     # Phase 14C builder function
     "build_physical_adapters_from_contributions",
+    # Phase 14D contribution record value object
+    "ContributionRecord",
+    # Phase 14D contribution record collection
+    "ContributionRecordSet",
+    # Phase 14D contribution-to-residual name mapping
+    "ContributionResidualMap",
+    # Phase 14D conversion function
+    "map_contribution_records_to_component_contribution",
 ]
