@@ -914,6 +914,89 @@ At evaluation time the generated physical adapter callbacks validate:
 
 ---
 
+## Component Contribution Contract Adapter Prep (Phase 14D)
+
+`mpl_sim.network` exports small, explicit, value-object style contracts for
+contribution records and contribution-to-residual mapping.  **This is a
+contract adapter preparation layer only — it does NOT execute real component
+classes, does NOT call `Component.contribute(...)`, does NOT assemble
+`SystemState`, does NOT perform property lookup, and does NOT infer physics
+from `component_type`.**
+
+```python
+from mpl_sim.network import (
+    ContributionRecord,
+    ContributionRecordSet,
+    ContributionResidualMap,
+    map_contribution_records_to_component_contribution,
+    ComponentInstanceId,
+    ComponentContribution,
+)
+
+evap_id = ComponentInstanceId("evap")
+
+# Explicit value objects — not real component output, not property lookup.
+record_set = ContributionRecordSet(
+    records=(
+        ContributionRecord(component_id=evap_id, name="mass_balance", value=0.0),
+        ContributionRecord(component_id=evap_id, name="pressure_drop", value=400.0),
+    )
+)
+
+# Explicit name translation — no automatic physics from component_type.
+residual_map = ContributionResidualMap(
+    mapping={
+        (evap_id, "mass_balance"): "mass_balance:n1",
+        (evap_id, "pressure_drop"): "pressure_drop:evap",
+    }
+)
+
+# Convert to Phase 14C ComponentContribution (explicit mapping only).
+contribution = map_contribution_records_to_component_contribution(
+    evap_id, record_set, residual_map
+)
+# → ComponentContribution(residual_values={"mass_balance:n1": 0.0,
+#                                          "pressure_drop:evap": 400.0})
+```
+
+The conversion function:
+
+- Selects records belonging to the requested `ComponentInstanceId`.
+- Translates each contribution name to a residual name using the explicit map.
+- Rejects records with no mapping entry (missing mapping).
+- Optionally rejects mappings to undeclared residuals when an allowed-names
+  set is supplied.
+- Rejects duplicate output residual names after mapping.
+- Returns a Phase 14C `ComponentContribution` with `residual_values` in
+  record-set insertion order.
+
+**What this is:**
+- Frozen value-object contracts for contribution records and residual-name
+  translation.
+- An explicit preparation layer that describes how future real component
+  contribution outputs can be adapted into the Phase 14C contribution-adapter
+  stack.
+- Compatible with Phase 14C `ComponentContributionAdapter` callbacks: a
+  callback may call `map_contribution_records_to_component_contribution`
+  with a pre-built `ContributionRecordSet` and `ContributionResidualMap`.
+- A preparation step toward future controlled component contribution
+  integration (Phase 14E+).
+
+**What this is NOT:**
+- Does NOT execute real component classes.
+- Does NOT call `Component.contribute(...)`.
+- Does NOT assemble `SystemState` or `FluidState`.
+- Does NOT compute or look up thermodynamic properties — no CoolProp, no
+  `PropertyBackend`.
+- Does NOT call `CorrelationRegistry` or any registry.
+- Does NOT construct physical residuals automatically from `component_type`.
+- Does NOT attach physical state to graph nodes.
+- Does NOT implement `solve(network)`.
+- Is NOT a full MPL network simulator.
+- Is NOT validated against experiment or literature data.
+
+---
+
 ## What is NOT implemented
 
 | Capability | Status |
@@ -929,9 +1012,10 @@ At evaluation time the generated physical adapter callbacks validate:
 | Physical residual adapter foundation | Implemented in Phase 14A (`mpl_sim.network`) |
 | Component binding and state-vector mapping | Implemented in Phase 14B (`mpl_sim.network`) |
 | Minimal component contribution adapter foundation | Implemented in Phase 14C (`mpl_sim.network`) |
-| Generic network solver (`solve(network)`) | Deferred (Phase 14D+) |
-| Minimal physical single-loop residual construction | Deferred (Phase 14D) |
-| Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14D+) |
+| Component contribution contract adapter prep | Implemented in Phase 14D (`mpl_sim.network`) |
+| Generic network solver (`solve(network)`) | Deferred (Phase 14E+) |
+| Controlled toy component execution harness | Deferred (Phase 14E) |
+| Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14E+) |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |
 | Automatic phase inference | Not planned for this layer |
