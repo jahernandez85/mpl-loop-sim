@@ -2,7 +2,7 @@
 
 A modular, explicit-input thermo-hydraulic simulation library for mechanically pumped two-phase loops (MPLs) and related systems.
 
-**Current state:** HX/component/correlation architecture is implementation-complete, with minimal fixed-architecture closure solvers, a physics-free network graph, declaration-only residual assembly, explicit residual evaluation, a configurable callback-only algebraic solver, Phase 14A physical-style residual adapters, Phase 14B declarative component binding/state-name mapping, Phase 14C explicit component-contribution callback adapters, and Phase 14D contribution-record/residual-map contracts. Real component execution, automatic physical residual construction from component types, arbitrary-topology simulation, and experimental validation remain deferred.
+**Current state:** HX/component/correlation architecture is implementation-complete, with minimal fixed-architecture closure solvers, a physics-free network graph, declaration-only residual assembly, explicit residual evaluation, a configurable callback-only algebraic solver, Phase 14A physical-style residual adapters, Phase 14B declarative component binding/state-name mapping, Phase 14C explicit component-contribution callback adapters, Phase 14D contribution-record/residual-map contracts, and the Phase 14E controlled toy component execution harness. Real production component execution, automatic physical residual construction from component types, arbitrary-topology simulation, and experimental validation remain deferred.
 
 ---
 
@@ -50,13 +50,17 @@ A modular, explicit-input thermo-hydraulic simulation library for mechanically p
 - Map explicit pre-built contribution value records to Phase 14C
   `ComponentContribution` outputs through an explicit contribution-to-residual
   name map (Phase 14D). This performs no component execution or property lookup.
+- Execute explicitly supplied toy component functions and collect their outputs
+  as Phase 14D contribution records (Phase 14E). This does not execute production
+  components, call `Component.contribute(...)`, assemble physical state, or infer
+  physics from `component_type`.
 - Run 4000+ deterministic, property-lookup-free tests.
 
 ## What it cannot do yet
 
 - Automatic physical full-loop convergence beyond the fixed one-evaporator +
   one-condenser architecture.
-- Parallel evaporators, valves, manifolds, recuperator, pre/post-heaters (deferred to Phase 14E+).
+- Parallel evaporators, valves, manifolds, recuperator, pre/post-heaters (deferred to Phase 14F+).
 - Network flow-pressure solving or arbitrary-topology simulation.
 - Property lookup at the HX/component/correlation layer (CoolProp is only in `mpl_sim.properties`).
 - Moving-boundary two-phase zone modeling.
@@ -161,15 +165,15 @@ The library is built around five principles:
 
 ## Project status
 
-Phase 14D — Component Contribution Contract Adapter Prep.
+Phase 14E — Controlled Toy Component Execution Harness.
 The HX component family (Phases 11A–11U), fixed-architecture closure work
 (Phases 13A–13D), the Phase 13E physics-free topology representation, Phase
 13F declaration-only residual assembly, Phase 13G one-shot residual
 evaluation, Phase 13H callback-only algebraic solving, Phase 14A explicit
 physical-style callback adapters, and Phase 14B declarative component
 binding/state-name mapping, Phase 14C explicit component-contribution callback
-adapters, and Phase 14D contribution-record/residual-map contracts are complete
-checkpoints. Real component execution,
+adapters, Phase 14D contribution-record/residual-map contracts, and Phase 14E
+explicit toy-function execution are complete checkpoints. Real production component execution,
 automatic physical residual construction from component types,
 arbitrary-topology simulation, validation harness work, and moving-boundary
 modeling remain deferred.

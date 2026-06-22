@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14D.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14E.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -129,6 +129,23 @@ Phase 14D exports (component contribution contract adapter prep):
   Conversion function:
     map_contribution_records_to_component_contribution
 
+Phase 14E exports (controlled toy component execution harness):
+
+  Toy execution context:
+    ToyComponentExecutionContext
+
+  Single toy executor:
+    ToyComponentExecutor
+
+  Toy executor collection:
+    ToyComponentExecutorSet
+
+  Toy execution driver:
+    execute_toy_component_contributions
+
+  Convenience conversion wrapper:
+    build_component_contribution_from_toy_execution
+
 MUST NOT import from solvers/.
 """
 
@@ -193,6 +210,13 @@ from mpl_sim.network.topology import (
     NetworkTopology,
     NodeId,
     PressureReferenceWiring,
+)
+from mpl_sim.network.toy_component_execution import (
+    ToyComponentExecutionContext,
+    ToyComponentExecutor,
+    ToyComponentExecutorSet,
+    build_component_contribution_from_toy_execution,
+    execute_toy_component_contributions,
 )
 from mpl_sim.network.validation import (
     NetworkValidationResult,
@@ -284,4 +308,14 @@ __all__ = [
     "ContributionResidualMap",
     # Phase 14D conversion function
     "map_contribution_records_to_component_contribution",
+    # Phase 14E toy execution context
+    "ToyComponentExecutionContext",
+    # Phase 14E single toy executor
+    "ToyComponentExecutor",
+    # Phase 14E toy executor collection
+    "ToyComponentExecutorSet",
+    # Phase 14E toy execution driver
+    "execute_toy_component_contributions",
+    # Phase 14E convenience conversion wrapper
+    "build_component_contribution_from_toy_execution",
 ]
