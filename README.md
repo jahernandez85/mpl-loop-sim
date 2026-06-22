@@ -2,7 +2,7 @@
 
 A modular, explicit-input thermo-hydraulic simulation library for mechanically pumped two-phase loops (MPLs) and related systems.
 
-**Current state:** HX/component/correlation architecture is implementation-complete, with minimal fixed-architecture closure solvers, a physics-free network graph, declaration-only residual assembly, explicit residual evaluation, a configurable callback-only algebraic solver, Phase 14A physical-style residual adapters, and Phase 14B declarative component binding/state-name mapping. Component execution, physical residual construction from component types, arbitrary-topology simulation, and experimental validation remain deferred.
+**Current state:** HX/component/correlation architecture is implementation-complete, with minimal fixed-architecture closure solvers, a physics-free network graph, declaration-only residual assembly, explicit residual evaluation, a configurable callback-only algebraic solver, Phase 14A physical-style residual adapters, Phase 14B declarative component binding/state-name mapping, and Phase 14C explicit component-contribution callback adapters. Real component execution, automatic physical residual construction from component types, arbitrary-topology simulation, and experimental validation remain deferred.
 
 ---
 
@@ -44,6 +44,9 @@ A modular, explicit-input thermo-hydraulic simulation library for mechanically p
 - Bind graph component instance IDs to explicit caller labels and map declared
   unknown/residual names to component or node IDs with the Phase 14B binding
   context. These mappings store no numerical state and execute no physics.
+- Convert explicit caller-supplied component contribution callbacks into Phase
+  14A `PhysicalResidualAdapter` objects with the Phase 14C foundation. This
+  does not invoke real component classes or `Component.contribute(...)`.
 - Run 4000+ deterministic, property-lookup-free tests.
 
 ## What it cannot do yet
@@ -155,14 +158,16 @@ The library is built around five principles:
 
 ## Project status
 
-Phase 14B — Component Binding and State-Vector Mapping Foundation.
+Phase 14C — Minimal Component Contribution Adapter Foundation.
 The HX component family (Phases 11A–11U), fixed-architecture closure work
 (Phases 13A–13D), the Phase 13E physics-free topology representation, Phase
 13F declaration-only residual assembly, Phase 13G one-shot residual
 evaluation, Phase 13H callback-only algebraic solving, Phase 14A explicit
 physical-style callback adapters, and Phase 14B declarative component
-binding/state-name mapping are complete checkpoints. Component execution,
-automatic physical residual construction, arbitrary-topology simulation,
-validation harness work, and moving-boundary modeling remain deferred.
+binding/state-name mapping, and Phase 14C explicit component-contribution
+callback adapters are complete checkpoints. Real component execution,
+automatic physical residual construction from component types,
+arbitrary-topology simulation, validation harness work, and moving-boundary
+modeling remain deferred.
 
 *Developed at Université de Liège — Andrés Hernández, 2026.*

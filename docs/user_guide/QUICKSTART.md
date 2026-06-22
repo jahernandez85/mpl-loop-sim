@@ -43,16 +43,20 @@ Its current strength is a clean, explicit, well-tested HX/component/correlation 
 - Bind graph component instances to caller labels and map assembly-declared
   unknown/residual names to component or node IDs with the Phase 14B
   declaration layer. It stores no numerical state and executes no physics.
+- Convert explicit caller-supplied component contribution callbacks into Phase
+  14A physical residual adapters with the Phase 14C foundation. It does not
+  invoke real component classes or `Component.contribute(...)`.
 - Run 4000+ deterministic, property-lookup-free tests.
 
 ---
 
 ## 3. What can it NOT yet do?
 
-- **No automatic physical network simulation.** Phases 14A–14B only adapt
+- **No automatic physical network simulation.** Phases 14A–14C only adapt
   explicit caller callbacks and declare bindings/name mappings. They do not
-  derive residuals from component types, execute component physics, call
-  properties/correlations, assemble `SystemState`, or attach state to graphs.
+  derive residuals from component types, invoke real component classes or
+  `Component.contribute(...)`, call properties/correlations, assemble
+  `SystemState`, or attach state to graphs.
 - **No arbitrary flow-pressure network simulation.** Parallel branches,
   valves, manifolds, recuperators, and pre/post-heaters remain deferred.
 - **No property lookup.** `FluidState` carries only `(P, h, identity)`; no CoolProp or REFPROP call occurs in the HX/component/correlation layers.
@@ -196,6 +200,7 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 | Configurable callback solver | Phase 13H exposes `solve_network_residual_problem` for explicit algebraic residual callbacks. It does not construct or execute physical network models. |
 | Physical residual adapters | Phase 14A converts explicit caller callbacks into Phase 13G evaluators. It does not infer or execute component physics. |
 | Component binding/state mapping | Phase 14B binds graph instance IDs to caller labels and assembly names to graph IDs. It is declaration-only and stores no physical values. |
+| Component contribution adapters | Phase 14C converts explicit caller-supplied contribution callbacks into Phase 14A physical residual adapters. It does not invoke real component classes. |
 | Generic physical Solver | The architecture-level physical solver remains in `mpl_sim.solvers`. Phase 13A's `mpl_sim.closed_loop` API remains a fixed case-specific orchestration helper. |
 | `SystemState` | The only owner of numerical state values. Not the ports or components. |
 

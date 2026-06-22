@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14B.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14C.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -98,6 +98,23 @@ Phase 14B exports (component binding and state-vector mapping foundation):
   Builder function:
     build_binding_context
 
+Phase 14C exports (minimal component contribution adapter foundation):
+
+  Contribution context:
+    ComponentContributionContext
+
+  Contribution result:
+    ComponentContribution
+
+  Single contribution adapter:
+    ComponentContributionAdapter
+
+  Contribution adapter collection:
+    ComponentContributionAdapterSet
+
+  Builder function:
+    build_physical_adapters_from_contributions
+
 MUST NOT import from solvers/.
 """
 
@@ -108,6 +125,13 @@ from mpl_sim.network.component_binding import (
     ComponentStateMap,
     NetworkBindingContext,
     build_binding_context,
+)
+from mpl_sim.network.contribution_adapters import (
+    ComponentContribution,
+    ComponentContributionAdapter,
+    ComponentContributionAdapterSet,
+    ComponentContributionContext,
+    build_physical_adapters_from_contributions,
 )
 from mpl_sim.network.graph import (
     ComponentInstance,
@@ -222,4 +246,14 @@ __all__ = [
     "NetworkBindingContext",
     # Phase 14B builder function
     "build_binding_context",
+    # Phase 14C contribution context
+    "ComponentContributionContext",
+    # Phase 14C contribution result
+    "ComponentContribution",
+    # Phase 14C single contribution adapter
+    "ComponentContributionAdapter",
+    # Phase 14C contribution adapter collection
+    "ComponentContributionAdapterSet",
+    # Phase 14C builder function
+    "build_physical_adapters_from_contributions",
 ]
