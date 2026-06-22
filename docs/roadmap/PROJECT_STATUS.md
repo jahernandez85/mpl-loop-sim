@@ -11,8 +11,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-14g-production-component-contract-inspection` |
-| **Stage** | Phase 14G Production Component Contribution Contract Inspection; static inspection of production component classes via inspect module; all known production components return NO_CONTRIBUTE_METHOD; no component instantiation, no contribute() call, no SystemState, no FluidState, no property lookup, no automatic physics from component_type |
+| **Branch** | `audit/project-baseline-post-14g` |
+| **Stage** | Project Baseline Audit after Phase 14G; documentation and architecture-boundary alignment before Block 15A; no runtime functionality or API changes |
 | **Completed phase** | **Phase 14G - Production Component Contribution Contract Inspection** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -88,11 +88,11 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 12A status** | **Checkpoint complete. Minimal loop assembly acceptance example implemented. `examples/minimal_evaporator_condenser_loop.py` provides `MinimalLoopResult` frozen dataclass and `evaluate_minimal_evaporator_condenser_loop(...)` function. 33 focused acceptance tests in `tests/loops/test_minimal_loop_example.py` cover all 12 required items. Not a full network solver; no loop convergence; no moving-boundary model; no property lookup. Net energy imbalance and enthalpy drift reported explicitly. 3591 tests passing. See `PHASE_12A_MINIMAL_LOOP_ASSEMBLY_AUDIT.md`.** |
 | **Phase 14G status** | **Checkpoint complete. Production component contribution contract inspection implemented. `ProductionComponentContractStatus`, `ProductionComponentContributionSignature`, `ProductionComponentInspectionResult`, `inspect_production_component_contract`, `inspect_known_production_component_contracts` added to `mpl_sim.network` in new `production_component_inspection.py` module. Inspection layer: static only; uses `inspect` module; never instantiates production component classes; never calls `contribute(...)` or any other component method; all known production components (`Component`, `Pipe`, `PumpComponent`, `AccumulatorComponent`, `EvaporatorComponent`, `CondenserComponent`) return `NO_CONTRIBUTE_METHOD` — the production `contribute(...)` contract is not yet implemented on any class. `ProductionComponentContractStatus` provides string constants for inspection outcomes. `ProductionComponentContributionSignature` captures parameter names, return annotation, state/context dependency flags, and varargs/kwargs flags. `ProductionComponentInspectionResult` stores class name, module name, status, optional signature, and notes tuple — no component instance stored. 60 focused tests; 1189 network tests; 5050 tests total.** |
 | **Phase 14F status** | **Checkpoint complete. Component-like contribution provider adapter implemented. `ComponentProviderExecutionContext`, `ComponentContributionProviderProtocol`, `ComponentContributionProviderBinding`, `ComponentContributionProviderSet`, `execute_component_provider_contributions`, `build_component_contribution_from_provider_execution` added to `mpl_sim.network` in new `component_provider_adapters.py` module. Provider layer: `ComponentProviderExecutionContext` is an immutable context (binding context + defensive unknown-values copy + optional metadata); `ComponentContributionProviderBinding` binds a `ComponentInstanceId` to a controlled provider object with a callable `produce_records` method (NOT named `contribute`); `ComponentContributionProviderSet` is an ordered, validated, duplicate-rejecting collection; `execute_component_provider_contributions` validates exact binding coverage, invokes each provider's `produce_records`, validates all return types (must be `ContributionRecordSet`), validates record ownership, checks for duplicates, and returns a `ContributionRecordSet`; `build_component_contribution_from_provider_execution` is a convenience wrapper to Phase 14D mapping and Phase 14C `ComponentContribution`. No real component execution, no `Component.contribute(...)`, no method named `contribute` defined, no `SystemState`, no `FluidState`, no property lookup, no `CoolProp`, no automatic physics from `component_type`. Fully integrated with Phase 14D residual map, Phase 14C adapter, Phase 14A physical adapters, and Phase 13G/13H evaluation/solve stack. 63 focused tests; 1129 network tests; 4990 tests total.** |
-| **Branch status** | **Phase 14G implemented on `phase-14g-production-component-contract-inspection`.** |
-| **Current active phase** | **Phase 14G - Production Component Contribution Contract Inspection** |
+| **Branch status** | **Post-14G baseline audit on `audit/project-baseline-post-14g`, based on current `main` at Phase 14G merge `c9273df`.** |
+| **Current active phase** | **Project Baseline Audit after Phase 14G** |
 | **Next immediate slice** | Block 15A — Production Component Bridge MVP |
-| **Working tree before this phase** | Phase 14F: 4990 tests |
-| **Test status** | **5050 passed, verified 2026-06-22 with repository-local pytest base-temp; no skips, xfails, deselections, exclusions, or fixture errors** |
+| **Baseline before this audit** | Phase 14G merged on `main`: 5050 tests |
+| **Test status** | **5050 passed, verified 2026-06-22 with repository-local pytest base-temp; no skips, xfails, deselections, exclusions, or fixture errors. Focused gates: 512 correlations, 1896 HX/components, 33 loops, 60 examples, 393 closed-loop, 1189 network.** |
 | **Lint status** | `ruff check src tests examples` clean, verified 2026-06-22 |
 | **Format status** | `black --check --no-cache --verbose src tests examples` passed; verified 2026-06-22 |
 
@@ -883,8 +883,8 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-14f-component-like-provider-adapter` into `main` as the Phase 14F checkpoint after audit approval.
-2. Continue with Block 15A production-component bridge work only under an
+1. Merge the approved post-14G baseline audit branch into `main`.
+2. Begin Block 15A production-component bridge work only under an
    explicit architecture-approved contract.
 3. Preserve frozen architecture boundaries while completing the remaining work.
 4. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
@@ -1041,6 +1041,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-22 |
 | **Updated by** | Codex |
-| **Status note** | Phase 14G production component contribution contract inspection implemented on `phase-14g-production-component-contract-inspection`; 5050 tests passed with no skips, xfails, deselections, exclusions, or fixture errors; 1189 network tests and 60 focused Phase 14G tests; five inspection public names added to `mpl_sim.network`; all known production components return NO_CONTRIBUTE_METHOD; no component instantiation, `Component.contribute(...)`, `SystemState`, `FluidState`, component-type inference, property/correlation lookup, CoolProp, or graph-state attachment |
+| **Status note** | Post-14G project baseline audited on `audit/project-baseline-post-14g`; 5050 tests passed with no skips, xfails, deselections, exclusions, or fixture errors; all required focused suites, examples, Ruff, and Black passed; all known production components still return `NO_CONTRIBUTE_METHOD`; Block 15A remains planning only; no source/runtime code or tests changed. |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*

@@ -980,7 +980,9 @@ The conversion function:
   callback may call `map_contribution_records_to_component_contribution`
   with a pre-built `ContributionRecordSet` and `ContributionResidualMap`.
 - A preparation step toward controlled component contribution integration;
-  toy-only execution is Phase 14E and production integration remains Phase 14F+.
+  toy execution is Phase 14E, component-like provider execution is Phase 14F,
+  static production-contract inspection is Phase 14G, and the production
+  bridge remains deferred to Block 15A.
 
 **What this is NOT:**
 - Does NOT execute real component classes.
@@ -1108,8 +1110,9 @@ def my_toy_cb(ctx: ToyComponentExecutionContext):
   `map_contribution_records_to_component_contribution`, then into Phase 14C
   `ComponentContributionAdapter`, and ultimately into Phase 14A/13G/13H
   evaluation and solve paths.
-- A preparation step toward future controlled real component contribution
-  integration (Phase 14F+).
+- A preparation step toward controlled component contribution integration;
+  Phase 14F added component-like providers, Phase 14G inspected production
+  contracts, and the production bridge remains deferred to Block 15A.
 
 **What this is NOT:**
 - Does NOT execute real component classes.
