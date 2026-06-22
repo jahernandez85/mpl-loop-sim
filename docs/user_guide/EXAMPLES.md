@@ -396,8 +396,9 @@ for v in result.verdicts:
 
 - Plotting (no matplotlib dependency yet).
 - Phase-change examples with `ShahBoilingHTC` or `YanCondensationHTC` (require explicit quality scalars; `evaluate_scenario` path ready, dedicated example deferred).
-- Automatic component binding and physical network residual construction
-  (Phase 14B+). Phase 14A's explicit callback adapter foundation has no
-  dedicated runnable example in this guide.
+- Automatic component execution and physical network residual construction
+  (Phase 14C+). Phase 14A's callback adapters and Phase 14B's declarative
+  component binding/state-name mappings have no dedicated runnable example in
+  this guide.
 - Parallel evaporators, valves, manifolds, recuperators, pre/post-heaters (Phase 14D+).
 - Validation against published HX data (Phase 12+ validation harness, deferred).

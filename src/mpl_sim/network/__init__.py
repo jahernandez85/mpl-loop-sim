@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14B.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -81,10 +81,34 @@ Phase 14A exports (physical residual adapter foundation):
   Builder function:
     build_network_residual_evaluators
 
+Phase 14B exports (component binding and state-vector mapping foundation):
+
+  Binding declaration:
+    ComponentBinding
+
+  Binding collection:
+    ComponentBindingSet
+
+  State/unknown name mapping:
+    ComponentStateMap
+
+  Binding context:
+    NetworkBindingContext
+
+  Builder function:
+    build_binding_context
+
 MUST NOT import from solvers/.
 """
 
 from mpl_sim.network.assembly import NetworkAssembly, assemble_network
+from mpl_sim.network.component_binding import (
+    ComponentBinding,
+    ComponentBindingSet,
+    ComponentStateMap,
+    NetworkBindingContext,
+    build_binding_context,
+)
 from mpl_sim.network.graph import (
     ComponentInstance,
     ComponentInstanceId,
@@ -188,4 +212,14 @@ __all__ = [
     "PhysicalResidualAdapterSet",
     # Phase 14A builder function
     "build_network_residual_evaluators",
+    # Phase 14B binding declaration
+    "ComponentBinding",
+    # Phase 14B binding collection
+    "ComponentBindingSet",
+    # Phase 14B state/unknown name mapping
+    "ComponentStateMap",
+    # Phase 14B binding context
+    "NetworkBindingContext",
+    # Phase 14B builder function
+    "build_binding_context",
 ]
