@@ -670,6 +670,126 @@ def my_adapter(ctx: PhysicalResidualContext) -> float:
 
 ---
 
+## Component Binding and State-Vector Mapping Foundation (Phase 14B)
+
+`mpl_sim.network` exports an explicit binding and mapping declaration layer
+that links `NetworkGraph` component instances to caller-supplied binding
+labels, and maps residual/unknown names to component instances and graph nodes.
+**This is a declaration-only layer — it does NOT constitute a physical network
+simulator, does NOT execute components, and does NOT call property backends.**
+
+```python
+from mpl_sim.network import (
+    ComponentBinding,
+    ComponentBindingSet,
+    ComponentInstanceId,
+    ComponentStateMap,
+    GraphNodeId,
+    NetworkBindingContext,
+    assemble_network_residuals,
+    build_binding_context,
+)
+
+# Assume `graph` is an existing NetworkGraph containing component instances
+# "evap" and "cond" connected through nodes "n1" and "n2".
+
+# Declare one binding per component instance.
+bindings = ComponentBindingSet(
+    bindings=(
+        ComponentBinding(
+            instance_id=ComponentInstanceId("evap"),
+            binding_name="toy_evaporator_binding",
+        ),
+        ComponentBinding(
+            instance_id=ComponentInstanceId("cond"),
+            binding_name="toy_condenser_binding",
+        ),
+    )
+)
+
+# Declare how unknown/residual names map to component instances and nodes.
+state_map = ComponentStateMap(
+    unknown_to_component={
+        "mdot:evap": ComponentInstanceId("evap"),
+        "mdot:cond": ComponentInstanceId("cond"),
+    },
+    unknown_to_node={
+        "P:n1": GraphNodeId("n1"),
+        "P:n2": GraphNodeId("n2"),
+    },
+    residual_to_node={
+        "mass_balance:n1": GraphNodeId("n1"),
+        "mass_balance:n2": GraphNodeId("n2"),
+    },
+    residual_to_component={
+        "pressure_drop:evap": ComponentInstanceId("evap"),
+        "pressure_drop:cond": ComponentInstanceId("cond"),
+    },
+)
+
+# Build a validated, immutable binding context.
+assembly = assemble_network_residuals(graph)
+ctx = build_binding_context(graph, assembly, bindings, state_map)
+
+print(ctx.graph)          # NetworkGraph topology
+print(ctx.binding_set)    # ComponentBindingSet — binding declarations
+print(ctx.state_map)      # ComponentStateMap — name-to-ID declarations
+```
+
+`build_binding_context` validates that:
+
+- Every component instance in the graph has exactly one binding (missing or
+  extra bindings are rejected).
+- Every mapped unknown/residual name is declared by the supplied assembly.
+- Every component ID in the state map exists in the graph.
+- Every node ID in the state map exists in the graph.
+
+`ComponentBinding` is frozen and carries no executable state:
+
+```python
+b = ComponentBinding(
+    instance_id=ComponentInstanceId("evap"),
+    binding_name="my_evaporator_label",
+    metadata={"info": "optional opaque caller data"},
+)
+# b.metadata is a MappingProxyType — read-only, defensively copied.
+```
+
+`ComponentStateMap` stores only ID references, never numerical values:
+
+```python
+sm = ComponentStateMap(
+    unknown_to_component={"mdot:evap": ComponentInstanceId("evap")},
+    unknown_to_node={"P:n1": GraphNodeId("n1")},
+)
+# sm.unknown_to_component is a MappingProxyType — read-only.
+```
+
+**What this is:**
+- An explicit declaration layer: component instances are bound to caller
+  labels; unknown/residual names are mapped to component and node IDs.
+- Bindings are declarations only — they carry no executable component logic.
+- All objects are immutable; all mappings are defensively copied.
+- A preparation step toward Phase 14C minimal physical single-loop residual
+  construction.
+
+**What this is NOT:**
+- Does NOT execute component instances or call any component method.
+- Does NOT call the frozen `contribute(...)` component contribution method.
+- Does NOT look up fluid properties — no CoolProp, no `PropertyBackend`.
+- Does NOT call `CorrelationRegistry` or any correlation registry.
+- Does NOT construct physical residuals automatically from component physics.
+- Does NOT attach physical state (`FluidState`, mdot, pressure, enthalpy) to
+  graph nodes.
+- Does NOT store numerical unknown values.
+- Does NOT infer residual form from `component_type`.
+- Does NOT implement `solve(network)`.
+- Is NOT a full MPL network simulator — physical residual logic must still be
+  supplied entirely by the caller through explicit adapter callbacks (Phase 14A).
+- Is NOT validation against experiment or literature data.
+
+---
+
 ## What is NOT implemented
 
 | Capability | Status |
@@ -683,9 +803,9 @@ def my_adapter(ctx: PhysicalResidualContext) -> float:
 | Network residual evaluation foundation | Implemented in Phase 13G (`mpl_sim.network`) |
 | Configurable network solver v1 | Implemented in Phase 13H (`mpl_sim.network`) |
 | Physical residual adapter foundation | Implemented in Phase 14A (`mpl_sim.network`) |
+| Component binding and state-vector mapping | Implemented in Phase 14B (`mpl_sim.network`) |
 | Generic network solver (`solve(network)`) | Deferred (Phase 14C+) |
-| Component binding and state-vector mapping | Deferred (Phase 14B) |
-| Minimal physical single-loop solve | Deferred (Phase 14C) |
+| Minimal physical single-loop residual construction | Deferred (Phase 14C) |
 | Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14D+) |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |
