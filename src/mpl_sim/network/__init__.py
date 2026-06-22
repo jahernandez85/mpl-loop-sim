@@ -1,4 +1,5 @@
-"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G + Block 15A.1 + Block 15A.2.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G +
+Block 15A.1 + Block 15A.2 + Block 15A.3.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -215,6 +216,26 @@ Block 15A.2 exports (read-only unknown/state bridge MVP):
   Factory function:
     build_readonly_unknown_view
 
+Block 15A.3 exports (controlled production-like bridge path MVP):
+
+  Production-like execution context (includes ReadOnlyUnknownView):
+    ProductionLikeBridgeContext
+
+  Production-like producer protocol:
+    ProductionLikeRecordProducerProtocol
+
+  Single production-like binding:
+    ProductionLikeComponentBinding
+
+  Production-like binding collection:
+    ProductionLikeComponentSet
+
+  Production-like execution driver:
+    execute_production_like_contributions
+
+  Convenience conversion wrapper:
+    build_component_contribution_from_production_like_execution
+
 MUST NOT import from solvers/.
 """
 
@@ -274,6 +295,14 @@ from mpl_sim.network.production_component_inspection import (
     ProductionComponentInspectionResult,
     inspect_known_production_component_contracts,
     inspect_production_component_contract,
+)
+from mpl_sim.network.production_like_bridge import (
+    ProductionLikeBridgeContext,
+    ProductionLikeComponentBinding,
+    ProductionLikeComponentSet,
+    ProductionLikeRecordProducerProtocol,
+    build_component_contribution_from_production_like_execution,
+    execute_production_like_contributions,
 )
 from mpl_sim.network.readonly_state_bridge import (
     ComponentUnknownView,
@@ -457,4 +486,16 @@ __all__ = [
     "NodeUnknownView",
     # Block 15A.2 factory function
     "build_readonly_unknown_view",
+    # Block 15A.3 production-like execution context
+    "ProductionLikeBridgeContext",
+    # Block 15A.3 production-like producer protocol
+    "ProductionLikeRecordProducerProtocol",
+    # Block 15A.3 single production-like binding
+    "ProductionLikeComponentBinding",
+    # Block 15A.3 production-like binding collection
+    "ProductionLikeComponentSet",
+    # Block 15A.3 production-like execution driver
+    "execute_production_like_contributions",
+    # Block 15A.3 convenience conversion wrapper
+    "build_component_contribution_from_production_like_execution",
 ]
