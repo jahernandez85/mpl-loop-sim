@@ -11,9 +11,9 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-14b-component-binding-state-mapping` |
-| **Stage** | Phase 14B Component Binding and State-Vector Mapping Foundation; explicit binding/mapping declarations link graph component instances and node IDs to unknown/residual names used by Phase 14A adapters |
-| **Completed phase** | **Phase 14B - Component Binding and State-Vector Mapping Foundation** |
+| **Branch** | `phase-14c-minimal-component-contribution-adapter` |
+| **Stage** | Phase 14C Minimal Component Contribution Adapter Foundation; explicit caller-supplied contribution callbacks declared and converted into Phase 14A physical residual adapters; no real component execution, no SystemState, no automatic physics from component_type |
+| **Completed phase** | **Phase 14C - Minimal Component Contribution Adapter Foundation** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -65,6 +65,7 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 11U status** | **Closeout readiness audit complete. 3558 tests passing (3548 pre-audit + 10 new export-consistency tests). Capability matrix and support exceptions documented. Architecture boundaries confirmed clean. Public exports verified. No new physics added. See `PHASE_11U_HX_CLOSEOUT_READINESS_AUDIT.md`.** |
 | **Phase 11 final closeout verdict** | **APPROVED AS CHECKPOINT ONLY - PHASE 11 REMAINS OPEN** |
 | **Phase 11 status** | **The current HX-family checkpoint (11A–11U) is ready. `EpsilonNTUModel` and `SegmentedMarchModel` support all four secondary BC classes; `LMTDModel` intentionally supports only `FixedWallTemp` and `AmbientCoupling`. Co-current, one-pass counterflow, and iterated counterflow are implemented only for segmented `SinkInletTempAndFlow`. Active public closures are injectable, including `ChurchillFrictionGradient` and `MSHTwoPhaseFrictionGradient`. Immutable scenario bindings are implemented. 1575 Phase 11 tests pass across 29 files. Full-loop convergence, network contribution integration, moving boundary, remaining closures, and validation remain deferred.** |
+| **Phase 14C status** | **Checkpoint complete. Minimal component contribution adapter foundation implemented. `ComponentContributionContext`, `ComponentContribution`, `ComponentContributionAdapter`, `ComponentContributionAdapterSet`, `build_physical_adapters_from_contributions` added to `mpl_sim.network` in new `contribution_adapters.py` module. Explicit adapter layer: caller-supplied contribution callbacks (not real component classes) are bound to `ComponentInstanceId` objects; builder validates exact coverage against binding_set; generated `PhysicalResidualAdapter` callbacks invoke all contribution callbacks at evaluation time, validate residual name coverage (undeclared names rejected), and return the requested residual value. Fully integrated with Phase 14A `build_network_residual_evaluators` and Phase 13G/13H evaluation/solve paths. 78 focused tests; 899 network tests; 4760 tests total.** |
 | **Phase 14B status** | **Checkpoint complete. Component binding and state-vector mapping foundation implemented. `ComponentBinding`, `ComponentBindingSet`, `ComponentStateMap`, `NetworkBindingContext`, `build_binding_context` added to `mpl_sim.network` in new `component_binding.py` module. Explicit binding/mapping declaration layer: one binding per graph component instance; unknown/residual name → component/node ID mappings defensively copied as `MappingProxyType`; builder validates exact coverage, assembly declarations, and graph ID references. No component execution, no property lookup, no CoolProp, no graph state attachment. 111 focused tests; 821 network tests; 4682 tests total.** |
 | **Phase 14A status** | **Checkpoint complete. Physical residual adapter foundation implemented. `PhysicalResidualContext`, `PhysicalResidualAdapter`, `PhysicalResidualAdapterSet`, `build_network_residual_evaluators` added to `mpl_sim.network` in new `physical_adapters.py` module. Explicit adapter layer converts caller-supplied callbacks into Phase 13G `NetworkResidualEvaluator` objects; preserves assembly residual order; validates exact name match (missing/extra rejected). Context is immutable with defensive copies of unknown_values and metadata. No automatic component execution, no property lookup, no CoolProp, no graph state attachment. Adapters integrate with Phase 13G `evaluate_network_residuals` and Phase 13H `solve_network_residual_problem` through explicit evaluator tuples. 82 focused tests; 710 network tests; 4571 tests total.** |
 | **Phase 13H status** | **Checkpoint complete. Configurable network solver v1 implemented. `NetworkSolveConfig`, `NetworkSolveResult`, `solve_network_residual_problem` added to `mpl_sim.network` in new `solver.py` module. Damped finite-difference Newton method: forward FD Jacobian (n perturbed evaluations per iteration), Gaussian elimination with partial pivoting, damped update `x_new = x + damping * dx`. Convergence: `max_abs_scaled <= tolerance`. Singularity detection: pivot below `1e-14` → `converged=False`. Only square systems (`n_unknowns == n_residuals`) accepted. Initial convergence check: if already converged before first iteration returns `iteration_count=0`. Callback exceptions propagate without being swallowed. No scipy, no numpy root-finders, no component execution, no property lookup, no physical state on graph nodes. 113 focused tests in `tests/network/test_configurable_solver_v1.py`; 628 total network tests; 4489 tests total.** |
@@ -83,13 +84,40 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 12B status** | **Checkpoint complete. Examples and user documentation quickstart added. See `PHASE_12B_EXAMPLES_USER_DOCS_QUICKSTART_AUDIT.md` and the Phase 12B entry below.** |
 | **Phase 12A audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 12A status** | **Checkpoint complete. Minimal loop assembly acceptance example implemented. `examples/minimal_evaporator_condenser_loop.py` provides `MinimalLoopResult` frozen dataclass and `evaluate_minimal_evaporator_condenser_loop(...)` function. 33 focused acceptance tests in `tests/loops/test_minimal_loop_example.py` cover all 12 required items. Not a full network solver; no loop convergence; no moving-boundary model; no property lookup. Net energy imbalance and enthalpy drift reported explicitly. 3591 tests passing. See `PHASE_12A_MINIMAL_LOOP_ASSEMBLY_AUDIT.md`.** |
-| **Branch status** | **Phase 14B implemented on `phase-14b-component-binding-state-mapping`.** |
-| **Current active phase** | **Phase 14B - Component Binding and State-Vector Mapping Foundation** |
-| **Next immediate slice** | Phase 14C — minimal physical single-loop residual construction |
-| **Working tree before this phase** | Phase 14A: 4571 tests |
-| **Test status** | **4682 passed, verified 2026-06-22 with separate repository-local system-temp and pytest base-temp roots; no skips, xfails, deselections, exclusions, or fixture errors** |
+| **Branch status** | **Phase 14C implemented on `phase-14c-minimal-component-contribution-adapter`.** |
+| **Current active phase** | **Phase 14C - Minimal Component Contribution Adapter Foundation** |
+| **Next immediate slice** | Phase 14D — minimal physical single-loop residual construction |
+| **Working tree before this phase** | Phase 14B: 4682 tests |
+| **Test status** | **4760 passed, verified 2026-06-22 with repository-local pytest base-temp; no skips, xfails, deselections, exclusions, or fixture errors** |
 | **Lint status** | `ruff check src tests examples` clean, verified 2026-06-22 |
-| **Format status** | `black --check --no-cache --verbose src tests examples` passed; 171 files unchanged, verified 2026-06-22 |
+| **Format status** | `black --check --no-cache --verbose src tests examples` passed; 173 files unchanged, verified 2026-06-22 |
+
+Phase 14C minimal component contribution adapter foundation is complete as a checkpoint.
+
+- **`src/mpl_sim/network/contribution_adapters.py`** added — explicit
+  contribution adapter layer within `mpl_sim.network`.
+- **`ComponentContributionContext`** — frozen context passed to contribution
+  callbacks; carries `NetworkBindingContext`, defensively copied unknown values,
+  and optional metadata; does not assemble `SystemState` or compute properties.
+- **`ComponentContribution`** — frozen result from one contribution callback;
+  `residual_values` mapping is validated (non-empty string keys, finite non-bool
+  float values) and stored as `MappingProxyType`.
+- **`ComponentContributionAdapter`** — frozen `(instance_id, callback)` binding;
+  `instance_id` must be a `ComponentInstanceId`; callback must be callable; this
+  is NOT the existing component `contribute(...)` API.
+- **`ComponentContributionAdapterSet`** — ordered immutable collection; rejects
+  wrong entry types and duplicate instance IDs.
+- **`build_physical_adapters_from_contributions(...)`** — validates exact coverage
+  of binding_set components (missing and extra adapters rejected); generates one
+  `PhysicalResidualAdapter` per assembly residual in assembly declaration order;
+  generated callbacks call all contribution callbacks at evaluation time, validate
+  residual name coverage against assembly declarations, and raise clearly on
+  missing/undeclared/wrong-type contributions.
+- **No automatic physics:** no `component_type` inference, no real component
+  execution, no `contribute(...)` calls, no property/correlation lookup, no
+  CoolProp, no `SystemState`, no `FluidState`, no graph-state attachment.
+- **Integration tested:** Phase 13G one-shot evaluation and Phase 13H Newton
+  solve both verified on toy solvable contribution problems.
 
 Phase 14B component binding and state-vector mapping foundation is complete as a checkpoint.
 
@@ -695,6 +723,7 @@ Key authority statements:
 | **Phase 13H Configurable Network Solver v1** | **Complete; implemented on `phase-13h-configurable-network-solver-v1`** |
 | **Phase 14A Physical Residual Adapter Foundation** | **Complete; implemented on `phase-14a-physical-residual-adapter-foundation`** |
 | **Phase 14B Component Binding and State-Vector Mapping Foundation** | **Complete; implemented on `phase-14b-component-binding-state-mapping`** |
+| **Phase 14C Minimal Component Contribution Adapter Foundation** | **Complete; implemented on `phase-14c-minimal-component-contribution-adapter`** |
 
 Closeout artifacts:
 
@@ -745,28 +774,28 @@ Closeout artifacts:
 
 ## 4. Current Active Phase
 
-**Phase 14B - Component Binding and State-Vector Mapping Foundation** is
-implemented on `phase-14b-component-binding-state-mapping`.
+**Phase 14C - Minimal Component Contribution Adapter Foundation** is
+implemented on `phase-14c-minimal-component-contribution-adapter`.
 
 The implemented capability is intentionally narrow:
 
-- five public names: `ComponentBinding`, `ComponentBindingSet`,
-  `ComponentStateMap`, `NetworkBindingContext`, and `build_binding_context`;
-- component bindings associate graph instance IDs with caller-supplied labels
-  and optional opaque metadata;
-- binding sets preserve deterministic order and reject wrong entry types or
-  duplicate component instance IDs;
-- state maps associate assembly-declared unknown/residual names with graph
-  component or node IDs and expose defensive read-only copies;
-- the builder requires exact graph-component binding coverage, rejects mapped
-  names not declared by the assembly, and rejects graph ID references that do
-  not exist;
-- the context combines graph, assembly, binding set, state map, and optional
-  metadata without storing numerical unknown values or `SystemState`;
-- no component-type inference, component execution, `contribute(...)`,
-  property/correlation lookup, CoolProp, or graph-state attachment.
+- five public names: `ComponentContributionContext`,
+  `ComponentContribution`, `ComponentContributionAdapter`,
+  `ComponentContributionAdapterSet`, and
+  `build_physical_adapters_from_contributions`;
+- one explicit caller-supplied callback is bound to each component instance ID;
+- contribution results contain immutable residual-name/value mappings only;
+- the builder requires exact contribution-adapter coverage of the Phase 14B
+  binding set and emits Phase 14A physical residual adapters in assembly order;
+- generated callbacks reject wrong return types, undeclared residual names,
+  duplicate residual providers, and missing required residual values;
+- Phase 13G one-shot evaluation and Phase 13H algebraic solving consume the
+  generated adapters through the existing Phase 14A path;
+- no real component execution, `Component.contribute(...)`, `SystemState`,
+  property/correlation lookup, CoolProp, component-type inference, or
+  graph-state attachment.
 
-Phase 13A through Phase 14A work remains complete and unchanged by this phase.
+Phase 13A through Phase 14B work remains complete and unchanged by this phase.
 
 Phase boundaries to preserve:
 
@@ -784,11 +813,11 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-14b-component-binding-state-mapping` into `main` as the Phase 14B checkpoint after audit approval.
-2. Continue with Phase 14C minimal physical single-loop residual construction without automatic component-type inference.
+1. Merge `phase-14c-minimal-component-contribution-adapter` into `main` as the Phase 14C checkpoint after audit approval.
+2. Continue with Phase 14D minimal physical single-loop residual construction without automatic component-type inference.
 3. Preserve frozen architecture boundaries while completing the remaining work.
 4. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
-5. Preserve the Phase 7/13E-14B boundary: graph, assembly, binding, and mapping types remain topology/declaration objects with no solve methods; Phases 14A–14B do not construct or execute component physics.
+5. Preserve the Phase 7/13E-14C boundary: graph, assembly, binding, mapping, and contribution-adapter types remain explicit topology/declaration/adapter objects with no solve methods; Phases 14A–14C do not execute real component physics.
 6. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
 7. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
 8. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests examples` before reporting the next implementation task complete.
@@ -796,7 +825,7 @@ Phase boundaries to preserve:
 Recommended commit message:
 
 ```text
-feat: add component binding state mapping foundation
+feat: add minimal component contribution adapter foundation
 ```
 
 ---
@@ -890,6 +919,12 @@ Rules for the next implementation session:
   `mpl_sim.network`. These are immutable declarations only: no numerical
   state, component execution, `component_type` inference, properties,
   correlations, CoolProp, or graph-state mutation.
+- Phase 14C added `ComponentContributionContext`, `ComponentContribution`,
+  `ComponentContributionAdapter`, `ComponentContributionAdapterSet`, and
+  `build_physical_adapters_from_contributions` to `mpl_sim.network`. These
+  adapt explicit caller-supplied callbacks only: no real component execution,
+  `Component.contribute(...)`, `SystemState`, property/correlation lookup,
+  component-type inference, CoolProp, or graph-state mutation.
 - Phase 13H added `NetworkSolveConfig`, `NetworkSolveResult`, `solve_network_residual_problem` to `mpl_sim.network`. The solver is a damped FD Newton method with internal Gaussian elimination — no scipy, no numpy root-finders. Accepts explicit evaluator callbacks and scales only; does NOT construct residuals from component physics. Physical network residual construction (from Pipe, Pump, Accumulator component contributions) is deferred to Phase 14+.
 - Phase 11P added `HXSolveRequest.dp_primary_is_two_phase: bool = False`. When `True`, HX models build `TwoPhaseDPInput` with `rho_l`, `rho_v`, `mu_l`, `mu_v` from `geom_scalars` into `property_scalars`, and multiply `value[0] * L_cell` for gradient-to-drop conversion. Single-phase DP path (default `False`) is unchanged.
 - Two-phase DP is now injectable into all three HX models using `MSHTwoPhaseFrictionGradient` when the caller supplies required scalars in `geom_scalars` and sets `dp_primary_is_two_phase=True`.
@@ -904,6 +939,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-22 |
 | **Updated by** | Codex |
-| **Status note** | Phase 14B component binding and state-vector mapping foundation implemented on `phase-14b-component-binding-state-mapping`; 4682 tests passed with no skips, xfails, deselections, exclusions, or fixture errors; 821 network tests and 111 focused Phase 14B tests; `ComponentBinding`, `ComponentBindingSet`, `ComponentStateMap`, `NetworkBindingContext`, and `build_binding_context` added to `mpl_sim.network`; mappings are declaration-only and validated against graph IDs plus assembly names; no numerical state, component execution, component-type inference, property/correlation lookup, CoolProp, or graph-state attachment |
+| **Status note** | Phase 14C minimal component contribution adapter foundation implemented on `phase-14c-minimal-component-contribution-adapter`; 4760 tests passed with no skips, xfails, deselections, exclusions, or fixture errors; 899 network tests and 78 focused Phase 14C tests; five contribution-adapter public names added to `mpl_sim.network`; callbacks are caller-supplied and explicit; no real component execution, `Component.contribute(...)`, `SystemState`, component-type inference, property/correlation lookup, CoolProp, or graph-state attachment |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*

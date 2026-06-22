@@ -790,6 +790,130 @@ sm = ComponentStateMap(
 
 ---
 
+## Minimal Component Contribution Adapter Foundation (Phase 14C)
+
+`mpl_sim.network` exports an explicit adapter layer that allows caller-supplied
+component contribution callbacks to be declared and converted into Phase 14A
+`PhysicalResidualAdapter` objects.  **This is a contribution-adapter foundation
+only — it does NOT execute real component classes, does NOT call
+`Component.contribute(...)`, does NOT assemble `SystemState`, and does NOT build
+physical residuals automatically from `component_type`.**
+
+```python
+from mpl_sim.network import (
+    ComponentContribution,
+    ComponentContributionAdapter,
+    ComponentContributionAdapterSet,
+    ComponentContributionContext,
+    ComponentInstanceId,
+    build_physical_adapters_from_contributions,
+    build_network_residual_evaluators,
+    evaluate_network_residuals,
+    NetworkUnknownValues,
+)
+
+# Assume `binding_context` is a NetworkBindingContext built in Phase 14B.
+# The graph has components "evap" and "cond"; the assembly declares:
+#   unknowns: mdot:evap, mdot:cond, P:n1, P:n2
+#   residuals: mass_balance:n1, mass_balance:n2,
+#              pressure_drop:evap, pressure_drop:cond
+
+# Supply explicit contribution callbacks (not real component classes).
+def evap_cb(ctx: ComponentContributionContext) -> ComponentContribution:
+    v = ctx.unknown_values
+    return ComponentContribution(
+        residual_values={
+            "mass_balance:n1": v["mdot:evap"] - v["mdot:cond"],
+            "pressure_drop:evap": v["P:n1"] - v["P:n2"] - 600.0,
+        }
+    )
+
+def cond_cb(ctx: ComponentContributionContext) -> ComponentContribution:
+    v = ctx.unknown_values
+    return ComponentContribution(
+        residual_values={
+            "mass_balance:n2": v["mdot:cond"] - v["mdot:evap"],
+            "pressure_drop:cond": v["P:n2"] - v["P:n1"] + 1000.0,
+        }
+    )
+
+# Declare one contribution adapter per bound component.
+adapters = [
+    ComponentContributionAdapter(
+        instance_id=ComponentInstanceId("evap"),
+        callback=evap_cb,
+    ),
+    ComponentContributionAdapter(
+        instance_id=ComponentInstanceId("cond"),
+        callback=cond_cb,
+    ),
+]
+
+# Build PhysicalResidualAdapterSet from contribution adapters (Phase 14C → 14A).
+physical_set = build_physical_adapters_from_contributions(
+    binding_context, adapters
+)
+
+# Convert to Phase 13G evaluators via Phase 14A builder.
+assembly = binding_context.assembly
+evaluators = build_network_residual_evaluators(assembly, physical_set)
+
+# One-shot Phase 13G evaluation (toy constants only, not real physics).
+uv = NetworkUnknownValues(
+    values={"mdot:evap": 0.05, "mdot:cond": 0.05, "P:n1": 100_000.0, "P:n2": 99_000.0}
+)
+scales = {
+    "mass_balance:n1": 0.01,
+    "mass_balance:n2": 0.01,
+    "pressure_drop:evap": 100.0,
+    "pressure_drop:cond": 100.0,
+}
+result = evaluate_network_residuals(assembly, uv, evaluators, scales)
+# → mass_balance:n1=0.0, mass_balance:n2=0.0,
+#   pressure_drop:evap=400.0, pressure_drop:cond=0.0
+```
+
+`build_physical_adapters_from_contributions` validates that:
+
+- Every component instance bound in the `NetworkBindingContext` has exactly one
+  contribution adapter (missing adapters are rejected).
+- No contribution adapter references a component not bound in the context
+  (extra/unbound adapters are rejected).
+
+At evaluation time the generated physical adapter callbacks validate:
+
+- All residual names returned by contribution callbacks are declared in the
+  assembly (undeclared names raise `ValueError`).
+- The specific residual requested by each physical adapter is provided by at
+  least one contribution callback (missing residual raises `ValueError`).
+- Each contribution callback returns a `ComponentContribution` (wrong return
+  type raises `TypeError`).
+
+**What this is:**
+- An explicit adapter layer: caller-supplied contribution callbacks are bound to
+  component instance IDs and converted into Phase 14A `PhysicalResidualAdapter`
+  objects.
+- These callbacks are explicit and caller-supplied — they are NOT the existing
+  component `contribute(...)` API.
+- Generated physical adapters preserve assembly residual declaration order.
+- All objects are immutable; metadata is defensively copied.
+- A preparation step toward future controlled component contribution integration.
+
+**What this is NOT:**
+- Does NOT execute real component classes.
+- Does NOT call the frozen `contribute(...)` component contribution method.
+- Does NOT assemble `SystemState` or `FluidState`.
+- Does NOT compute or look up thermodynamic properties — no CoolProp, no
+  `PropertyBackend`.
+- Does NOT call `CorrelationRegistry` or any registry.
+- Does NOT construct physical residuals automatically from `component_type`.
+- Does NOT attach physical state to graph nodes.
+- Does NOT implement `solve(network)`.
+- Is NOT a full MPL network simulator.
+- Is NOT validated against experiment or literature data.
+
+---
+
 ## What is NOT implemented
 
 | Capability | Status |
@@ -804,8 +928,9 @@ sm = ComponentStateMap(
 | Configurable network solver v1 | Implemented in Phase 13H (`mpl_sim.network`) |
 | Physical residual adapter foundation | Implemented in Phase 14A (`mpl_sim.network`) |
 | Component binding and state-vector mapping | Implemented in Phase 14B (`mpl_sim.network`) |
-| Generic network solver (`solve(network)`) | Deferred (Phase 14C+) |
-| Minimal physical single-loop residual construction | Deferred (Phase 14C) |
+| Minimal component contribution adapter foundation | Implemented in Phase 14C (`mpl_sim.network`) |
+| Generic network solver (`solve(network)`) | Deferred (Phase 14D+) |
+| Minimal physical single-loop residual construction | Deferred (Phase 14D) |
 | Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14D+) |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |
