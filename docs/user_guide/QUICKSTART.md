@@ -52,15 +52,20 @@ Its current strength is a clean, explicit, well-tested HX/component/correlation 
 - Execute caller-supplied toy component functions with the Phase 14E controlled
   harness, producing Phase 14D records for conversion through the existing
   Phase 14C/14A/13G stack. Production components are not executed.
-- Run 4000+ deterministic, property-lookup-free tests.
+- Execute controlled component-like providers through `produce_records(...)`
+  with the Phase 14F adapter. These providers are not production component
+  classes and the path does not call `Component.contribute(...)`.
+- Inspect known production component contracts statically with Phase 14G. All
+  six known production classes currently have no `contribute(...)` method.
+- Run 5000+ deterministic tests.
 
 ---
 
 ## 3. What can it NOT yet do?
 
-- **No automatic physical network simulation.** Phases 14A–14E only adapt
-  explicit caller callbacks, declare bindings/name mappings, and execute
-  explicitly supplied toy functions. They do not
+- **No automatic physical network simulation.** Phases 14A–14G only adapt
+  explicit caller callbacks, declare bindings/name mappings, execute
+  explicitly supplied toy/provider objects, or inspect production classes. They do not
   derive residuals from component types, invoke real component classes or
   `Component.contribute(...)`, call properties/correlations, assemble
   `SystemState`, or attach state to graphs.
@@ -210,6 +215,8 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 | Component contribution adapters | Phase 14C converts explicit caller-supplied contribution callbacks into Phase 14A physical residual adapters. It does not invoke real component classes. |
 | Contribution contract prep | Phase 14D maps explicit pre-built contribution records through explicit residual-name mappings to Phase 14C `ComponentContribution` values. It executes no component. |
 | Controlled toy execution | Phase 14E executes only explicit caller-supplied toy functions and returns Phase 14D records. It does not execute production components or call `Component.contribute(...)`. |
+| Component-like providers | Phase 14F executes only explicit providers through `produce_records(...)`. Providers are not production MPL components. |
+| Production contract inspection | Phase 14G statically inspects known production classes. It executes no component method and found no production `contribute(...)` implementation. |
 | Generic physical Solver | The architecture-level physical solver remains in `mpl_sim.solvers`. Phase 13A's `mpl_sim.closed_loop` API remains a fixed case-specific orchestration helper. |
 | `SystemState` | The only owner of numerical state values. Not the ports or components. |
 
@@ -220,7 +227,7 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 **For users exploring the library:**
 
 1. Run `pytest` to verify the baseline.
-2. Run the four examples in [`examples/`](../../examples/).
+2. Run the six examples in [`examples/`](../../examples/).
 3. Read [`CONCEPTS.md`](CONCEPTS.md) for the mental model.
 4. Read [`EXAMPLES.md`](EXAMPLES.md) for annotated walkthroughs.
 
@@ -228,9 +235,8 @@ No property lookup, no registry resolution, no hidden defaults occur in this pat
 
 1. Check `docs/roadmap/PROJECT_STATUS.md` for the current phase and deferred items.
 2. Check `docs/roadmap/IMPLEMENTATION_PLAN.md` for the authoritative phase order.
-3. The next recommended directions are:
-   - Minimal real component contribution interface adapter (Phase 14F).
-   - Remaining two-phase DP closures: Homogeneous/Cicchitti, Kim-Mudawar 2013.
-   - Validation harness: pin literature data as acceptance tests.
+3. The next planned work is Block 15A — Production Component Bridge MVP.
+   Later planned blocks cover a minimal physical single-loop network, topology
+   extensions, and a configurable MPL scenario.
 4. Preserve the architecture boundaries in `docs/architecture/ARCHITECTURE_MASTER.md`.
 5. Do not commit without running `pytest` + `ruff` + `black --check`.

@@ -2,7 +2,7 @@
 
 A modular, explicit-input thermo-hydraulic simulation library for mechanically pumped two-phase loops (MPLs) and related systems.
 
-**Current state:** HX/component/correlation architecture is implementation-complete, with minimal fixed-architecture closure solvers, a physics-free network graph, declaration-only residual assembly, explicit residual evaluation, a configurable callback-only algebraic solver, Phase 14A physical-style residual adapters, Phase 14B declarative component binding/state-name mapping, Phase 14C explicit component-contribution callback adapters, Phase 14D contribution-record/residual-map contracts, and the Phase 14E controlled toy component execution harness. Real production component execution, automatic physical residual construction from component types, arbitrary-topology simulation, and experimental validation remain deferred.
+**Current state:** The implemented baseline includes the current HX model/component-helper/correlation layers, minimal fixed-architecture closure solvers, a physics-free network graph, declaration-only residual assembly, explicit residual evaluation, a configurable callback-only algebraic solver, Phase 14A physical-style residual adapters, Phase 14B declarative component binding/state-name mapping, Phase 14C explicit component-contribution callback adapters, Phase 14D contribution-record/residual-map contracts, Phase 14E controlled toy execution, Phase 14F component-like provider execution, and Phase 14G production-component contract inspection. Production `Component.contribute(...)`, a production component bridge, physical production-component execution through the network, automatic physical residual construction from component types, arbitrary-topology physical simulation, and experimental validation remain deferred.
 
 ---
 
@@ -54,13 +54,22 @@ A modular, explicit-input thermo-hydraulic simulation library for mechanically p
   as Phase 14D contribution records (Phase 14E). This does not execute production
   components, call `Component.contribute(...)`, assemble physical state, or infer
   physics from `component_type`.
-- Run 4000+ deterministic, property-lookup-free tests.
+- Execute explicitly supplied component-like provider objects through the neutral
+  `produce_records(...)` protocol (Phase 14F). Providers are not production MPL
+  component classes and this path does not call `Component.contribute(...)`.
+- Inspect the known production component classes statically (Phase 14G). All six
+  known classes currently report `NO_CONTRIBUTE_METHOD`; inspection executes no
+  component method.
+- Run 5000+ deterministic tests.
 
 ## What it cannot do yet
 
 - Automatic physical full-loop convergence beyond the fixed one-evaporator +
   one-condenser architecture.
-- Parallel evaporators, valves, manifolds, recuperator, pre/post-heaters (deferred to Phase 14F+).
+- Production `Component.contribute(...)` and the production component bridge (Block 15A).
+- Physical production-component execution through the network, including
+  `SystemState`/`FluidState` assembly for that execution (Block 15B+).
+- Parallel evaporators, valves, manifolds, recuperator, pre/post-heaters (Block 15C+).
 - Network flow-pressure solving or arbitrary-topology simulation.
 - Property lookup at the HX/component/correlation layer (CoolProp is only in `mpl_sim.properties`).
 - Moving-boundary two-phase zone modeling.
@@ -165,16 +174,18 @@ The library is built around five principles:
 
 ## Project status
 
-Phase 14E — Controlled Toy Component Execution Harness.
+Project baseline after Phase 14G — Production Component Contribution Contract Inspection.
 The HX component family (Phases 11A–11U), fixed-architecture closure work
 (Phases 13A–13D), the Phase 13E physics-free topology representation, Phase
 13F declaration-only residual assembly, Phase 13G one-shot residual
 evaluation, Phase 13H callback-only algebraic solving, Phase 14A explicit
 physical-style callback adapters, and Phase 14B declarative component
 binding/state-name mapping, Phase 14C explicit component-contribution callback
-adapters, Phase 14D contribution-record/residual-map contracts, and Phase 14E
-explicit toy-function execution are complete checkpoints. Real production component execution,
-automatic physical residual construction from component types,
+adapters, Phase 14D contribution-record/residual-map contracts, Phase 14E
+explicit toy-function execution, Phase 14F controlled component-like provider
+execution, and Phase 14G static production-component contract inspection are
+complete checkpoints. Production `Component.contribute(...)`, the production
+component bridge, real production component execution, automatic physical residual construction from component types,
 arbitrary-topology simulation, validation harness work, and moving-boundary
 modeling remain deferred.
 
