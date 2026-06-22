@@ -1251,7 +1251,7 @@ class MyProvider:
   `ComponentContributionAdapter`, and ultimately into Phase 14A/13G/13H
   evaluation and solve paths.
 - A preparation step toward future controlled real component contribution
-  integration (Phase 14G+).
+  integration (Block 15A+).
 
 **What this is NOT:**
 - Does NOT execute real component classes.
@@ -1267,6 +1267,65 @@ class MyProvider:
 - Does NOT implement `solve(network)`.
 - Is NOT a full MPL network simulator — it is a controlled provider adapter
   foundation only.
+- Is NOT validated against experiment or literature data.
+
+---
+
+## Phase 14G — Production Component Contribution Contract Inspection
+
+Phase 14G adds a read-only static inspection layer for production component
+classes.  It identifies the current shape of the production contribution
+boundary and records what is compatible, what is incompatible, and what
+must be built before real component integration is safe.
+
+**Public API added (`mpl_sim.network`):**
+
+- `ProductionComponentContractStatus` — string-constant class with inspection
+  outcome values: `NO_CONTRIBUTE_METHOD`, `HAS_CONTRIBUTE_METHOD`,
+  `SIGNATURE_COMPATIBLE`, `SIGNATURE_INCOMPATIBLE`, `REQUIRES_SYSTEM_STATE`,
+  `REQUIRES_ADAPTER`, `INSPECTION_UNSUPPORTED`.
+- `ProductionComponentContributionSignature` — frozen value object recording
+  the static signature of a contribution-like method: parameter names, return
+  annotation, `requires_system_state`, `requires_context`, `has_varargs`,
+  `has_kwargs`.  Stores no executable object.
+- `ProductionComponentInspectionResult` — frozen value object recording one
+  class inspection outcome: `class_name`, `module_name`, `status`, optional
+  `signature`, and `notes` tuple.  Stores no component instance.
+- `inspect_production_component_contract(cls)` — inspects one class object
+  statically, detects whether a `contribute` method exists, analyses its
+  signature without calling it, and returns a
+  `ProductionComponentInspectionResult`.
+- `inspect_known_production_component_contracts()` — inspects a curated set of
+  known production component classes and returns an immutable tuple of
+  `ProductionComponentInspectionResult` objects.
+
+**Current findings for known production components:**
+
+All known production component classes (`Component`, `Pipe`, `PumpComponent`,
+`AccumulatorComponent`, `EvaporatorComponent`, `CondenserComponent`) return
+`ProductionComponentContractStatus.NO_CONTRIBUTE_METHOD`.  The production
+`contribute(...)` contract described in `INTERFACE_SPEC.md §11.1` is not yet
+implemented on any component class.
+
+**What this is:**
+- A static inspection-only layer using Python's `inspect` module.
+- Records compatibility facts without executing any production component.
+- Prepares Block 15A, where a controlled adapter design for real component
+  contribution will be proposed.
+
+**What this is NOT:**
+- Does NOT execute production component instances.
+- Does NOT call `Component.contribute(...)`.
+- Does NOT call `produce_records(...)` or any Phase 14F provider method.
+- Does NOT assemble `SystemState` or `FluidState`.
+- Does NOT create or attach `FluidState` to graph nodes.
+- Does NOT compute or look up thermodynamic properties — no CoolProp, no
+  `PropertyBackend`.
+- Does NOT call `CorrelationRegistry` or any registry.
+- Does NOT construct physical residuals automatically from `component_type`.
+- Does NOT attach physical state to graph nodes.
+- Does NOT implement `solve(network)`.
+- Is NOT a full MPL network simulator — it is a static inspection checkpoint.
 - Is NOT validated against experiment or literature data.
 
 ---
@@ -1289,9 +1348,10 @@ class MyProvider:
 | Component contribution contract adapter prep | Implemented in Phase 14D (`mpl_sim.network`) |
 | Controlled toy component execution harness | Implemented in Phase 14E (`mpl_sim.network`) |
 | Component-like contribution provider adapter | Implemented in Phase 14F (`mpl_sim.network`) |
-| Controlled real Component.contribute contract bridge | Deferred (Phase 14G) |
-| Generic network solver (`solve(network)`) | Deferred (Phase 14G+) |
-| Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14G+) |
+| Production component contract inspection | Implemented in Phase 14G (`mpl_sim.network`) |
+| Controlled real Component.contribute contract bridge | Deferred (Block 15A) |
+| Generic network solver (`solve(network)`) | Deferred (Block 15B+) |
+| Parallel evaporators, valves, manifolds, recuperator | Deferred (Block 15C+) |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |
 | Automatic phase inference | Not planned for this layer |

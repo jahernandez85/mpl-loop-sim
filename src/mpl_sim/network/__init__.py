@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14F.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -146,6 +146,21 @@ Phase 14E exports (controlled toy component execution harness):
   Convenience conversion wrapper:
     build_component_contribution_from_toy_execution
 
+Phase 14G exports (production component contribution contract inspection):
+
+  Contract status constants:
+    ProductionComponentContractStatus
+
+  Signature description value object:
+    ProductionComponentContributionSignature
+
+  Inspection result value object:
+    ProductionComponentInspectionResult
+
+  Inspection functions:
+    inspect_production_component_contract
+    inspect_known_production_component_contracts
+
 Phase 14F exports (minimal component-like contribution provider adapter):
 
   Provider execution context:
@@ -210,6 +225,13 @@ from mpl_sim.network.physical_adapters import (
     PhysicalResidualAdapterSet,
     PhysicalResidualContext,
     build_network_residual_evaluators,
+)
+from mpl_sim.network.production_component_inspection import (
+    ProductionComponentContractStatus,
+    ProductionComponentContributionSignature,
+    ProductionComponentInspectionResult,
+    inspect_known_production_component_contracts,
+    inspect_production_component_contract,
 )
 from mpl_sim.network.residual_assembly import (
     NetworkResidualAssembly,
@@ -346,6 +368,15 @@ __all__ = [
     "execute_toy_component_contributions",
     # Phase 14E convenience conversion wrapper
     "build_component_contribution_from_toy_execution",
+    # Phase 14G contract status constants
+    "ProductionComponentContractStatus",
+    # Phase 14G signature description value object
+    "ProductionComponentContributionSignature",
+    # Phase 14G inspection result value object
+    "ProductionComponentInspectionResult",
+    # Phase 14G inspection functions
+    "inspect_production_component_contract",
+    "inspect_known_production_component_contracts",
     # Phase 14F provider execution context
     "ComponentProviderExecutionContext",
     # Phase 14F provider protocol
