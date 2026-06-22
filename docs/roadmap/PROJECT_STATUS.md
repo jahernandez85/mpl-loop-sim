@@ -11,9 +11,9 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-15a3-controlled-production-like-path` |
-| **Stage** | Block 15A.3 — Controlled Production-like Bridge Path MVP implemented; explicitly supplied stub objects read unknowns through ReadOnlyUnknownView, compute contribution records, and feed the existing Phase 14D/14C path; still no real production component execution |
-| **Completed phase** | **Block 15A.3 - Controlled Production-like Bridge Path MVP** |
+| **Branch** | `phase-15a4-production-bridge-closeout` |
+| **Stage** | Block 15A.4 — Production Bridge Closeout: independently audited controlled end-to-end integration tests prove that production-like producers feed the existing Phase 14D/14C/14A/13G/13H residual stack; no new runtime modules added; Block 15A complete within planned MVP scope |
+| **Completed phase** | **Block 15A.4 — Production Bridge Closeout (Block 15A MVP complete)** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -87,15 +87,16 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 12A audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 12A status** | **Checkpoint complete. Minimal loop assembly acceptance example implemented. `examples/minimal_evaporator_condenser_loop.py` provides `MinimalLoopResult` frozen dataclass and `evaluate_minimal_evaporator_condenser_loop(...)` function. 33 focused acceptance tests in `tests/loops/test_minimal_loop_example.py` cover all 12 required items. Not a full network solver; no loop convergence; no moving-boundary model; no property lookup. Net energy imbalance and enthalpy drift reported explicitly. 3591 tests passing. See `PHASE_12A_MINIMAL_LOOP_ASSEMBLY_AUDIT.md`.** |
 | **Block 15A.1 status** | **Checkpoint complete and independently audited. Production component bridge boundary MVP introduced. `ProductionBridgeExecutionContext`, `ProductionContributionBridgeProtocol`, `ProductionComponentBridgeBinding`, `ProductionComponentBridgeSet`, `execute_production_bridge_contributions`, `build_component_contribution_from_production_bridge_execution` added to `mpl_sim.network` in new `production_component_bridge.py` module. Bridge boundary is the first controlled seam toward future production component contribution execution. Does NOT execute real production component classes. Does NOT define or call a method named `contribute`. Does NOT assemble `SystemState` or `FluidState`. Does NOT call CoolProp, PropertyBackend, correlations, or any registry. All six known production classes (`Component`, `Pipe`, `PumpComponent`, `AccumulatorComponent`, `EvaporatorComponent`, `CondenserComponent`) still have `NO_CONTRIBUTE_METHOD` as confirmed by Phase 14G inspection — no `contribute(...)` is implemented on any production class. Bridge objects used in tests are controlled stubs (NOT real production components) exposing `produce_records`. Physical production-component execution and Block 15B physical single-loop network work remain deferred. No arbitrary-topology physical simulation exists. Fully integrated with the existing Phase 14D/14C/14A/13G path. 75 focused bridge tests; 1264 network tests; 5125 tests in the full suite, including 60 example tests. See `BLOCK_15A1_PRODUCTION_BRIDGE_BOUNDARY_AUDIT.md`.** |
+| **Block 15A.4 status** | **Closeout checkpoint complete and independently audited. Block 15A — Production Component Bridge MVP — is complete within its planned MVP scope. No new runtime modules added. New test file `tests/network/test_production_bridge_closeout_integration.py` (38 focused tests) proves the full end-to-end path: explicitly supplied production-like producers read unknowns through `ReadOnlyUnknownView` (Block 15A.2), return `ContributionRecordSet` records, records map through `ContributionResidualMap` (Phase 14D) to `ComponentContribution` (Phase 14C), contributions build `PhysicalResidualAdapterSet` (Phase 14C), `build_network_residual_evaluators` (Phase 14A) converts to `NetworkResidualEvaluator` tuple, `evaluate_network_residuals` (Phase 13G) evaluates at the known algebraic solution point (all residuals zero), and `solve_network_residual_problem` (Phase 13H) converges from an off-solution initial guess to the known algebraic solution. The solver compatibility proof remains callback-only, explicitly algebraic, and non-physical. Residual ordering follows assembly declaration order. All six production component classes still report `NO_CONTRIBUTE_METHOD`. No CoolProp, no PropertyBackend, no CorrelationRegistry, no HX model, no SystemState, no FluidState, no `contribute(...)` call, no `component_type` physics dispatch, no generic network-graph solve. Block 15A provides: controlled bridge boundary (15A.1), read-only unknown-vector view (15A.2), controlled production-like producer path (15A.3), and integration proof through the existing Phase 14D/14C/14A/13G/13H stack (15A.4). Block 15A does NOT implement: real production component execution, production `Component.contribute(...)`, `SystemState` assembly, `FluidState` construction, property-backed/correlation-backed/HX-model-backed graph execution, Block 15B physical single-loop network simulation, arbitrary-topology physical simulation, or generic `solve(network)` / `NetworkGraph.solve()`. 38 new focused tests; 1418 network tests; 5279 tests in the full suite. Lint and format clean. See `BLOCK_15A4_PRODUCTION_BRIDGE_CLOSEOUT_AUDIT.md`. Verified 2026-06-23.** |
 | **Block 15A.3 status** | **Checkpoint complete. Controlled production-like bridge path MVP introduced. `ProductionLikeBridgeContext`, `ProductionLikeRecordProducerProtocol`, `ProductionLikeComponentBinding`, `ProductionLikeComponentSet`, `execute_production_like_contributions`, `build_component_contribution_from_production_like_execution` added to `mpl_sim.network` in new `production_like_bridge.py` module. Production-like objects are explicitly supplied by the caller and use `produce_records(...)` — not `contribute(...)`. `ProductionLikeBridgeContext` includes a pre-built `ReadOnlyUnknownView` (Block 15A.2) that lets stub producers read component-scoped and node-scoped unknowns without accessing the full unknown vector directly. Context construction validates exact assembly unknown coverage via `ReadOnlyUnknownView`. Execution loop validates exact producer coverage, validates return types and record ownership, checks for duplicates, and propagates producer exceptions. Convenience wrapper feeds records through Phase 14D `ContributionResidualMap` to Phase 14C `ComponentContribution`. Does NOT execute real production component classes. Does NOT define or call any method named `contribute`. Does NOT assemble `SystemState` or `FluidState`. Does NOT call CoolProp, PropertyBackend, correlations, or any registry. Does NOT attach physical state to graph nodes. Does NOT infer physics from `component_type`. Does NOT add `solve(network)` or `NetworkGraph.solve()`. All six known production classes (`Component`, `Pipe`, `PumpComponent`, `AccumulatorComponent`, `EvaporatorComponent`, `CondenserComponent`) still have `NO_CONTRIBUTE_METHOD` as confirmed by Phase 14G inspection. Block 15B physical single-loop network simulation remains deferred. Arbitrary-topology physical simulation remains deferred. Fully backward-compatible with Block 15A.1 and 15A.2.** |
 | **Block 15A.2 status** | **Checkpoint complete. Read-only unknown/state bridge MVP introduced. `ReadOnlyUnknownView`, `ComponentUnknownView`, `NodeUnknownView`, `build_readonly_unknown_view` added to `mpl_sim.network` in new `readonly_state_bridge.py` module. This checkpoint makes Block 15A.1 more useful by giving bridge providers a safe way to read unknown-vector values by component/node mapping through the existing `NetworkBindingContext` and `ComponentStateMap`. `ReadOnlyUnknownView` is a frozen, validated read-only view of the full unknown-value vector: validates that all assembly-declared unknowns are present, no extras, all values finite and non-bool; exposes values by raw unknown name; provides component-scoped and node-scoped sub-views. `ComponentUnknownView` exposes only unknowns mapped to a specific `ComponentInstanceId` via `ComponentStateMap.unknown_to_component`. `NodeUnknownView` exposes only unknowns mapped to a specific `GraphNodeId` via `ComponentStateMap.unknown_to_node`. `build_readonly_unknown_view` accepts both `NetworkUnknownValues` and plain `Mapping[str, float]`. Does NOT assemble `SystemState`. Does NOT create `FluidState`. Does NOT execute real production components. Does NOT define or call `Component.contribute(...)`. Does NOT call CoolProp, PropertyBackend, correlations, or any registry. Does NOT add `solve(network)` or `NetworkGraph.solve()`. Block 15B physical single-loop network simulation remains deferred. Arbitrary-topology physical simulation remains deferred. Fully backward-compatible with Block 15A.1 — existing bridge behavior unchanged, `ProductionBridgeExecutionContext` unmodified. 61 focused tests; 1325 network tests; 5186 tests in the full suite, including 60 example tests.** |
 | **Phase 14G status** | **Checkpoint complete. Production component contribution contract inspection implemented. `ProductionComponentContractStatus`, `ProductionComponentContributionSignature`, `ProductionComponentInspectionResult`, `inspect_production_component_contract`, `inspect_known_production_component_contracts` added to `mpl_sim.network` in new `production_component_inspection.py` module. Inspection layer: static only; uses `inspect` module; never instantiates production component classes; never calls `contribute(...)` or any other component method; all known production components (`Component`, `Pipe`, `PumpComponent`, `AccumulatorComponent`, `EvaporatorComponent`, `CondenserComponent`) return `NO_CONTRIBUTE_METHOD` — the production `contribute(...)` contract is not yet implemented on any class. `ProductionComponentContractStatus` provides string constants for inspection outcomes. `ProductionComponentContributionSignature` captures parameter names, return annotation, state/context dependency flags, and varargs/kwargs flags. `ProductionComponentInspectionResult` stores class name, module name, status, optional signature, and notes tuple — no component instance stored. 60 focused tests; 1189 network tests; 5050 tests total.** |
 | **Phase 14F status** | **Checkpoint complete. Component-like contribution provider adapter implemented. `ComponentProviderExecutionContext`, `ComponentContributionProviderProtocol`, `ComponentContributionProviderBinding`, `ComponentContributionProviderSet`, `execute_component_provider_contributions`, `build_component_contribution_from_provider_execution` added to `mpl_sim.network` in new `component_provider_adapters.py` module. Provider layer: `ComponentProviderExecutionContext` is an immutable context (binding context + defensive unknown-values copy + optional metadata); `ComponentContributionProviderBinding` binds a `ComponentInstanceId` to a controlled provider object with a callable `produce_records` method (NOT named `contribute`); `ComponentContributionProviderSet` is an ordered, validated, duplicate-rejecting collection; `execute_component_provider_contributions` validates exact binding coverage, invokes each provider's `produce_records`, validates all return types (must be `ContributionRecordSet`), validates record ownership, checks for duplicates, and returns a `ContributionRecordSet`; `build_component_contribution_from_provider_execution` is a convenience wrapper to Phase 14D mapping and Phase 14C `ComponentContribution`. No real component execution, no `Component.contribute(...)`, no method named `contribute` defined, no `SystemState`, no `FluidState`, no property lookup, no `CoolProp`, no automatic physics from `component_type`. Fully integrated with Phase 14D residual map, Phase 14C adapter, Phase 14A physical adapters, and Phase 13G/13H evaluation/solve stack. 63 focused tests; 1129 network tests; 4990 tests total.** |
-| **Branch status** | **Block 15A.3 on `phase-15a3-controlled-production-like-path`, branched from `main` at Block 15A.2 merge `fabf64a`.** |
-| **Current active phase** | **Block 15A.3 — Controlled Production-like Bridge Path MVP** |
+| **Branch status** | **Block 15A.4 on `phase-15a4-production-bridge-closeout`, branched from `main` at Block 15A.3 merge `1da3557`.** |
+| **Current active phase** | **Block 15A.4 — Production Bridge Closeout (Block 15A MVP complete)** |
 | **Next immediate slice** | Block 15B Physical Single-Loop Network MVP remains deferred pending explicit scope approval |
-| **Baseline before this block** | Block 15A.2 merged on `main`: 5186 tests |
-| **Test status** | **5241 passed in the full suite, including 60 tests under `tests/examples`; 55 focused production-like-bridge tests and 1380 network tests passed; no skips, xfails, or deselections; verified 2026-06-23.** |
+| **Baseline before this block** | Block 15A.3 merged on `main`: 5241 tests |
+| **Test status** | **5279 passed in the full suite, including 60 tests under `tests/examples`; 38 new focused closeout tests and 1418 network tests passed; no skips, xfails, or deselections; verified 2026-06-23.** |
 | **Lint status** | `ruff check src tests examples` clean, verified 2026-06-23 |
 | **Format status** | `black --check --no-cache src tests examples` passed; verified 2026-06-23 |
 
@@ -103,12 +104,18 @@ This document is not architecture. It does not redesign anything. It tracks wher
 
 The following blocks are planning only; none is implemented by Phase 14G.
 
-### Block 15A — Production Component Bridge MVP
+### Block 15A — Production Component Bridge MVP (**COMPLETE** as of Block 15A.4)
 
-- controlled adapter boundary;
-- minimal state/unknown-vector read-only bridge;
-- controlled production-like or stub component path;
-- output through the existing Phase 14D/14C path.
+Block 15A is complete. Implemented across four checkpoints (15A.1–15A.4):
+- controlled bridge boundary (`ProductionBridgeExecutionContext`, 15A.1);
+- read-only unknown-vector view (`ReadOnlyUnknownView`, 15A.2);
+- controlled production-like producer path (`execute_production_like_contributions`, 15A.3);
+- integration proof through existing Phase 14D/14C/14A/13G/13H stack (15A.4 closeout).
+
+Block 15A does NOT implement: real production `Component.contribute(...)`, `SystemState`
+assembly, `FluidState` construction, property-backed/correlation-backed/HX-model-backed
+graph execution, Block 15B physical single-loop network simulation, arbitrary-topology
+physical simulation, or generic `solve(network)` / `NetworkGraph.solve()`.
 
 ### Block 15B — Minimal Physical Single-Loop Network MVP
 
@@ -134,6 +141,41 @@ The following blocks are planning only; none is implemented by Phase 14G.
 Each future block may use internal checkpoints, but every checkpoint must
 preserve architecture boundaries and pass the full validation gate before
 merge.
+
+Block 15A.4 production bridge closeout is complete. Block 15A — Production Component Bridge MVP — is now complete.
+
+- **`tests/network/test_production_bridge_closeout_integration.py`** added — 38 focused
+  integration tests proving the full end-to-end path from production-like producers
+  through the existing Phase 14D/14C/14A/13G/13H residual stack.
+- **No new runtime module added.** All existing APIs from Blocks 15A.1–15A.3 and
+  Phases 14D/14C/14A/13G/13H were sufficient.
+- **Controlled algebraic system** (4 unknowns / 4 residuals, unique solution at
+  ``{mdot:evap=0.1, mdot:cond=0.1, P:n1=200.0, P:n2=150.0}``) used to verify the
+  full path without property lookup, real component execution, or HX models.
+- **End-to-end path verified:**
+  ``execute_production_like_contributions`` (15A.3)
+  → ``map_contribution_records_to_component_contribution`` (14D)
+  → ``ComponentContribution`` (14C)
+  → ``build_physical_adapters_from_contributions`` (14C)
+  → ``build_network_residual_evaluators`` (14A)
+  → ``evaluate_network_residuals`` (13G): all residuals zero at solution point.
+- **Phase 13H solver compatibility verified:** ``solve_network_residual_problem``
+  converges from an off-solution initial guess to the exact algebraic solution.
+  This is algebraic callback solving only — NOT ``solve(network)``, NOT physical
+  network simulation.
+- **Residual ordering verified:** matches assembly declaration order (nodes first,
+  then components; both in graph insertion order).
+- **All six production classes still report ``NO_CONTRIBUTE_METHOD``.**
+- **Block 15A provides** (complete): controlled bridge boundary (15A.1); read-only
+  unknown-vector view (15A.2); controlled production-like producer path (15A.3);
+  integration proof through the existing Phase 14D/14C/14A/13G/13H stack (15A.4).
+- **Block 15A does NOT implement:** real production ``Component.contribute(...)``;
+  ``SystemState`` assembly; ``FluidState`` construction; property-backed,
+  correlation-backed, or HX-model-backed graph execution; Block 15B physical
+  single-loop network simulation; arbitrary-topology physical simulation; generic
+  ``solve(network)`` or ``NetworkGraph.solve()``.
+- **Block 15B physical single-loop network simulation remains deferred.**
+- **Arbitrary-topology physical simulation remains deferred.**
 
 Block 15A.3 controlled production-like bridge path MVP is complete as a checkpoint.
 
