@@ -1128,6 +1128,149 @@ def my_toy_cb(ctx: ToyComponentExecutionContext):
 
 ---
 
+## Minimal Component-Like Contribution Provider Adapter (Phase 14F)
+
+`mpl_sim.network` exports a minimal, controlled adapter layer for
+**component-like contribution providers**.  **This is a provider adapter layer
+only — providers are explicit safe objects, NOT real production component
+classes.  The safe method is NOT named `contribute(...)`.  This layer does NOT
+call `Component.contribute(...)`, does NOT assemble `SystemState`, does NOT
+create or attach `FluidState`, does NOT perform property lookup, and does NOT
+infer physics from `component_type`.**
+
+```python
+from mpl_sim.network import (
+    ComponentProviderExecutionContext,
+    ComponentContributionProviderBinding,
+    ComponentContributionProviderSet,
+    execute_component_provider_contributions,
+    build_component_contribution_from_provider_execution,
+    ComponentInstanceId,
+    ContributionResidualMap,
+)
+
+evap_id = ComponentInstanceId("evap")
+cond_id = ComponentInstanceId("cond")
+
+# Fake provider objects: controlled safe objects, NOT real component classes.
+class FakeEvaporatorProvider:
+    def produce_records(self, context: ComponentProviderExecutionContext):
+        v = context.unknown_values
+        from mpl_sim.network import ContributionRecord, ContributionRecordSet
+        return ContributionRecordSet(records=(
+            ContributionRecord(component_id=evap_id, name="mass_balance",
+                               value=v["mdot:evap"] - v["mdot:cond"]),
+            ContributionRecord(component_id=evap_id, name="pressure_drop",
+                               value=v["P:n1"] - v["P:n2"] - 600.0),
+        ))
+
+class FakeCondenserProvider:
+    def produce_records(self, context: ComponentProviderExecutionContext):
+        v = context.unknown_values
+        from mpl_sim.network import ContributionRecord, ContributionRecordSet
+        return ContributionRecordSet(records=(
+            ContributionRecord(component_id=cond_id, name="mass_balance",
+                               value=v["mdot:cond"] - v["mdot:evap"]),
+            ContributionRecord(component_id=cond_id, name="pressure_drop",
+                               value=v["P:n2"] - v["P:n1"] + 1000.0),
+        ))
+
+# Declare one provider binding per bound component.
+provider_set = ComponentContributionProviderSet(
+    bindings=(
+        ComponentContributionProviderBinding(component_id=evap_id,
+                                             provider=FakeEvaporatorProvider()),
+        ComponentContributionProviderBinding(component_id=cond_id,
+                                             provider=FakeCondenserProvider()),
+    )
+)
+
+# Assume `binding_context` is a NetworkBindingContext from Phase 14B.
+unknown_values = {
+    "mdot:evap": 0.05, "mdot:cond": 0.05,
+    "P:n1": 1000.0, "P:n2": 400.0,
+}
+
+# Execute all providers → ContributionRecordSet (Phase 14D).
+record_set = execute_component_provider_contributions(
+    binding_context, provider_set, unknown_values
+)
+# → ContributionRecordSet with records for both evap and cond.
+
+# Translate records to Phase 14C ComponentContribution via Phase 14D map.
+residual_map = ContributionResidualMap(
+    mapping={
+        (evap_id, "mass_balance"): "mass_balance:n1",
+        (evap_id, "pressure_drop"): "pressure_drop:evap",
+        (cond_id, "mass_balance"): "mass_balance:n2",
+        (cond_id, "pressure_drop"): "pressure_drop:cond",
+    }
+)
+evap_contribution = build_component_contribution_from_provider_execution(
+    evap_id, binding_context, provider_set, residual_map, unknown_values
+)
+```
+
+The constants and provider implementations in this snippet are test constants
+only.  They are not physical defaults, library parameters, or validated
+experimental values.
+
+`ComponentProviderExecutionContext` carries the binding context, a defensively
+copied read-only unknown-value mapping, and optional metadata:
+
+```python
+class MyProvider:
+    def produce_records(self, context: ComponentProviderExecutionContext):
+        v = context.unknown_values   # MappingProxyType[str, float] — read-only
+        meta = context.metadata      # MappingProxyType[str, object] | None
+        # return ContributionRecordSet(...)
+```
+
+`execute_component_provider_contributions` validates:
+
+- Every bound component in the `NetworkBindingContext` has exactly one provider
+  binding (missing providers are rejected).
+- No provider binding references a component not bound in the context
+  (extra/unbound providers are rejected).
+- Each provider's `produce_records` method must return a `ContributionRecordSet`
+  (returning any other type is rejected).
+- Every record in a provider's output must belong to that provider's
+  `component_id` (records for the wrong component are rejected).
+- No duplicate `(component_id, name)` pairs across all provider outputs.
+- Provider exceptions propagate to the caller without being swallowed.
+- No mutation of inputs (binding context, unknown values, metadata, provider set).
+
+**What this is:**
+- A controlled provider adapter layer that drives controlled provider objects
+  and collects their `ContributionRecordSet` outputs.
+- Providers are explicit safe objects with a `produce_records` method — they
+  are NOT real component classes and NOT the existing `contribute(...)` API.
+- The safe method is named `produce_records`, never `contribute`.
+- Outputs feed into Phase 14D `ContributionResidualMap` and
+  `map_contribution_records_to_component_contribution`, then into Phase 14C
+  `ComponentContributionAdapter`, and ultimately into Phase 14A/13G/13H
+  evaluation and solve paths.
+- A preparation step toward future controlled real component contribution
+  integration (Phase 14G+).
+
+**What this is NOT:**
+- Does NOT execute real component classes.
+- Does NOT call the `contribute(...)` component contribution method.
+- Does NOT define any method named `contribute` in production code.
+- Does NOT assemble `SystemState` or `FluidState`.
+- Does NOT create or attach `FluidState` to graph nodes.
+- Does NOT compute or look up thermodynamic properties — no CoolProp, no
+  `PropertyBackend`.
+- Does NOT call `CorrelationRegistry` or any registry.
+- Does NOT construct physical residuals automatically from `component_type`.
+- Does NOT attach physical state to graph nodes.
+- Does NOT implement `solve(network)`.
+- Is NOT a full MPL network simulator — it is a controlled provider adapter
+  foundation only.
+- Is NOT validated against experiment or literature data.
+
+---
+
 ## What is NOT implemented
 
 | Capability | Status |
@@ -1145,9 +1288,10 @@ def my_toy_cb(ctx: ToyComponentExecutionContext):
 | Minimal component contribution adapter foundation | Implemented in Phase 14C (`mpl_sim.network`) |
 | Component contribution contract adapter prep | Implemented in Phase 14D (`mpl_sim.network`) |
 | Controlled toy component execution harness | Implemented in Phase 14E (`mpl_sim.network`) |
-| Minimal real component contribution interface adapter | Deferred (Phase 14F) |
-| Generic network solver (`solve(network)`) | Deferred (Phase 14F+) |
-| Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14F+) |
+| Component-like contribution provider adapter | Implemented in Phase 14F (`mpl_sim.network`) |
+| Controlled real Component.contribute contract bridge | Deferred (Phase 14G) |
+| Generic network solver (`solve(network)`) | Deferred (Phase 14G+) |
+| Parallel evaporators, valves, manifolds, recuperator | Deferred (Phase 14G+) |
 | Property lookup (CoolProp/REFPROP) in HX/component layers | Not in scope for these layers |
 | Moving-boundary model | Deferred |
 | Automatic phase inference | Not planned for this layer |
