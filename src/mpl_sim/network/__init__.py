@@ -1,4 +1,4 @@
-"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14E.
+"""Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14F.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -146,6 +146,26 @@ Phase 14E exports (controlled toy component execution harness):
   Convenience conversion wrapper:
     build_component_contribution_from_toy_execution
 
+Phase 14F exports (minimal component-like contribution provider adapter):
+
+  Provider execution context:
+    ComponentProviderExecutionContext
+
+  Provider protocol:
+    ComponentContributionProviderProtocol
+
+  Single provider binding:
+    ComponentContributionProviderBinding
+
+  Provider binding collection:
+    ComponentContributionProviderSet
+
+  Provider execution driver:
+    execute_component_provider_contributions
+
+  Convenience conversion wrapper:
+    build_component_contribution_from_provider_execution
+
 MUST NOT import from solvers/.
 """
 
@@ -156,6 +176,14 @@ from mpl_sim.network.component_binding import (
     ComponentStateMap,
     NetworkBindingContext,
     build_binding_context,
+)
+from mpl_sim.network.component_provider_adapters import (
+    ComponentContributionProviderBinding,
+    ComponentContributionProviderProtocol,
+    ComponentContributionProviderSet,
+    ComponentProviderExecutionContext,
+    build_component_contribution_from_provider_execution,
+    execute_component_provider_contributions,
 )
 from mpl_sim.network.contribution_adapters import (
     ComponentContribution,
@@ -318,4 +346,16 @@ __all__ = [
     "execute_toy_component_contributions",
     # Phase 14E convenience conversion wrapper
     "build_component_contribution_from_toy_execution",
+    # Phase 14F provider execution context
+    "ComponentProviderExecutionContext",
+    # Phase 14F provider protocol
+    "ComponentContributionProviderProtocol",
+    # Phase 14F single provider binding
+    "ComponentContributionProviderBinding",
+    # Phase 14F provider binding collection
+    "ComponentContributionProviderSet",
+    # Phase 14F provider execution driver
+    "execute_component_provider_contributions",
+    # Phase 14F convenience conversion wrapper
+    "build_component_contribution_from_provider_execution",
 ]

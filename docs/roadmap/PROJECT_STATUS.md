@@ -11,9 +11,9 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-14e-controlled-toy-component-execution` |
-| **Stage** | Phase 14E Controlled Toy Component Execution Harness; controlled execution of caller-supplied toy functions producing ContributionRecordSet via Phase 14D mapping into Phase 14C ComponentContribution; no real component execution, no SystemState, no FluidState, no property lookup, no automatic physics from component_type |
-| **Completed phase** | **Phase 14E - Controlled Toy Component Execution Harness** |
+| **Branch** | `phase-14f-component-like-provider-adapter` |
+| **Stage** | Phase 14F Minimal Component-Like Contribution Provider Adapter; controlled provider objects expose produce_records() method (not contribute()); providers return ContributionRecordSet via Phase 14D mapping into Phase 14C ComponentContribution; no real component execution, no SystemState, no FluidState, no property lookup, no automatic physics from component_type |
+| **Completed phase** | **Phase 14F - Minimal Component-Like Contribution Provider Adapter** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -86,26 +86,31 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 12B status** | **Checkpoint complete. Examples and user documentation quickstart added. See `PHASE_12B_EXAMPLES_USER_DOCS_QUICKSTART_AUDIT.md` and the Phase 12B entry below.** |
 | **Phase 12A audit verdict** | **APPROVED FOR MERGE AS CHECKPOINT - CONTINUE PHASE** |
 | **Phase 12A status** | **Checkpoint complete. Minimal loop assembly acceptance example implemented. `examples/minimal_evaporator_condenser_loop.py` provides `MinimalLoopResult` frozen dataclass and `evaluate_minimal_evaporator_condenser_loop(...)` function. 33 focused acceptance tests in `tests/loops/test_minimal_loop_example.py` cover all 12 required items. Not a full network solver; no loop convergence; no moving-boundary model; no property lookup. Net energy imbalance and enthalpy drift reported explicitly. 3591 tests passing. See `PHASE_12A_MINIMAL_LOOP_ASSEMBLY_AUDIT.md`.** |
-| **Branch status** | **Phase 14E implemented on `phase-14e-controlled-toy-component-execution`.** |
-| **Current active phase** | **Phase 14E - Controlled Toy Component Execution Harness** |
-| **Next immediate slice** | Phase 14F — minimal real component contribution interface adapter |
-| **Working tree before this phase** | Phase 14D: 4852 tests |
-| **Test status** | **4927 passed, verified 2026-06-22 with repository-local pytest base-temp; no skips, xfails, deselections, exclusions, or fixture errors** |
+| **Phase 14F status** | **Checkpoint complete. Component-like contribution provider adapter implemented. `ComponentProviderExecutionContext`, `ComponentContributionProviderProtocol`, `ComponentContributionProviderBinding`, `ComponentContributionProviderSet`, `execute_component_provider_contributions`, `build_component_contribution_from_provider_execution` added to `mpl_sim.network` in new `component_provider_adapters.py` module. Provider layer: `ComponentProviderExecutionContext` is an immutable context (binding context + defensive unknown-values copy + optional metadata); `ComponentContributionProviderBinding` binds a `ComponentInstanceId` to a controlled provider object with a callable `produce_records` method (NOT named `contribute`); `ComponentContributionProviderSet` is an ordered, validated, duplicate-rejecting collection; `execute_component_provider_contributions` validates exact binding coverage, invokes each provider's `produce_records`, validates all return types (must be `ContributionRecordSet`), validates record ownership, checks for duplicates, and returns a `ContributionRecordSet`; `build_component_contribution_from_provider_execution` is a convenience wrapper to Phase 14D mapping and Phase 14C `ComponentContribution`. No real component execution, no `Component.contribute(...)`, no method named `contribute` defined, no `SystemState`, no `FluidState`, no property lookup, no `CoolProp`, no automatic physics from `component_type`. Fully integrated with Phase 14D residual map, Phase 14C adapter, Phase 14A physical adapters, and Phase 13G/13H evaluation/solve stack. 63 focused tests; 1129 network tests; 4990 tests total.** |
+| **Branch status** | **Phase 14F implemented on `phase-14f-component-like-provider-adapter`.** |
+| **Current active phase** | **Phase 14F - Minimal Component-Like Contribution Provider Adapter** |
+| **Next immediate slice** | Phase 14G — controlled real Component.contribute contract bridge, still stubbed |
+| **Working tree before this phase** | Phase 14E: 4927 tests |
+| **Test status** | **4990 passed, verified 2026-06-22 with repository-local pytest base-temp; no skips, xfails, deselections, exclusions, or fixture errors** |
 | **Lint status** | `ruff check src tests examples` clean, verified 2026-06-22 |
-| **Format status** | `black --check --no-cache --verbose src tests examples` passed; 175 files unchanged, verified 2026-06-22 |
+| **Format status** | `black --check --no-cache --verbose src tests examples` passed; verified 2026-06-22 |
 
-Phase 14E controlled toy component execution is complete as a checkpoint.
+Phase 14F component-like contribution provider adapter is complete as a checkpoint.
 
-- **`src/mpl_sim/network/toy_component_execution.py`** added — explicit
-  caller-supplied toy callback execution only.
-- **`ToyComponentExecutionContext`** — frozen context carrying the Phase 14B
+- **`src/mpl_sim/network/component_provider_adapters.py`** added — controlled
+  provider objects expose `produce_records` (NOT `contribute`).
+- **`ComponentProviderExecutionContext`** — frozen context carrying the Phase 14B
   binding context plus defensively copied unknown values and metadata.
-- **`ToyComponentExecutor` / `ToyComponentExecutorSet`** — immutable,
-  ordered, duplicate-rejecting bindings from component IDs to toy callbacks.
-- **`execute_toy_component_contributions(...)`** — validates exact binding
-  coverage, executes only the supplied toy functions, validates outputs, and
-  returns a Phase 14D `ContributionRecordSet`.
-- **`build_component_contribution_from_toy_execution(...)`** — thin wrapper
+- **`ComponentContributionProviderProtocol`** — `typing.Protocol` with
+  `runtime_checkable`; structural duck-type check for `produce_records`.
+- **`ComponentContributionProviderBinding` / `ComponentContributionProviderSet`** —
+  immutable, ordered, duplicate-rejecting bindings from component IDs to
+  provider objects with a callable `produce_records` method.
+- **`execute_component_provider_contributions(...)`** — validates exact binding
+  coverage, calls `provider.produce_records(ctx)`, validates return type
+  (`ContributionRecordSet` required), validates record ownership and duplicates,
+  and returns a Phase 14D `ContributionRecordSet`.
+- **`build_component_contribution_from_provider_execution(...)`** — thin wrapper
   through Phase 14D mapping to Phase 14C `ComponentContribution`.
 - **No production execution:** no real component classes,
   `Component.contribute(...)`, `SystemState`, `FluidState`, property or
@@ -756,6 +761,7 @@ Key authority statements:
 | **Phase 14C Minimal Component Contribution Adapter Foundation** | **Complete; implemented on `phase-14c-minimal-component-contribution-adapter`** |
 | **Phase 14D Component Contribution Contract Adapter Prep** | **Complete; implemented on `phase-14d-component-contribution-contract-prep`** |
 | **Phase 14E Controlled Toy Component Execution Harness** | **Complete; implemented on `phase-14e-controlled-toy-component-execution`** |
+| **Phase 14F Minimal Component-Like Contribution Provider Adapter** | **Complete; implemented on `phase-14f-component-like-provider-adapter`** |
 
 Closeout artifacts:
 
@@ -840,11 +846,11 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Merge `phase-14e-controlled-toy-component-execution` into `main` as the Phase 14E checkpoint after audit approval.
-2. Continue with Phase 14F minimal real component contribution integration only under an explicit architecture-approved contract.
+1. Merge `phase-14f-component-like-provider-adapter` into `main` as the Phase 14F checkpoint after audit approval.
+2. Continue with Phase 14G controlled real Component.contribute contract bridge only under an explicit architecture-approved contract.
 3. Preserve frozen architecture boundaries while completing the remaining work.
 4. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
-5. Preserve the Phase 7/13E-14E boundary: graph, assembly, binding, mapping, contribution-adapter, contribution-record, and toy-executor types remain explicit topology/declaration/adapter/value objects with no solve methods; Phase 14E executes caller-supplied toy functions only.
+5. Preserve the Phase 7/13E-14F boundary: graph, assembly, binding, mapping, contribution-adapter, contribution-record, toy-executor, and provider-adapter types remain explicit topology/declaration/adapter/value objects with no solve methods; Phase 14F executes controlled provider objects only.
 6. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
 7. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
 8. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests examples` before reporting the next implementation task complete.
@@ -852,7 +858,7 @@ Phase boundaries to preserve:
 Recommended commit message:
 
 ```text
-feat: add contribution contract adapter prep
+feat: add component-like contribution provider adapter
 ```
 
 ---
@@ -964,6 +970,16 @@ Rules for the next implementation session:
   `build_component_contribution_from_toy_execution`. These execute only
   explicit caller-supplied toy functions and add no production component,
   property, correlation, state-assembly, or component-type inference path.
+- Phase 14F added `ComponentProviderExecutionContext`,
+  `ComponentContributionProviderProtocol`, `ComponentContributionProviderBinding`,
+  `ComponentContributionProviderSet`, `execute_component_provider_contributions`,
+  and `build_component_contribution_from_provider_execution` to `mpl_sim.network`.
+  These drive controlled provider objects via a `produce_records` method (NOT
+  named `contribute`), return `ContributionRecordSet`, validate record ownership
+  and duplicates, and feed the Phase 14D/14C/14A/13G/13H stack. No real
+  component execution, `Component.contribute(...)`, method named `contribute`,
+  `SystemState`, `FluidState`, property/correlation lookup, component-type
+  inference, CoolProp, or graph-state mutation.
 - Phase 13H added `NetworkSolveConfig`, `NetworkSolveResult`, `solve_network_residual_problem` to `mpl_sim.network`. The solver is a damped FD Newton method with internal Gaussian elimination — no scipy, no numpy root-finders. Accepts explicit evaluator callbacks and scales only; does NOT construct residuals from component physics. Physical network residual construction (from Pipe, Pump, Accumulator component contributions) is deferred to Phase 14+.
 - Phase 11P added `HXSolveRequest.dp_primary_is_two_phase: bool = False`. When `True`, HX models build `TwoPhaseDPInput` with `rho_l`, `rho_v`, `mu_l`, `mu_v` from `geom_scalars` into `property_scalars`, and multiply `value[0] * L_cell` for gradient-to-drop conversion. Single-phase DP path (default `False`) is unchanged.
 - Two-phase DP is now injectable into all three HX models using `MSHTwoPhaseFrictionGradient` when the caller supplies required scalars in `geom_scalars` and sets `dp_primary_is_two_phase=True`.
@@ -978,6 +994,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-22 |
 | **Updated by** | Codex |
-| **Status note** | Phase 14E controlled toy component execution implemented on `phase-14e-controlled-toy-component-execution`; 4927 tests passed with no skips, xfails, deselections, exclusions, or fixture errors; 1066 network tests and 75 focused Phase 14E tests; five toy-only public names added to `mpl_sim.network`; no production component execution, `Component.contribute(...)`, `SystemState`, `FluidState`, component-type inference, property/correlation lookup, CoolProp, or graph-state attachment |
+| **Status note** | Phase 14F component-like contribution provider adapter implemented on `phase-14f-component-like-provider-adapter`; 4990 tests passed with no skips, xfails, deselections, exclusions, or fixture errors; 1129 network tests and 63 focused Phase 14F tests; six provider-adapter public names added to `mpl_sim.network`; no production component execution, `Component.contribute(...)`, method named `contribute`, `SystemState`, `FluidState`, component-type inference, property/correlation lookup, CoolProp, or graph-state attachment |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
