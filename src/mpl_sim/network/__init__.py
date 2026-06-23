@@ -1,5 +1,5 @@
 """Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G +
-Block 15A.1 + Block 15A.2 + Block 15A.3 + Block 15B.1.
+Block 15A.1 + Block 15A.2 + Block 15A.3 + Block 15B.1 + Block 15B.2.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -256,6 +256,20 @@ Block 15B.1 exports (fixed single-loop scenario declaration MVP):
   Factory function:
     build_fixed_single_loop_scenario
 
+Block 15B.2 exports (fixed single-loop physical residual assembly MVP):
+
+  Explicit scalar parameters:
+    FixedSingleLoopResidualParameters
+
+  Frozen assembled object:
+    FixedSingleLoopPhysicalResidualAssembly
+
+  Deterministic factory:
+    build_fixed_single_loop_physical_residuals
+
+  Thin convenience wrapper:
+    build_component_contribution_from_fixed_single_loop_residuals
+
 MUST NOT import from solvers/.
 """
 
@@ -287,6 +301,12 @@ from mpl_sim.network.contribution_contract import (
     ContributionRecordSet,
     ContributionResidualMap,
     map_contribution_records_to_component_contribution,
+)
+from mpl_sim.network.fixed_single_loop_residuals import (
+    FixedSingleLoopPhysicalResidualAssembly,
+    FixedSingleLoopResidualParameters,
+    build_component_contribution_from_fixed_single_loop_residuals,
+    build_fixed_single_loop_physical_residuals,
 )
 from mpl_sim.network.fixed_single_loop_scenario import (
     FixedSingleLoopComponentIds,
@@ -538,4 +558,12 @@ __all__ = [
     "FixedSingleLoopScenario",
     # Block 15B.1 factory function
     "build_fixed_single_loop_scenario",
+    # Block 15B.2 explicit scalar parameters
+    "FixedSingleLoopResidualParameters",
+    # Block 15B.2 frozen assembled object
+    "FixedSingleLoopPhysicalResidualAssembly",
+    # Block 15B.2 deterministic factory
+    "build_fixed_single_loop_physical_residuals",
+    # Block 15B.2 thin convenience wrapper
+    "build_component_contribution_from_fixed_single_loop_residuals",
 ]
