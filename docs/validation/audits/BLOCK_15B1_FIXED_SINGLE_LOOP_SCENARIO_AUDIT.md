@@ -10,7 +10,7 @@ Verdict: APPROVED WITH MINOR DOCUMENTATION FIXES
 - Base commit: `de0d513` (`Merge branch 'phase-15a4-production-bridge-closeout'`)
 - HEAD before audit: `de0d513`
 - Implementation state at audit start: uncommitted working-tree changes on the expected branch
-- Audit commit: to be created after this document and roadmap update
+- Audit commit: `81fa862` (`audit: approve block 15b1 fixed single-loop scenario`)
 
 ## Scope Audited
 
