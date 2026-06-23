@@ -1,5 +1,5 @@
 """Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G +
-Block 15A.1 + Block 15A.2 + Block 15A.3 + Block 15B.1 + Block 15B.2.
+Block 15A.1 + Block 15A.2 + Block 15A.3 + Block 15B.1 + Block 15B.2 + Block 15B.3.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -270,6 +270,26 @@ Block 15B.2 exports (fixed single-loop physical residual assembly MVP):
   Thin convenience wrapper:
     build_component_contribution_from_fixed_single_loop_residuals
 
+Block 15B.3 exports (fixed single-loop evaluate/solve/report MVP):
+
+  Frozen evaluation result:
+    FixedSingleLoopEvaluationResult
+
+  Frozen solve request:
+    FixedSingleLoopSolveRequest
+
+  Frozen solve result:
+    FixedSingleLoopSolveResult
+
+  Deterministic residual evaluator:
+    evaluate_fixed_single_loop_residuals
+
+  Thin solver wrapper:
+    solve_fixed_single_loop_residuals
+
+  Simple serializable summary builder:
+    build_fixed_single_loop_report
+
 MUST NOT import from solvers/.
 """
 
@@ -307,6 +327,14 @@ from mpl_sim.network.fixed_single_loop_residuals import (
     FixedSingleLoopResidualParameters,
     build_component_contribution_from_fixed_single_loop_residuals,
     build_fixed_single_loop_physical_residuals,
+)
+from mpl_sim.network.fixed_single_loop_runner import (
+    FixedSingleLoopEvaluationResult,
+    FixedSingleLoopSolveRequest,
+    FixedSingleLoopSolveResult,
+    build_fixed_single_loop_report,
+    evaluate_fixed_single_loop_residuals,
+    solve_fixed_single_loop_residuals,
 )
 from mpl_sim.network.fixed_single_loop_scenario import (
     FixedSingleLoopComponentIds,
@@ -566,4 +594,16 @@ __all__ = [
     "build_fixed_single_loop_physical_residuals",
     # Block 15B.2 thin convenience wrapper
     "build_component_contribution_from_fixed_single_loop_residuals",
+    # Block 15B.3 frozen evaluation result
+    "FixedSingleLoopEvaluationResult",
+    # Block 15B.3 frozen solve request
+    "FixedSingleLoopSolveRequest",
+    # Block 15B.3 frozen solve result
+    "FixedSingleLoopSolveResult",
+    # Block 15B.3 deterministic residual evaluator
+    "evaluate_fixed_single_loop_residuals",
+    # Block 15B.3 thin solver wrapper
+    "solve_fixed_single_loop_residuals",
+    # Block 15B.3 simple serializable summary builder
+    "build_fixed_single_loop_report",
 ]
