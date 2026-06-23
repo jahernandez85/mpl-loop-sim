@@ -1,5 +1,5 @@
 """Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G +
-Block 15A.1 + Block 15A.2 + Block 15A.3.
+Block 15A.1 + Block 15A.2 + Block 15A.3 + Block 15B.1.
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -236,6 +236,26 @@ Block 15A.3 exports (controlled production-like bridge path MVP):
   Convenience conversion wrapper:
     build_component_contribution_from_production_like_execution
 
+Block 15B.1 exports (fixed single-loop scenario declaration MVP):
+
+  Component ID container:
+    FixedSingleLoopComponentIds
+
+  Node ID container:
+    FixedSingleLoopNodeIds
+
+  Unknown name container:
+    FixedSingleLoopUnknownNames
+
+  Residual name container:
+    FixedSingleLoopResidualNames
+
+  Scenario container:
+    FixedSingleLoopScenario
+
+  Factory function:
+    build_fixed_single_loop_scenario
+
 MUST NOT import from solvers/.
 """
 
@@ -267,6 +287,14 @@ from mpl_sim.network.contribution_contract import (
     ContributionRecordSet,
     ContributionResidualMap,
     map_contribution_records_to_component_contribution,
+)
+from mpl_sim.network.fixed_single_loop_scenario import (
+    FixedSingleLoopComponentIds,
+    FixedSingleLoopNodeIds,
+    FixedSingleLoopResidualNames,
+    FixedSingleLoopScenario,
+    FixedSingleLoopUnknownNames,
+    build_fixed_single_loop_scenario,
 )
 from mpl_sim.network.graph import (
     ComponentInstance,
@@ -498,4 +526,16 @@ __all__ = [
     "execute_production_like_contributions",
     # Block 15A.3 convenience conversion wrapper
     "build_component_contribution_from_production_like_execution",
+    # Block 15B.1 component ID container
+    "FixedSingleLoopComponentIds",
+    # Block 15B.1 node ID container
+    "FixedSingleLoopNodeIds",
+    # Block 15B.1 unknown name container
+    "FixedSingleLoopUnknownNames",
+    # Block 15B.1 residual name container
+    "FixedSingleLoopResidualNames",
+    # Block 15B.1 scenario container
+    "FixedSingleLoopScenario",
+    # Block 15B.1 factory function
+    "build_fixed_single_loop_scenario",
 ]
