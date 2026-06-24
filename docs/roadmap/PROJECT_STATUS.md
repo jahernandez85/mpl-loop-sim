@@ -11,9 +11,9 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-15b3-fixed-loop-run-report` |
-| **Stage** | Block 15B.3 — Fixed Single-Loop Evaluate/Solve/Report MVP: narrow helper layer that evaluates residuals and optionally delegates to the existing Phase 13H callback-only solver; returns frozen result and report objects; fixed architecture only; no production component execution, no SystemState, no FluidState, no CoolProp, no correlations, no HX models, no generic solve(network) |
-| **Completed phase** | **Block 15B.3 — Fixed Single-Loop Evaluate/Solve/Report MVP** |
+| **Branch** | `phase-15b4-fixed-loop-closeout` |
+| **Stage** | Block 15B.4 — Fixed Single-Loop MVP Closeout / Acceptance Integration: tests-and-docs-only checkpoint; acceptance tests prove the complete fixed-loop path; gauge behavior explicitly documented and tested; Block 15B declared complete within MVP scope |
+| **Completed phase** | **Block 15B.4 — Fixed Single-Loop MVP Closeout / Acceptance Integration** |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -93,13 +93,14 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Phase 14G status** | **Checkpoint complete. Production component contribution contract inspection implemented. `ProductionComponentContractStatus`, `ProductionComponentContributionSignature`, `ProductionComponentInspectionResult`, `inspect_production_component_contract`, `inspect_known_production_component_contracts` added to `mpl_sim.network` in new `production_component_inspection.py` module. Inspection layer: static only; uses `inspect` module; never instantiates production component classes; never calls `contribute(...)` or any other component method; all known production components (`Component`, `Pipe`, `PumpComponent`, `AccumulatorComponent`, `EvaporatorComponent`, `CondenserComponent`) return `NO_CONTRIBUTE_METHOD` — the production `contribute(...)` contract is not yet implemented on any class. `ProductionComponentContractStatus` provides string constants for inspection outcomes. `ProductionComponentContributionSignature` captures parameter names, return annotation, state/context dependency flags, and varargs/kwargs flags. `ProductionComponentInspectionResult` stores class name, module name, status, optional signature, and notes tuple — no component instance stored. 60 focused tests; 1189 network tests; 5050 tests total.** |
 | **Phase 14F status** | **Checkpoint complete. Component-like contribution provider adapter implemented. `ComponentProviderExecutionContext`, `ComponentContributionProviderProtocol`, `ComponentContributionProviderBinding`, `ComponentContributionProviderSet`, `execute_component_provider_contributions`, `build_component_contribution_from_provider_execution` added to `mpl_sim.network` in new `component_provider_adapters.py` module. Provider layer: `ComponentProviderExecutionContext` is an immutable context (binding context + defensive unknown-values copy + optional metadata); `ComponentContributionProviderBinding` binds a `ComponentInstanceId` to a controlled provider object with a callable `produce_records` method (NOT named `contribute`); `ComponentContributionProviderSet` is an ordered, validated, duplicate-rejecting collection; `execute_component_provider_contributions` validates exact binding coverage, invokes each provider's `produce_records`, validates all return types (must be `ContributionRecordSet`), validates record ownership, checks for duplicates, and returns a `ContributionRecordSet`; `build_component_contribution_from_provider_execution` is a convenience wrapper to Phase 14D mapping and Phase 14C `ComponentContribution`. No real component execution, no `Component.contribute(...)`, no method named `contribute` defined, no `SystemState`, no `FluidState`, no property lookup, no `CoolProp`, no automatic physics from `component_type`. Fully integrated with Phase 14D residual map, Phase 14C adapter, Phase 14A physical adapters, and Phase 13G/13H evaluation/solve stack. 63 focused tests; 1129 network tests; 4990 tests total.** |
 | **Block 15B.1 status** | **Checkpoint complete and independently audited. Fixed single-loop scenario declaration MVP introduced. `FixedSingleLoopComponentIds`, `FixedSingleLoopNodeIds`, `FixedSingleLoopUnknownNames`, `FixedSingleLoopResidualNames`, `FixedSingleLoopScenario`, `build_fixed_single_loop_scenario` added to `mpl_sim.network` in new `fixed_single_loop_scenario.py` module. Introduces explicit topology, unknown, and residual declarations for the fixed minimal loop: accumulator -> pump -> evaporator -> condenser -> accumulator. All containers are frozen dataclasses; the factory validates uniqueness, non-emptiness, and type correctness before constructing the graph, assembly, and binding context. The scenario holds a `NetworkGraph` (4 nodes, 4 components, validated closed single loop), a `NetworkResidualAssembly` (8 unknowns, 8 residuals), and a `NetworkBindingContext` (full state map for all unknowns and residuals). Does NOT execute production component physics. Does NOT assemble `SystemState`. Does NOT create `FluidState`. Does NOT call CoolProp, PropertyBackend, correlations, or HX models. Does NOT infer physics from `component_type`. Does NOT add `solve(network)` or `NetworkGraph.solve()`. All six production classes still report `NO_CONTRIBUTE_METHOD`. Block 15B.2 remains responsible for physical residual assembly. Arbitrary-topology physical simulation remains deferred. Generic `solve(network)` / `NetworkGraph.solve()` remain forbidden/deferred. 84 focused tests; 38 Block 15A.4 closeout regression tests; 1502 network tests; 5363 full-suite tests; six examples passed; Ruff, Black, and diff checks clean. See `BLOCK_15B1_FIXED_SINGLE_LOOP_SCENARIO_AUDIT.md`. Verified 2026-06-23.** |
+| **Block 15B.4 status** | **Closeout checkpoint complete and independently audited. Block 15B — Minimal Physical Single-Loop Network MVP — is complete within its planned MVP scope. Tests-and-docs-only checkpoint: no new runtime modules added. New test file `tests/network/test_fixed_single_loop_mvp_closeout.py` (47 focused acceptance/integration tests) proves the full fixed-loop MVP path end-to-end and documents the mass-flow gauge design explicitly. Full path exercised: `build_fixed_single_loop_scenario` (15B.1) → `FixedSingleLoopResidualParameters` + `build_fixed_single_loop_physical_residuals` (15B.2) → `evaluate_fixed_single_loop_residuals` (zero residuals at consistent point, nonzero at perturbed points) → `solve_fixed_single_loop_residuals` (converges from off-pressure guess; preserves continuity-consistent mass-flow gauge; inconsistent gauge yields `converged=False` with reason string containing "continuity") → `build_fixed_single_loop_report` (plain JSON-serializable dict, no file writes). Gauge behavior explicitly tested: consistent gauge preserved in `solved_unknown_values`; solver does not alter mdot unknowns; different consistent gauge values yield the same pressure solution; the absolute common mass-flow level is NOT determined by this solver. Regression coverage: 15B.3 (100 pass), 15B.2 (102 pass), 15B.1 (84 pass), 15A.4 (38 pass), all six production classes still report `NO_CONTRIBUTE_METHOD`. Architecture boundary tests: no CoolProp, no PropertyBackend, no SystemState, no FluidState, no CorrelationRegistry, no `.contribute(...)` attribute call, no bare `import mpl_sim.components`, no mpl_sim.properties in the new test file. Public API audit: no new public symbols added to `mpl_sim.network.__all__` beyond the 15B.3 baseline; all 15B.3 exports present. 47 new focused tests; 1751 network tests; 5612 full-suite tests; six examples passed; Ruff, Black, and diff checks clean. Block 15B provides: fixed single-loop scenario declaration (15B.1); explicit parameterized algebraic residual assembly (15B.2); fixed-loop residual evaluation (15B.3); fixed-loop pressure-subsystem solve using existing Phase 13H callback-only solver (15B.3); lightweight report generation (15B.3); acceptance/integration proof (15B.4). The solve uses an explicit mass-flow gauge and does NOT determine the absolute common mass-flow level. Block 15B does NOT implement: arbitrary-topology physical simulation; generic `solve(network)`; `NetworkGraph.solve()`; real production component execution; production `Component.contribute(...)`; `SystemState` assembly; `FluidState` construction; property-backed residuals; correlation-backed residuals; HX-model-backed residuals. Later blocks remain responsible for topology extensions, real component execution, and property/correlation/HX-backed physics. See `BLOCK_15B4_FIXED_LOOP_CLOSEOUT_AUDIT.md`. Verified 2026-06-24.** |
 | **Block 15B.3 status** | **Checkpoint complete and independently audited. Fixed single-loop evaluate/solve/report MVP introduced. `FixedSingleLoopEvaluationResult`, `FixedSingleLoopSolveRequest`, `FixedSingleLoopSolveResult`, `evaluate_fixed_single_loop_residuals`, `solve_fixed_single_loop_residuals`, `build_fixed_single_loop_report` added to `mpl_sim.network` in new `fixed_single_loop_runner.py` module. Evaluation path: accepts scenario (15B.1) + parameters (15B.2) + explicit unknown values → builds 15B.2 physical assembly internally → Phase 14A evaluators → Phase 13G `evaluate_network_residuals` → frozen `FixedSingleLoopEvaluationResult` with residual values, residual ordering, max-absolute and L2 norms. Solver path: accepts `FixedSingleLoopSolveRequest` and uses the explicit, continuity-consistent initial mass-flow values as the fixed gauge for the underdetermined common mass-flow level; the existing Phase 13H `solve_network_residual_problem` solves the determined four-pressure subsystem using the original 15B.2 pressure residual callbacks; all eight original residuals are then re-evaluated before returning a frozen `FixedSingleLoopSolveResult`. Inconsistent initial mass flows fail clearly without iteration. No new solver infrastructure is added. Report path: `build_fixed_single_loop_report` returns a plain serializable dict with scenario symbolic IDs, unknown values, residual values, norms, and convergence status. Does NOT execute production components. Does NOT assemble `SystemState`. Does NOT create `FluidState`. Does NOT call CoolProp, PropertyBackend, correlations, or HX models. Does NOT infer physics from `component_type`. Does NOT add `solve(network)` or `NetworkGraph.solve()`. Does NOT implement arbitrary-topology simulation. All six production classes still report `NO_CONTRIBUTE_METHOD`. Block 15B.3 is still fixed-architecture only. 100 focused tests; 1704 network tests; 5565 full-suite tests; six examples passed; Ruff, Black, and diff checks clean. See `BLOCK_15B3_FIXED_LOOP_RUN_REPORT_AUDIT.md`. Verified 2026-06-23.** |
 | **Block 15B.2 status** | **Checkpoint complete and independently audited. Fixed single-loop physical residual assembly MVP introduced. `FixedSingleLoopResidualParameters`, `FixedSingleLoopPhysicalResidualAssembly`, `build_fixed_single_loop_physical_residuals`, `build_component_contribution_from_fixed_single_loop_residuals` added to `mpl_sim.network` in new `fixed_single_loop_residuals.py` module. Bridge from the 15B.1 declaration to physical-style residual evaluation using the existing Phase 14A/14C/14D contribution infrastructure. Explicit parameterized algebraic residual equations for all 8 residuals of the fixed loop (4 mass-balance continuity + 4 explicit pressure residuals). Sign convention: `pressure_drop:accumulator = P_n_acc_out - accumulator_pressure_reference`; `pressure_drop:pump = P_n_pump_out - P_n_acc_out - pump_pressure_rise`; `pressure_drop:evaporator = P_n_evap_out - P_n_pump_out + evaporator_pressure_drop`; `pressure_drop:condenser = P_n_cond_out - P_n_evap_out + condenser_pressure_drop`. Contribution attribution: each component owns 1 mass-balance residual + 1 pressure residual; adapter set has 4 entries. All 4 parameters required explicitly; bool/NaN/inf rejected. Evaluation path: `adapter_set` → `build_physical_adapters_from_contributions` → `build_network_residual_evaluators` → `evaluate_network_residuals`. Does NOT execute production components. Does NOT assemble `SystemState`. Does NOT create `FluidState`. Does NOT call CoolProp, PropertyBackend, correlations, or HX models. Does NOT infer physics from `component_type`. Does NOT add `solve(network)` or `NetworkGraph.solve()`. Does NOT implement arbitrary-topology simulation. All six production classes still report `NO_CONTRIBUTE_METHOD`. Block 15B.3 (minimal solve/report helper) remains deferred. 102 focused tests; 84 Block 15B.1 scenario regression tests; 38 Block 15A.4 closeout regression tests; 1604 network tests; 5465 full-suite tests; six examples passed; Ruff, Black, and diff checks clean. See `BLOCK_15B2_FIXED_LOOP_PHYSICAL_RESIDUALS_AUDIT.md`. Verified 2026-06-23.** |
-| **Branch status** | **Block 15B.3 on `phase-15b3-fixed-loop-run-report`, branched from `phase-15b2-fixed-loop-physical-residuals`.** |
-| **Current active phase** | **Block 15B.3 — Fixed Single-Loop Evaluate/Solve/Report MVP** |
-| **Next immediate slice** | Block 15B.4 or later — further fixed-loop work or arbitrary-topology deferred items |
-| **Baseline before this block** | Block 15B.2: 5465 tests |
-| **Test status** | **5565 passed, 0 failed, 0 skipped (baseline 5465 + 100 new Block 15B.3 tests). Network suite: 1704 passed. Six examples passed.** |
+| **Branch status** | **Block 15B.4 on `phase-15b4-fixed-loop-closeout`, branched from `phase-15b3-fixed-loop-run-report`.** |
+| **Current active phase** | **Block 15B.4 — Fixed Single-Loop MVP Closeout / Acceptance Integration** |
+| **Next immediate slice** | Block 15C — Topology Extensions MVP, or further fixed-loop work |
+| **Baseline before this block** | Block 15B.3: 5565 tests |
+| **Test status** | **5612 passed, 0 failed, 0 skipped (baseline 5565 + 47 new Block 15B.4 tests). Network suite: 1751 passed. Six examples passed.** |
 | **Lint status** | **Ruff: clean (0 violations). git diff --check: clean.** |
 | **Format status** | **Black: clean (0 reformats needed).** |
 
@@ -120,31 +121,29 @@ assembly, `FluidState` construction, property-backed/correlation-backed/HX-model
 graph execution, Block 15B physical single-loop network simulation, arbitrary-topology
 physical simulation, or generic `solve(network)` / `NetworkGraph.solve()`.
 
-### Block 15B — Minimal Physical Single-Loop Network MVP (**IN PROGRESS** as of Block 15B.2)
+### Block 15B — Minimal Physical Single-Loop Network MVP (**COMPLETE** as of Block 15B.4)
 
-Block 15B introduces physical residual assembly and evaluation for a fixed minimal loop.
-Block 15B.1 — fixed single-loop scenario declaration — is **complete** (see status row above).
-Block 15B.2 — fixed single-loop physical residual assembly — is **complete** (see status row above).
-Block 15B.3 — fixed single-loop evaluate/solve/report MVP — is **complete** (see status row above).
-Block 15B.3 evaluates and optionally solves the explicit algebraic fixed-loop residual system from 15B.2.
-Block 15B.3 uses existing callback-only solver infrastructure (Phase 13H) for the solve path.
-Block 15B.3 is still fixed-architecture only.
-Block 15B.3 does NOT execute production components.
-Block 15B.3 does NOT assemble SystemState or create FluidState.
-Block 15B.3 does NOT call properties, correlations, or HX models.
-Block 15B.3 does NOT implement arbitrary-topology simulation.
-Block 15B.3 does NOT add generic solve(network) or NetworkGraph.solve().
-Later blocks remain responsible for arbitrary topology and real component execution.
-Block 15B.2 does NOT assemble `SystemState`.
-Block 15B.2 does NOT create `FluidState`.
-Block 15B.2 does NOT call properties, correlations, or HX models.
-Block 15B.2 does NOT implement arbitrary-topology simulation.
-Block 15B.2 does NOT add generic `solve(network)` or `NetworkGraph.solve()`.
-Remaining:
-- Block 15B.3: minimal solve/evaluate/report helper through the existing stack.
+Block 15B is complete. Implemented across four checkpoints (15B.1–15B.4):
+- fixed single-loop scenario declaration (`build_fixed_single_loop_scenario`, 15B.1);
+- explicit parameterized algebraic residual assembly (`build_fixed_single_loop_physical_residuals`, 15B.2);
+- fixed-loop residual evaluation and pressure-subsystem solve via Phase 13H callback-only solver
+  (`evaluate_fixed_single_loop_residuals`, `solve_fixed_single_loop_residuals`, 15B.3);
+- lightweight report generation (`build_fixed_single_loop_report`, 15B.3);
+- acceptance/integration proof with full-path tests and gauge behavior documentation (15B.4 closeout).
 
-Block 15B does NOT implement arbitrary-topology physical simulation.
-Generic `solve(network)` / `NetworkGraph.solve()` remain forbidden/deferred throughout Block 15B.
+The solve uses an explicit mass-flow gauge: the caller supplies continuity-consistent mass-flow
+values; the solver preserves them and solves only the determined pressure subsystem.  The absolute
+common mass-flow level is NOT determined by this solver.
+
+Block 15B does NOT implement:
+- arbitrary-topology physical simulation;
+- generic `solve(network)` / `NetworkGraph.solve()`;
+- real production `Component.contribute(...)`;
+- `SystemState` assembly or `FluidState` construction;
+- property-backed, correlation-backed, or HX-model-backed residuals.
+
+Later blocks remain responsible for topology extensions, real component execution, and
+property/correlation/HX-backed physics.
 
 ### Block 15C — Topology Extensions MVP
 
@@ -163,6 +162,43 @@ Generic `solve(network)` / `NetworkGraph.solve()` remain forbidden/deferred thro
 Each future block may use internal checkpoints, but every checkpoint must
 preserve architecture boundaries and pass the full validation gate before
 merge.
+
+Block 15B.4 fixed-loop MVP closeout is complete. Block 15B — Minimal Physical Single-Loop Network MVP — is now complete.
+
+- **`tests/network/test_fixed_single_loop_mvp_closeout.py`** added — 47 focused
+  acceptance/integration tests proving the full fixed-loop MVP path end-to-end.
+- **No new runtime module added.** All existing APIs from Blocks 15B.1–15B.3 were sufficient.
+- **Full path exercised:** `build_fixed_single_loop_scenario` (15B.1) →
+  `FixedSingleLoopResidualParameters` + `build_fixed_single_loop_physical_residuals` (15B.2) →
+  `evaluate_fixed_single_loop_residuals` (zero at consistent point, nonzero at perturbed points) →
+  `solve_fixed_single_loop_residuals` (converges from off-pressure with consistent gauge) →
+  `build_fixed_single_loop_report` (plain JSON-serializable dict, no file writes).
+- **Gauge behavior explicitly documented and tested:**
+  - Consistent gauge (all mdot equal) is preserved in `solved_unknown_values`.
+  - Solver does not alter mdot unknowns — only the pressure subsystem is solved.
+  - Different consistent gauge values yield the same pressure solution; the absolute
+    common mass-flow level is NOT determined by this solver.
+  - Inconsistent gauge (mdot_pump ≠ mdot_accumulator) gives `converged=False` and
+    a reason string containing "continuity".
+- **Regression confirmed:** 15B.3 (100), 15B.2 (102), 15B.1 (84), 15A.4 (38) pass;
+  all six production classes still report `NO_CONTRIBUTE_METHOD`.
+- **Architecture boundaries confirmed:** no CoolProp, PropertyBackend, SystemState,
+  FluidState, CorrelationRegistry, `.contribute(...)` call, or bare `mpl_sim.components`
+  namespace import in the new test file; no executable `NetworkGraph.solve()` or
+  bare `def solve` in the three fixed-loop runtime modules; no `component_type` Name
+  nodes in fixed-loop runtime modules.
+- **Public API audit:** no new symbols added to `mpl_sim.network.__all__` beyond the
+  15B.3 baseline; all 15B.3 exports remain present; no private symbols.
+- **Block 15B provides** (complete): fixed single-loop scenario declaration (15B.1);
+  explicit parameterized algebraic residual assembly (15B.2); fixed-loop residual
+  evaluation, pressure-subsystem solve, and report generation (15B.3); acceptance/
+  integration proof with gauge behavior documentation (15B.4).
+- **Block 15B does NOT implement:** arbitrary-topology physical simulation; generic
+  `solve(network)` / `NetworkGraph.solve()`; real production `Component.contribute(...)`;
+  `SystemState` assembly; `FluidState` construction; property-backed, correlation-backed,
+  or HX-model-backed residuals.
+- **Later blocks remain responsible for:** topology extensions, real component execution,
+  and property/correlation/HX-backed physics.
 
 Block 15A.4 production bridge closeout is complete. Block 15A — Production Component Bridge MVP — is now complete.
 
@@ -196,7 +232,7 @@ Block 15A.4 production bridge closeout is complete. Block 15A — Production Com
   correlation-backed, or HX-model-backed graph execution; Block 15B physical
   single-loop network simulation; arbitrary-topology physical simulation; generic
   ``solve(network)`` or ``NetworkGraph.solve()``.
-- **Block 15B physical single-loop network simulation remains deferred.**
+- **Block 15B was deferred beyond Block 15A and is now complete within its fixed-loop MVP scope.**
 - **Arbitrary-topology physical simulation remains deferred.**
 
 Block 15A.3 controlled production-like bridge path MVP is complete as a checkpoint.
@@ -255,7 +291,7 @@ Block 15A.3 controlled production-like bridge path MVP is complete as a checkpoi
 - **Block 15A.3 producers** used in tests are controlled stubs (NOT real
   production components); they expose ``produce_records`` only and use
   ``ctx.view.for_component(...)`` / ``ctx.view.for_node(...)`` to read unknowns.
-- **Block 15B physical single-loop network simulation remains deferred.**
+- **Block 15B was deferred beyond Block 15A and is now complete within its fixed-loop MVP scope.**
 - **Arbitrary-topology physical simulation remains deferred.**
 
 Block 15A.1 production component bridge boundary MVP is complete as a checkpoint.
@@ -1015,36 +1051,38 @@ Closeout artifacts:
 - `docs/validation/audits/BLOCK_15A3_CONTROLLED_PRODUCTION_LIKE_PATH_AUDIT.md`
 - `docs/validation/audits/BLOCK_15A4_PRODUCTION_BRIDGE_CLOSEOUT_AUDIT.md`
 - `docs/validation/audits/BLOCK_15B1_FIXED_SINGLE_LOOP_SCENARIO_AUDIT.md`
+- `docs/validation/audits/BLOCK_15B4_FIXED_LOOP_CLOSEOUT_AUDIT.md`
 
 ---
 
 ## 4. Current Active Phase
 
-**Block 15B.2 - Fixed Single-Loop Physical Residual Assembly MVP** is implemented
-on `phase-15b2-fixed-loop-physical-residuals`.
+**Block 15B.4 — Fixed Single-Loop MVP Closeout / Acceptance Integration** is
+implemented and independently audited on `phase-15b4-fixed-loop-closeout`.
 
 The implemented capability is intentionally narrow:
 
-- Block 15B.1 fixed scenario declarations remain the only accepted scenario
-  shape;
-- four public fixed-loop residual assembly names are exported intentionally from
-  `mpl_sim.network`;
+- the Block 15B.1 fixed single-loop declaration remains the only accepted
+  scenario shape;
 - all four residual parameters are explicit finite scalar values supplied by
   the caller;
-- residual equations are explicit algebraic callbacks for the declared
+- residual evaluation uses explicit algebraic callbacks for the declared
   fixed-loop unknown and residual names;
-- the assembly contains the Block 15B.1 scenario, explicit parameters,
-  `ContributionResidualMap`, and `ComponentContributionAdapterSet`;
-- optional metadata is defensively copied and read-only;
+- the solve preserves the caller's continuity-consistent mass-flow gauge and
+  solves only the determined four-pressure subsystem through the existing
+  callback-only solver;
+- all eight original residuals are re-evaluated after the pressure solve;
+- report generation returns a plain serializable dictionary and writes no files;
 - no real production component execution, `Component.contribute(...)`,
   `SystemState` assembly, `FluidState` construction, property/correlation
   lookup, CoolProp, component-type inference, graph-state attachment, generic
   `solve(network)`, or arbitrary-topology physical simulation.
 
-Block 15B.2 is a fixed-loop residual assembly checkpoint, not arbitrary-topology
-network simulation. Block 15B.3 remains responsible for any minimal fixed-loop
-solve/evaluate/report helper. Block 15A remains complete within its planned
-Production Component Bridge MVP scope.
+Block 15B is complete only within the planned Minimal Physical Single-Loop
+Network MVP scope. It is an algebraic fixed-loop MVP, not an arbitrary-topology
+physical simulator. The absolute common mass-flow level is not determined by
+the solve. Block 15A remains complete within its planned Production Component
+Bridge MVP scope.
 
 Phase boundaries to preserve:
 
@@ -1062,24 +1100,20 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Complete independent audit and validation for Block 15B.2; commit and push
-   only if no major or critical findings remain.
-2. Scope Block 15B.3 explicitly before adding any minimal fixed-loop
-   solve/evaluate/report helper.
-3. Keep production-component execution, `SystemState` assembly, `FluidState`
+1. Begin Block 15C only through an explicitly reviewed topology-extension scope.
+2. Keep production-component execution, `SystemState` assembly, `FluidState`
    construction, property/correlation/HX-model calls, arbitrary topology, and
    generic `solve(network)` / `NetworkGraph.solve()` deferred unless separately
    scoped and reviewed.
-4. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
-5. Preserve the Phase 7/13E-15B.2 boundary: graph, assembly, binding, mapping,
+3. Preserve the Phase 8 boundary: solver core remains generic and physics-free.
+4. Preserve the Phase 7/13E-15B boundary: graph, assembly, binding, mapping,
    contribution-adapter, contribution-record, toy-executor, provider-adapter,
    inspection, production-bridge, read-only-view, and production-like bridge
    types remain explicit topology/declaration/adapter/value objects with no
-   solve methods; Block 15B.2 adds only fixed-scenario explicit residual
-   assembly.
-6. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
-7. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
-8. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests examples` before reporting the next implementation task complete.
+   generic solve methods; Block 15B remains fixed-scenario and algebraic.
+5. Preserve the Pipe Phase 6 boundary: local helper mechanics only, no network or solver awareness.
+6. Keep dynamic controls, fitting, optimization, DOE generation, and literature validation deferred unless explicitly requested.
+7. Run `pytest`, scoped lint appropriate to the branch, and `black --check src tests examples` before reporting the next implementation task complete.
 
 ---
 
@@ -1221,8 +1255,8 @@ Rules for the next implementation session:
 
 | Field | Value |
 |---|---|
-| **Date** | 2026-06-23 |
+| **Date** | 2026-06-24 |
 | **Updated by** | Codex |
-| **Status note** | Block 15B.1 fixed single-loop scenario declaration MVP independently audited on `phase-15b1-fixed-single-loop-scenario`; 5363 full-suite tests, 1502 network tests, 84 focused Block 15B.1 tests, and 38 Block 15A.4 closeout regression tests passed with no skips, xfails, or deselections; all six example programs, Ruff, Black, and diff checks passed; all six known production classes still return `NO_CONTRIBUTE_METHOD`; no critical or major findings remain. |
+| **Status note** | Block 15B.4 fixed-loop MVP closeout independently audited on `phase-15b4-fixed-loop-closeout`; 5612 full-suite tests, 1751 network tests, 47 focused Block 15B.4 tests, 100 Block 15B.3 runner tests, 102 Block 15B.2 residual tests, 84 Block 15B.1 scenario tests, and 38 Block 15A.4 closeout regression tests passed with no skips, xfails, or deselections; all six example programs, Ruff, Black, and diff checks passed; all six known production classes still return `NO_CONTRIBUTE_METHOD`; Block 15B is complete only within the planned fixed-loop MVP scope. |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
