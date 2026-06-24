@@ -1,6 +1,6 @@
 """Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G +
 Block 15A.1 + Block 15A.2 + Block 15A.3 + Block 15B.1 + Block 15B.2 + Block 15B.3 +
-Block 15C-A (15C.1 + 15C.2 + 15C.3).
+Block 15C-A (15C.1 + 15C.2 + 15C.3) + Block 15C-B (15C.4 + 15C.5).
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -333,6 +333,29 @@ Block 15C.3 exports (valve / local pressure-loss element declaration):
   Valve declaration:
     ValveDeclaration
 
+Block 15C-B exports (15C.4 + 15C.5 — branch residual assembly and parallel evaluation MVP):
+
+  Explicit scalar parameters:
+    ParallelTopologyResidualParameters
+
+  Frozen assembled object:
+    ParallelTopologyPhysicalResidualAssembly
+
+  Deterministic factory:
+    build_parallel_topology_physical_residuals
+
+  Frozen evaluation result:
+    ParallelTopologyEvaluationResult
+
+  Deterministic residual evaluator:
+    evaluate_parallel_topology_residuals
+
+  Simple serializable summary builder:
+    build_parallel_topology_report
+
+  Note: Solving is explicitly deferred.  ParallelTopologySolveRequest and
+  ParallelTopologySolveResult are not implemented in Block 15C-B.
+
 MUST NOT import from solvers/.
 """
 
@@ -393,6 +416,14 @@ from mpl_sim.network.graph import (
     GraphNode,
     GraphNodeId,
     NetworkGraph,
+)
+from mpl_sim.network.parallel_topology_residuals import (
+    ParallelTopologyEvaluationResult,
+    ParallelTopologyPhysicalResidualAssembly,
+    ParallelTopologyResidualParameters,
+    build_parallel_topology_physical_residuals,
+    build_parallel_topology_report,
+    evaluate_parallel_topology_residuals,
 )
 from mpl_sim.network.parallel_topology_scenario import (
     ParallelBranchDeclaration,
@@ -689,4 +720,16 @@ __all__ = [
     "build_parallel_topology_scenario",
     # Block 15C.3 valve declaration
     "ValveDeclaration",
+    # Block 15C-B explicit scalar parameters
+    "ParallelTopologyResidualParameters",
+    # Block 15C-B frozen assembled object
+    "ParallelTopologyPhysicalResidualAssembly",
+    # Block 15C-B deterministic factory
+    "build_parallel_topology_physical_residuals",
+    # Block 15C-B frozen evaluation result
+    "ParallelTopologyEvaluationResult",
+    # Block 15C-B deterministic residual evaluator
+    "evaluate_parallel_topology_residuals",
+    # Block 15C-B simple serializable summary builder
+    "build_parallel_topology_report",
 ]
