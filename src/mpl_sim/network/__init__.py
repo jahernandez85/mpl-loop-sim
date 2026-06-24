@@ -1,6 +1,7 @@
 """Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G +
 Block 15A.1 + Block 15A.2 + Block 15A.3 + Block 15B.1 + Block 15B.2 + Block 15B.3 +
-Block 15C-A (15C.1 + 15C.2 + 15C.3) + Block 15C-B (15C.4 + 15C.5).
+Block 15C-A (15C.1 + 15C.2 + 15C.3) + Block 15C-B (15C.4 + 15C.5) +
+Block 15D-A (hydraulic closure primitives).
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -356,6 +357,48 @@ Block 15C-B exports (15C.4 + 15C.5 — branch residual assembly and parallel eva
   Note: Solving is explicitly deferred.  ParallelTopologySolveRequest and
   ParallelTopologySolveResult are not implemented in Block 15C-B.
 
+Block 15D-A exports (hydraulic closure primitives MVP):
+
+  Closure kind enum:
+    HydraulicClosureKind
+
+  Closure union type alias:
+    HydraulicClosureDeclaration
+
+  Concrete closure types:
+    ImposedMassFlowClosure
+    ImposedBranchSplitClosure
+    ImposedPressureClosure
+    LinearPressureDropClosure
+    QuadraticPressureDropClosure
+    PressureCompatibilityClosure
+
+  Closure residual set:
+    HydraulicClosureResidualSet
+
+  Closure residual set factory:
+    build_hydraulic_closure_residuals
+
+  Diagnostics category enum:
+    HydraulicClosureCategory
+
+  Diagnostics declaration:
+    HydraulicClosureDiagnostic
+
+  Diagnostics result:
+    HydraulicClosureDiagnosticResult
+
+  Diagnostics functions:
+    evaluate_hydraulic_closure_sufficiency
+    make_two_branch_parallel_diagnostic
+
+  Note: Block 15D-A introduces explicit algebraic closure primitives only.
+  It is not property-backed, not correlation-backed, not HX-backed.
+  It does not execute production components, does not assemble SystemState,
+  does not construct FluidState, and does not add generic solve(network) or
+  NetworkGraph.solve().  Imposed split closures are user-imposed constraints,
+  not predicted branch distribution.
+
 MUST NOT import from solvers/.
 """
 
@@ -416,6 +459,25 @@ from mpl_sim.network.graph import (
     GraphNode,
     GraphNodeId,
     NetworkGraph,
+)
+from mpl_sim.network.hydraulic_closure_diagnostics import (
+    HydraulicClosureCategory,
+    HydraulicClosureDiagnostic,
+    HydraulicClosureDiagnosticResult,
+    evaluate_hydraulic_closure_sufficiency,
+    make_two_branch_parallel_diagnostic,
+)
+from mpl_sim.network.hydraulic_closures import (
+    HydraulicClosureDeclaration,
+    HydraulicClosureKind,
+    HydraulicClosureResidualSet,
+    ImposedBranchSplitClosure,
+    ImposedMassFlowClosure,
+    ImposedPressureClosure,
+    LinearPressureDropClosure,
+    PressureCompatibilityClosure,
+    QuadraticPressureDropClosure,
+    build_hydraulic_closure_residuals,
 )
 from mpl_sim.network.parallel_topology_residuals import (
     ParallelTopologyEvaluationResult,
@@ -732,4 +794,28 @@ __all__ = [
     "evaluate_parallel_topology_residuals",
     # Block 15C-B simple serializable summary builder
     "build_parallel_topology_report",
+    # Block 15D-A closure kind enum
+    "HydraulicClosureKind",
+    # Block 15D-A closure union type alias
+    "HydraulicClosureDeclaration",
+    # Block 15D-A concrete closure types
+    "ImposedMassFlowClosure",
+    "ImposedBranchSplitClosure",
+    "ImposedPressureClosure",
+    "LinearPressureDropClosure",
+    "QuadraticPressureDropClosure",
+    "PressureCompatibilityClosure",
+    # Block 15D-A closure residual set
+    "HydraulicClosureResidualSet",
+    # Block 15D-A closure residual set factory
+    "build_hydraulic_closure_residuals",
+    # Block 15D-A diagnostics category enum
+    "HydraulicClosureCategory",
+    # Block 15D-A diagnostics declaration
+    "HydraulicClosureDiagnostic",
+    # Block 15D-A diagnostics result
+    "HydraulicClosureDiagnosticResult",
+    # Block 15D-A diagnostics functions
+    "evaluate_hydraulic_closure_sufficiency",
+    "make_two_branch_parallel_diagnostic",
 ]
