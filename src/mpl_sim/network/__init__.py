@@ -1,5 +1,6 @@
 """Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G +
-Block 15A.1 + Block 15A.2 + Block 15A.3 + Block 15B.1 + Block 15B.2 + Block 15B.3.
+Block 15A.1 + Block 15A.2 + Block 15A.3 + Block 15B.1 + Block 15B.2 + Block 15B.3 +
+Block 15C-A (15C.1 + 15C.2 + 15C.3).
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -290,6 +291,48 @@ Block 15B.3 exports (fixed single-loop evaluate/solve/report MVP):
   Simple serializable summary builder:
     build_fixed_single_loop_report
 
+Block 15C.1 exports (junction / manifold declaration foundation):
+
+  Junction role enum:
+    JunctionRole
+
+  Split/merge junction declaration:
+    JunctionDeclaration
+
+  Manifold with named branch port nodes:
+    ManifoldDeclaration
+
+Block 15C.2 exports (parallel branch topology declaration):
+
+  Branch identifier:
+    TopologyBranchId
+
+  Single branch declaration:
+    ParallelBranchDeclaration
+
+  Component ID container:
+    ParallelTopologyComponentIds
+
+  Node ID container:
+    ParallelTopologyNodeIds
+
+  Unknown name container:
+    ParallelTopologyUnknownNames
+
+  Residual name container:
+    ParallelTopologyResidualNames
+
+  Scenario container:
+    ParallelTopologyScenario
+
+  Factory function:
+    build_parallel_topology_scenario
+
+Block 15C.3 exports (valve / local pressure-loss element declaration):
+
+  Valve declaration:
+    ValveDeclaration
+
 MUST NOT import from solvers/.
 """
 
@@ -350,6 +393,16 @@ from mpl_sim.network.graph import (
     GraphNode,
     GraphNodeId,
     NetworkGraph,
+)
+from mpl_sim.network.parallel_topology_scenario import (
+    ParallelBranchDeclaration,
+    ParallelTopologyComponentIds,
+    ParallelTopologyNodeIds,
+    ParallelTopologyResidualNames,
+    ParallelTopologyScenario,
+    ParallelTopologyUnknownNames,
+    TopologyBranchId,
+    build_parallel_topology_scenario,
 )
 from mpl_sim.network.physical_adapters import (
     PhysicalResidualAdapter,
@@ -413,6 +466,12 @@ from mpl_sim.network.topology import (
     NetworkTopology,
     NodeId,
     PressureReferenceWiring,
+)
+from mpl_sim.network.topology_declarations import (
+    JunctionDeclaration,
+    JunctionRole,
+    ManifoldDeclaration,
+    ValveDeclaration,
 )
 from mpl_sim.network.toy_component_execution import (
     ToyComponentExecutionContext,
@@ -606,4 +665,28 @@ __all__ = [
     "solve_fixed_single_loop_residuals",
     # Block 15B.3 simple serializable summary builder
     "build_fixed_single_loop_report",
+    # Block 15C.1 junction role enum
+    "JunctionRole",
+    # Block 15C.1 split/merge junction declaration
+    "JunctionDeclaration",
+    # Block 15C.1 manifold with named branch port nodes
+    "ManifoldDeclaration",
+    # Block 15C.2 branch identifier
+    "TopologyBranchId",
+    # Block 15C.2 single branch declaration
+    "ParallelBranchDeclaration",
+    # Block 15C.2 component ID container
+    "ParallelTopologyComponentIds",
+    # Block 15C.2 node ID container
+    "ParallelTopologyNodeIds",
+    # Block 15C.2 unknown name container
+    "ParallelTopologyUnknownNames",
+    # Block 15C.2 residual name container
+    "ParallelTopologyResidualNames",
+    # Block 15C.2 scenario container
+    "ParallelTopologyScenario",
+    # Block 15C.2 factory function
+    "build_parallel_topology_scenario",
+    # Block 15C.3 valve declaration
+    "ValveDeclaration",
 ]
