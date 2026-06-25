@@ -11,10 +11,10 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-15d-c-closure-integration-diagnostics` |
-| **Stage** | Block 15D-C — Closure Integration and Sufficiency Diagnostics MVP: combined closure residual sets, combined evaluation, combined sufficiency diagnostics, serializable reports |
-| **Completed phase** | **Block 15D-C — Closure Integration and Sufficiency Diagnostics MVP** |
-| **Previous completed phase** | Block 15D-B — Thermal Closure Primitives MVP |
+| **Branch** | `phase-15e-a-configurable-scenario-builder` |
+| **Stage** | Block 15E-A — Configurable Scenario Builder Foundation MVP: explicit scenario specs, deterministic declaration building, single-loop and two-branch structural equivalence |
+| **Completed phase** | **Block 15E-A — Configurable Scenario Builder Foundation MVP** |
+| **Previous completed phase** | Block 15D-C — Closure Integration and Sufficiency Diagnostics MVP |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -104,13 +104,14 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Block 15D-B status** | **Checkpoint complete and independently audited. Block 15D-B — Thermal Closure Primitives MVP — introduces explicit algebraic thermal closure primitives. New modules: `src/mpl_sim/network/thermal_closures.py` and `src/mpl_sim/network/thermal_closure_diagnostics.py`. Public API: `ThermalClosureKind`; `ThermalClosureDeclaration`; `FixedHeatRateClosure` (`r = q - q_fixed`); `ImposedEnthalpyClosure` (`r = h - h_imposed`, user-imposed scalar, not a property calculation); `ImposedTemperatureLikeClosure` (`r = theta - theta_imposed`, symbolic scalar closure, not property-backed temperature); `SensibleHeatRateClosure` (`r = q - mdot * cp * (theta_out - theta_in)`, explicit positive cp required, no property lookup); `EnthalpyFlowHeatRateClosure` (`r = q - mdot * (h_out - h_in)`, no phase logic, no property backend); `EffectivenessHeatRateClosure` (`r = q - effectiveness * q_max`, purely algebraic, 0 <= effectiveness <= 1, NOT a real HX effectiveness-NTU model); `RecuperatorEnergyBalanceClosure` (`r = q_hot + q_cold`, enforces energy consistency only, no UA/LMTD/NTU/HTC); `ThermalClosureResidualSet`; `build_thermal_closure_residuals`; `ThermalClosureCategory`; `ThermalClosureDiagnostic`; `ThermalClosureDiagnosticResult`; `evaluate_thermal_closure_sufficiency`; `make_basic_thermal_loop_diagnostic` (requires HEAT_RATE + ENTHALPY_FLOW_RELATION); `make_recuperator_thermal_diagnostic` (requires RECUPERATOR_ENERGY_BALANCE + ENTHALPY_FLOW_RELATION). Block 15D-B is not property-backed, not correlation-backed, not HX-model-backed. It does not execute production components, does not assemble `SystemState`, does not construct `FluidState`, and adds no generic `solve(network)` or `NetworkGraph.solve()`. Imposed enthalpy and temperature-like closures are user-imposed scalar constraints, not thermodynamic property calculations. Sensible heat and enthalpy-flow closures are explicit algebraic relations with caller-supplied values. Simplified effectiveness/recuperator closures do not represent real HX models. Real LMTD/NTU/UA, HTC, phase, quality, saturation, property-dependent relations, and HX-backed closures remain deferred. Later blocks remain responsible for production component adapters, property/correlation/HX-backed closures, configurable scenario building, and physically predictive solves. All six production classes remain `NO_CONTRIBUTE_METHOD`. See `BLOCK_15D_B_THERMAL_CLOSURE_PRIMITIVES_AUDIT.md`. Verified 2026-06-25.** |
 | **Block 15D-C status** | **Checkpoint complete and independently audited with one minor corrective fix. Block 15D-C combines hydraulic (15D-A) and thermal (15D-B) closure residual sets into a unified evaluation/reporting layer. `CombinedClosureResidualSet` now enforces its non-empty, domain-type, and cross-domain residual-name uniqueness invariants both through the factory and through direct construction, preventing silent residual overwrite. Hydraulic-only and thermal-only sets remain supported. Combined evaluation preserves hydraulic-first deterministic ordering, returns read-only residual mappings, and reports max-absolute and L2 norms. Combined diagnostics aggregate existing category-presence diagnostics only; `is_sufficient` does not imply equation count, rank, DAE solvability, uniqueness, or physical predictiveness. Reports are plain serializable dictionaries with `status: "evaluation_only"` and `no_solve: true`. No property, correlation, HX-model, production-component, `SystemState`, `FluidState`, generic `solve(network)`, or `NetworkGraph.solve()` path was added. See `docs/validation/audits/BLOCK_15D_C_CLOSURE_INTEGRATION_DIAGNOSTICS_AUDIT.md`. Verified 2026-06-25.** |
 | **Block 15D-C audit** | **Approved with minor fixes.** |
-| **Branch status** | **Block 15D-C on `phase-15d-c-closure-integration-diagnostics`, based on merged Block 15D-B.** |
-| **Current active phase** | **Block 15D-C — Closure Integration and Sufficiency Diagnostics MVP** |
-| **Next immediate slice** | Post-15D-C: valve Kv/Cv, Darcy-Weisbach, property-backed closures, configurable scenario building, combined physical residual assembly, and physically predictive solves remain future work |
-| **Baseline before this block** | Block 15D-B: 6316 tests. |
-| **Test status** | **69 focused closure-integration tests + 35 parallel-context tests = 104 Block 15D-C tests; 203 Block 15D-B regressions; 205 Block 15D-A regressions; 152 Block 15C-B regressions; 2559 network tests; 6420 full-suite tests. No failures, errors, skips, xfails, or deselections. Fresh repository-local pytest temp roots with cache disabled produced no permission errors.** |
-| **Lint status** | **Clean — `ruff check src tests examples` passed.** |
-| **Format status** | **Clean — `black --check --no-cache --verbose src tests examples` passed.** |
+| **Block 15E-A status** | **Checkpoint complete and independently audited with minor validation/test hardening. Block 15E-A — Configurable Scenario Builder Foundation MVP — introduces explicit configurable scenario declarations for simple loop and two-branch MPL-like network scenarios. New module `src/mpl_sim/network/configurable_scenarios.py`. Public API: `ScenarioComponentRole`; `ScenarioComponentSpec`; `ScenarioNodeSpec`; `ScenarioConnectionSpec`; `ScenarioBranchSpec`; `ConfigurableScenarioSpec`; `ConfigurableScenarioBuildResult`; `build_configurable_scenario`; `build_configurable_scenario_report`. Roles remain declaration metadata only. The builder produces a `NetworkGraph`, declaration-only `NetworkResidualAssembly`, and `NetworkBindingContext` with deterministic names. Audit fixes moved exact connection coverage into scenario validation, rejected connection/branch self-loops and duplicate branch component IDs, validated branch component paths against declared connectivity, validated tags, and added direct graph-edge equivalence tests. Block 15E-A does not infer closures, evaluate physical residuals, execute production components, assemble `SystemState`, construct `FluidState`, or add generic `solve(network)` / `NetworkGraph.solve()`. It is not property-, correlation-, or HX-backed. All six production classes remain `NO_CONTRIBUTE_METHOD`. See `docs/validation/audits/BLOCK_15E_A_CONFIGURABLE_SCENARIO_BUILDER_AUDIT.md`. Verified 2026-06-25.** |
+| **Branch status** | **Block 15E-A on `phase-15e-a-configurable-scenario-builder`, based on merged Block 15D-C.** |
+| **Current active phase** | **Block 15E-A — Configurable Scenario Builder Foundation MVP** |
+| **Next immediate slice** | Post-15E-A: configurable physical residual selection, production component adapters, property/correlation/HX-backed closures, combined physical residual assembly, and physically predictive solves remain future work |
+| **Baseline before this block** | Block 15D-C: 6420 tests. |
+| **Test status** | **6594 tests passed (174 Block 15E-A tests: 125 configurable-scenario tests + 49 fixed-equivalence tests). Baseline Block 15D-C: 6420. Network suite: 2733 passed. No failures, errors, skips, xfails, or deselections.** |
+| **Lint status** | **Clean. `ruff check src tests examples` → All checks passed.** |
+| **Format status** | **Clean. `black --check --no-cache src tests examples` → all files pass.** |
 
 ## Post-14G block strategy
 
@@ -153,19 +154,54 @@ Block 15B does NOT implement:
 Later blocks remain responsible for topology extensions, real component execution, and
 property/correlation/HX-backed physics.
 
-### Block 15C — Topology Extensions MVP
+### Block 15C — Topology Extensions MVP (**COMPLETE**)
 
 - junction/manifold foundation;
 - parallel evaporator topology;
 - valve/pressure-loss element;
 - branch residual assembly.
 
-### Block 15D — Configurable MPL Scenario v1
+### Block 15D — Closure Primitives MVP (**COMPLETE**)
 
-- scenario schema;
-- component selection;
-- network build from scenario;
-- run and diagnostics.
+- hydraulic closure primitives (15D-A);
+- thermal closure primitives (15D-B);
+- combined closure integration and sufficiency diagnostics (15D-C).
+
+### Block 15E-A — Configurable Scenario Builder Foundation MVP (**COMPLETE**)
+
+Block 15E-A adds explicit scenario specs and deterministic declaration building.
+
+Key properties:
+- `ScenarioComponentRole` enum provides declarative roles (ACCUMULATOR, PUMP,
+  EVAPORATOR, CONDENSER, PIPE, VALVE, JUNCTION, MANIFOLD, GENERIC) — metadata
+  only; roles do not imply physics.
+- `ConfigurableScenarioSpec` validates uniqueness and cross-references at
+  construction; components, nodes, connections, and branches are all validated.
+- `build_configurable_scenario` converts a validated spec into a `NetworkGraph`,
+  `NetworkResidualAssembly`, and `NetworkBindingContext` following existing
+  naming conventions (`mdot:<id>`, `P:<id>`, `mass_balance:<id>`,
+  `pressure_drop:<id>`).
+- Can reproduce single-loop (4 components, 4 nodes, 8 unknowns, 8 residuals)
+  and two-branch parallel (7 components, 6 nodes, 13 unknowns, 13 residuals)
+  structural declarations that are structurally equivalent to the fixed 15B/15C
+  scenarios when given the same IDs.
+- `build_configurable_scenario_report` returns a plain JSON-serializable dict
+  with `status: "declaration_only"` and `no_solve: True`.
+
+Block 15E-A does NOT:
+- infer closures automatically from component roles;
+- evaluate physical residuals;
+- execute production components;
+- assemble `SystemState` or construct `FluidState`;
+- add generic `solve(network)` or `NetworkGraph.solve()`;
+- back any physics with properties, correlations, or HX models.
+
+Later blocks remain responsible for:
+- configurable physical residual selection;
+- production component adapters;
+- property/correlation/HX-backed closures;
+- combined physical residual assembly;
+- physically predictive solves.
 
 Each future block may use internal checkpoints, but every checkpoint must
 preserve architecture boundaries and pass the full validation gate before
@@ -1061,31 +1097,31 @@ Closeout artifacts:
 - `docs/validation/audits/BLOCK_15B1_FIXED_SINGLE_LOOP_SCENARIO_AUDIT.md`
 - `docs/validation/audits/BLOCK_15B4_FIXED_LOOP_CLOSEOUT_AUDIT.md`
 - `docs/validation/audits/BLOCK_15D_C_CLOSURE_INTEGRATION_DIAGNOSTICS_AUDIT.md`
+- `docs/validation/audits/BLOCK_15E_A_CONFIGURABLE_SCENARIO_BUILDER_AUDIT.md`
 
 ---
 
 ## 4. Current Active Phase
 
-**Block 15D-C — Closure Integration and Sufficiency Diagnostics MVP** is
-implemented and independently audited on
-`phase-15d-c-closure-integration-diagnostics`.
+**Block 15E-A — Configurable Scenario Builder Foundation MVP** is implemented
+and independently audited on `phase-15e-a-configurable-scenario-builder`.
 
 The implemented capability is intentionally narrow:
 
-- existing 15D-A hydraulic and 15D-B thermal closure residual sets are wrapped,
-  not duplicated or bypassed;
-- evaluation accepts an explicit unknown-value mapping and preserves
-  hydraulic-first, thermal-second residual ordering;
-- diagnostics aggregate category presence only and expose missing categories
-  and deterministic messages;
-- report generation returns plain serializable data and writes no files;
-- 15C-B parallel-topology residuals and 15D closure residuals remain separate
-  evaluated subsystems;
-- no combined physical residual assembly or solve is performed.
+- explicit components, nodes, connections, branches, IDs, metadata, and tags
+  are validated as declarations;
+- graph, unknown/residual, and binding declarations are generated
+  deterministically;
+- fixed 15B single-loop and fixed 15C two-branch graph edges, IDs, names, and
+  binding shapes are reproduced structurally;
+- roles remain metadata and trigger no physical dispatch;
+- reports are plain JSON-serializable dictionaries and write no files;
+- no closure inference, physical residual evaluation, component execution,
+  state assembly, or solve is performed.
 
-Block 15D-C is complete only within the planned closure
-integration/diagnostics MVP scope. It is not property-backed, correlation-backed,
-HX-model-backed, or physically predictive.
+Block 15E-A is complete only within the configurable declaration/assembly MVP
+scope. It is not property-backed, correlation-backed, HX-model-backed, or
+physically predictive.
 
 Phase boundaries to preserve:
 
@@ -1103,7 +1139,7 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Plan the next post-15D-C slice through an explicitly reviewed scope.
+1. Plan the next post-15E-A slice through an explicitly reviewed scope.
 2. Keep production-component execution, `SystemState` assembly, `FluidState`
    construction, property/correlation/HX-model calls, arbitrary topology, and
    generic `solve(network)` / `NetworkGraph.solve()` deferred unless separately
@@ -1260,6 +1296,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-25 |
 | **Updated by** | Codex |
-| **Status note** | Block 15D-C closure integration and diagnostics independently audited on `phase-15d-c-closure-integration-diagnostics`; approved with a minor constructor-invariant fix. 69 focused closure-integration tests, 35 parallel-context tests, 203 thermal regressions, 205 hydraulic regressions, 152 parallel-topology regressions, 2559 network tests, and 6420 full-suite tests passed with no skips, xfails, or deselections. Fresh repository-local pytest temp roots with cache disabled produced no permission errors. All six examples, Ruff, Black, and diff checks passed; all six known production classes remain `NO_CONTRIBUTE_METHOD`. |
+| **Status note** | Block 15E-A configurable scenario builder independently audited on `phase-15e-a-configurable-scenario-builder`; approved with minor validation and structural-equivalence test fixes. 125 configurable-scenario tests, 49 fixed-equivalence tests, 104 Block 15D-C regressions, 203 Block 15D-B regressions, 205 Block 15D-A regressions, 152 Block 15C-B regressions, 2733 network tests, and 6594 full-suite tests passed with no skips, xfails, or deselections. Fresh cache-disabled audit temp roots passed. Two stale pre-audit temp roots and transient Windows post-test cleanup locks required verified elevated deletion; pytest itself had no permission, cache, collection, or execution error. All six examples, Ruff, Black, and diff checks passed; all six known production classes remain `NO_CONTRIBUTE_METHOD`. See `BLOCK_15E_A_CONFIGURABLE_SCENARIO_BUILDER_AUDIT.md`. |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*

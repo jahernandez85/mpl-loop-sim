@@ -3,7 +3,8 @@ Block 15A.1 + Block 15A.2 + Block 15A.3 + Block 15B.1 + Block 15B.2 + Block 15B.
 Block 15C-A (15C.1 + 15C.2 + 15C.3) + Block 15C-B (15C.4 + 15C.5) +
 Block 15D-A (hydraulic closure primitives) +
 Block 15D-B (thermal closure primitives) +
-Block 15D-C (closure integration and sufficiency diagnostics).
+Block 15D-C (closure integration and sufficiency diagnostics) +
+Block 15E-A (configurable scenario builder foundation MVP).
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -486,6 +487,40 @@ Block 15D-C exports (closure integration and sufficiency diagnostics MVP):
   adapters, property/correlation/HX-backed closures, combined physical residual
   assembly, and physically predictive solves.
 
+Block 15E-A exports (configurable scenario builder foundation MVP):
+
+  Component role enum:
+    ScenarioComponentRole
+
+  Spec types:
+    ScenarioComponentSpec
+    ScenarioNodeSpec
+    ScenarioConnectionSpec
+    ScenarioBranchSpec
+    ConfigurableScenarioSpec
+
+  Build result:
+    ConfigurableScenarioBuildResult
+
+  Factory functions:
+    build_configurable_scenario
+    build_configurable_scenario_report
+
+  Note: Block 15E-A introduces explicit configurable scenario declarations
+  that can describe simple loop and two-branch MPL-like network scenarios.
+  Roles are declaration metadata only and do not trigger physics.  The builder
+  produces a NetworkGraph, NetworkResidualAssembly, and NetworkBindingContext
+  from an explicit spec.  Unknown and residual names are generated
+  deterministically following existing naming conventions (mdot:<id>, P:<id>,
+  mass_balance:<id>, pressure_drop:<id>).  Block 15E-A does not infer closures
+  automatically, does not evaluate physical residuals, does not execute
+  production components, does not assemble SystemState, does not construct
+  FluidState, and does not add generic solve(network) or NetworkGraph.solve().
+  It is not property-backed, not correlation-backed, and not HX-backed.
+  Later blocks remain responsible for configurable physical residual selection,
+  production component adapters, property/correlation/HX-backed closures,
+  combined physical residual assembly, and physically predictive solves.
+
 MUST NOT import from solvers/.
 """
 
@@ -514,6 +549,17 @@ from mpl_sim.network.component_provider_adapters import (
     ComponentProviderExecutionContext,
     build_component_contribution_from_provider_execution,
     execute_component_provider_contributions,
+)
+from mpl_sim.network.configurable_scenarios import (
+    ConfigurableScenarioBuildResult,
+    ConfigurableScenarioSpec,
+    ScenarioBranchSpec,
+    ScenarioComponentRole,
+    ScenarioComponentSpec,
+    ScenarioConnectionSpec,
+    ScenarioNodeSpec,
+    build_configurable_scenario,
+    build_configurable_scenario_report,
 )
 from mpl_sim.network.contribution_adapters import (
     ComponentContribution,
@@ -977,4 +1023,17 @@ __all__ = [
     "evaluate_combined_closure_sufficiency",
     # Block 15D-C report function
     "build_combined_closure_report",
+    # Block 15E-A component role enum
+    "ScenarioComponentRole",
+    # Block 15E-A spec types
+    "ScenarioComponentSpec",
+    "ScenarioNodeSpec",
+    "ScenarioConnectionSpec",
+    "ScenarioBranchSpec",
+    "ConfigurableScenarioSpec",
+    # Block 15E-A build result
+    "ConfigurableScenarioBuildResult",
+    # Block 15E-A factory functions
+    "build_configurable_scenario",
+    "build_configurable_scenario_report",
 ]
