@@ -11,10 +11,10 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-15d-a-hydraulic-closure-primitives` |
-| **Stage** | Block 15D-A — Hydraulic Closure Primitives MVP: explicit algebraic closure declarations and residual sets, closure sufficiency diagnostics, parallel integration proof |
-| **Completed phase** | **Block 15D-A — Hydraulic Closure Primitives MVP** |
-| **Previous completed phase** | Block 15C-B — Branch Residual and Parallel Evaluation MVP |
+| **Branch** | `phase-15d-c-closure-integration-diagnostics` |
+| **Stage** | Block 15D-C — Closure Integration and Sufficiency Diagnostics MVP: combined closure residual sets, combined evaluation, combined sufficiency diagnostics, serializable reports |
+| **Completed phase** | **Block 15D-C — Closure Integration and Sufficiency Diagnostics MVP** |
+| **Previous completed phase** | Block 15D-B — Thermal Closure Primitives MVP |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -102,13 +102,15 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Block 15B.3 status** | **Checkpoint complete and independently audited. Fixed single-loop evaluate/solve/report MVP introduced. `FixedSingleLoopEvaluationResult`, `FixedSingleLoopSolveRequest`, `FixedSingleLoopSolveResult`, `evaluate_fixed_single_loop_residuals`, `solve_fixed_single_loop_residuals`, `build_fixed_single_loop_report` added to `mpl_sim.network` in new `fixed_single_loop_runner.py` module. Evaluation path: accepts scenario (15B.1) + parameters (15B.2) + explicit unknown values → builds 15B.2 physical assembly internally → Phase 14A evaluators → Phase 13G `evaluate_network_residuals` → frozen `FixedSingleLoopEvaluationResult` with residual values, residual ordering, max-absolute and L2 norms. Solver path: accepts `FixedSingleLoopSolveRequest` and uses the explicit, continuity-consistent initial mass-flow values as the fixed gauge for the underdetermined common mass-flow level; the existing Phase 13H `solve_network_residual_problem` solves the determined four-pressure subsystem using the original 15B.2 pressure residual callbacks; all eight original residuals are then re-evaluated before returning a frozen `FixedSingleLoopSolveResult`. Inconsistent initial mass flows fail clearly without iteration. No new solver infrastructure is added. Report path: `build_fixed_single_loop_report` returns a plain serializable dict with scenario symbolic IDs, unknown values, residual values, norms, and convergence status. Does NOT execute production components. Does NOT assemble `SystemState`. Does NOT create `FluidState`. Does NOT call CoolProp, PropertyBackend, correlations, or HX models. Does NOT infer physics from `component_type`. Does NOT add `solve(network)` or `NetworkGraph.solve()`. Does NOT implement arbitrary-topology simulation. All six production classes still report `NO_CONTRIBUTE_METHOD`. Block 15B.3 is still fixed-architecture only. 100 focused tests; 1704 network tests; 5565 full-suite tests; six examples passed; Ruff, Black, and diff checks clean. See `BLOCK_15B3_FIXED_LOOP_RUN_REPORT_AUDIT.md`. Verified 2026-06-23.** |
 | **Block 15B.2 status** | **Checkpoint complete and independently audited. Fixed single-loop physical residual assembly MVP introduced. `FixedSingleLoopResidualParameters`, `FixedSingleLoopPhysicalResidualAssembly`, `build_fixed_single_loop_physical_residuals`, `build_component_contribution_from_fixed_single_loop_residuals` added to `mpl_sim.network` in new `fixed_single_loop_residuals.py` module. Bridge from the 15B.1 declaration to physical-style residual evaluation using the existing Phase 14A/14C/14D contribution infrastructure. Explicit parameterized algebraic residual equations for all 8 residuals of the fixed loop (4 mass-balance continuity + 4 explicit pressure residuals). Sign convention: `pressure_drop:accumulator = P_n_acc_out - accumulator_pressure_reference`; `pressure_drop:pump = P_n_pump_out - P_n_acc_out - pump_pressure_rise`; `pressure_drop:evaporator = P_n_evap_out - P_n_pump_out + evaporator_pressure_drop`; `pressure_drop:condenser = P_n_cond_out - P_n_evap_out + condenser_pressure_drop`. Contribution attribution: each component owns 1 mass-balance residual + 1 pressure residual; adapter set has 4 entries. All 4 parameters required explicitly; bool/NaN/inf rejected. Evaluation path: `adapter_set` → `build_physical_adapters_from_contributions` → `build_network_residual_evaluators` → `evaluate_network_residuals`. Does NOT execute production components. Does NOT assemble `SystemState`. Does NOT create `FluidState`. Does NOT call CoolProp, PropertyBackend, correlations, or HX models. Does NOT infer physics from `component_type`. Does NOT add `solve(network)` or `NetworkGraph.solve()`. Does NOT implement arbitrary-topology simulation. All six production classes still report `NO_CONTRIBUTE_METHOD`. Block 15B.3 (minimal solve/report helper) remains deferred. 102 focused tests; 84 Block 15B.1 scenario regression tests; 38 Block 15A.4 closeout regression tests; 1604 network tests; 5465 full-suite tests; six examples passed; Ruff, Black, and diff checks clean. See `BLOCK_15B2_FIXED_LOOP_PHYSICAL_RESIDUALS_AUDIT.md`. Verified 2026-06-23.** |
 | **Block 15D-B status** | **Checkpoint complete and independently audited. Block 15D-B — Thermal Closure Primitives MVP — introduces explicit algebraic thermal closure primitives. New modules: `src/mpl_sim/network/thermal_closures.py` and `src/mpl_sim/network/thermal_closure_diagnostics.py`. Public API: `ThermalClosureKind`; `ThermalClosureDeclaration`; `FixedHeatRateClosure` (`r = q - q_fixed`); `ImposedEnthalpyClosure` (`r = h - h_imposed`, user-imposed scalar, not a property calculation); `ImposedTemperatureLikeClosure` (`r = theta - theta_imposed`, symbolic scalar closure, not property-backed temperature); `SensibleHeatRateClosure` (`r = q - mdot * cp * (theta_out - theta_in)`, explicit positive cp required, no property lookup); `EnthalpyFlowHeatRateClosure` (`r = q - mdot * (h_out - h_in)`, no phase logic, no property backend); `EffectivenessHeatRateClosure` (`r = q - effectiveness * q_max`, purely algebraic, 0 <= effectiveness <= 1, NOT a real HX effectiveness-NTU model); `RecuperatorEnergyBalanceClosure` (`r = q_hot + q_cold`, enforces energy consistency only, no UA/LMTD/NTU/HTC); `ThermalClosureResidualSet`; `build_thermal_closure_residuals`; `ThermalClosureCategory`; `ThermalClosureDiagnostic`; `ThermalClosureDiagnosticResult`; `evaluate_thermal_closure_sufficiency`; `make_basic_thermal_loop_diagnostic` (requires HEAT_RATE + ENTHALPY_FLOW_RELATION); `make_recuperator_thermal_diagnostic` (requires RECUPERATOR_ENERGY_BALANCE + ENTHALPY_FLOW_RELATION). Block 15D-B is not property-backed, not correlation-backed, not HX-model-backed. It does not execute production components, does not assemble `SystemState`, does not construct `FluidState`, and adds no generic `solve(network)` or `NetworkGraph.solve()`. Imposed enthalpy and temperature-like closures are user-imposed scalar constraints, not thermodynamic property calculations. Sensible heat and enthalpy-flow closures are explicit algebraic relations with caller-supplied values. Simplified effectiveness/recuperator closures do not represent real HX models. Real LMTD/NTU/UA, HTC, phase, quality, saturation, property-dependent relations, and HX-backed closures remain deferred. Later blocks remain responsible for production component adapters, property/correlation/HX-backed closures, configurable scenario building, and physically predictive solves. All six production classes remain `NO_CONTRIBUTE_METHOD`. See `BLOCK_15D_B_THERMAL_CLOSURE_PRIMITIVES_AUDIT.md`. Verified 2026-06-25.** |
-| **Branch status** | **Block 15D-B on `phase-15d-b-thermal-closure-primitives`, based on merged Block 15D-A.** |
-| **Current active phase** | **Block 15D-B — Thermal Closure Primitives MVP** |
-| **Next immediate slice** | Post-15D-B planning: valve Kv/Cv, Darcy-Weisbach, property-backed closures, configurable scenario building, and combined solve of closure+physical residuals remain future work |
-| **Baseline before this block** | Block 15D-A: 6113 tests. The previously recorded 6106 total was stale/internally inconsistent: 5908 + 205 = 6113. |
-| **Test status** | **6316 passed, 0 errors, 0 failed, 0 skipped, 0 xfailed, 0 deselected (corrected baseline 6113 + 203 Block 15D-B new tests: 128 thermal closure primitives + 39 thermal closure diagnostics + 36 thermal closure integration). Network suite: 2455 passed (2252 + 203). Six examples passed.** |
-| **Lint status** | **Ruff: clean (0 violations). git diff --check: clean.** |
-| **Format status** | **Black: clean (0 reformats needed).** |
+| **Block 15D-C status** | **Checkpoint complete and independently audited with one minor corrective fix. Block 15D-C combines hydraulic (15D-A) and thermal (15D-B) closure residual sets into a unified evaluation/reporting layer. `CombinedClosureResidualSet` now enforces its non-empty, domain-type, and cross-domain residual-name uniqueness invariants both through the factory and through direct construction, preventing silent residual overwrite. Hydraulic-only and thermal-only sets remain supported. Combined evaluation preserves hydraulic-first deterministic ordering, returns read-only residual mappings, and reports max-absolute and L2 norms. Combined diagnostics aggregate existing category-presence diagnostics only; `is_sufficient` does not imply equation count, rank, DAE solvability, uniqueness, or physical predictiveness. Reports are plain serializable dictionaries with `status: "evaluation_only"` and `no_solve: true`. No property, correlation, HX-model, production-component, `SystemState`, `FluidState`, generic `solve(network)`, or `NetworkGraph.solve()` path was added. See `docs/validation/audits/BLOCK_15D_C_CLOSURE_INTEGRATION_DIAGNOSTICS_AUDIT.md`. Verified 2026-06-25.** |
+| **Block 15D-C audit** | **Approved with minor fixes.** |
+| **Branch status** | **Block 15D-C on `phase-15d-c-closure-integration-diagnostics`, based on merged Block 15D-B.** |
+| **Current active phase** | **Block 15D-C — Closure Integration and Sufficiency Diagnostics MVP** |
+| **Next immediate slice** | Post-15D-C: valve Kv/Cv, Darcy-Weisbach, property-backed closures, configurable scenario building, combined physical residual assembly, and physically predictive solves remain future work |
+| **Baseline before this block** | Block 15D-B: 6316 tests. |
+| **Test status** | **69 focused closure-integration tests + 35 parallel-context tests = 104 Block 15D-C tests; 203 Block 15D-B regressions; 205 Block 15D-A regressions; 152 Block 15C-B regressions; 2559 network tests; 6420 full-suite tests. No failures, errors, skips, xfails, or deselections. Fresh repository-local pytest temp roots with cache disabled produced no permission errors.** |
+| **Lint status** | **Clean — `ruff check src tests examples` passed.** |
+| **Format status** | **Clean — `black --check --no-cache --verbose src tests examples` passed.** |
 
 ## Post-14G block strategy
 
@@ -1058,37 +1060,32 @@ Closeout artifacts:
 - `docs/validation/audits/BLOCK_15A4_PRODUCTION_BRIDGE_CLOSEOUT_AUDIT.md`
 - `docs/validation/audits/BLOCK_15B1_FIXED_SINGLE_LOOP_SCENARIO_AUDIT.md`
 - `docs/validation/audits/BLOCK_15B4_FIXED_LOOP_CLOSEOUT_AUDIT.md`
+- `docs/validation/audits/BLOCK_15D_C_CLOSURE_INTEGRATION_DIAGNOSTICS_AUDIT.md`
 
 ---
 
 ## 4. Current Active Phase
 
-**Block 15B.4 — Fixed Single-Loop MVP Closeout / Acceptance Integration** is
-implemented and independently audited on `phase-15b4-fixed-loop-closeout`.
+**Block 15D-C — Closure Integration and Sufficiency Diagnostics MVP** is
+implemented and independently audited on
+`phase-15d-c-closure-integration-diagnostics`.
 
 The implemented capability is intentionally narrow:
 
-- the Block 15B.1 fixed single-loop declaration remains the only accepted
-  scenario shape;
-- all four residual parameters are explicit finite scalar values supplied by
-  the caller;
-- residual evaluation uses explicit algebraic callbacks for the declared
-  fixed-loop unknown and residual names;
-- the solve preserves the caller's continuity-consistent mass-flow gauge and
-  solves only the determined four-pressure subsystem through the existing
-  callback-only solver;
-- all eight original residuals are re-evaluated after the pressure solve;
-- report generation returns a plain serializable dictionary and writes no files;
-- no real production component execution, `Component.contribute(...)`,
-  `SystemState` assembly, `FluidState` construction, property/correlation
-  lookup, CoolProp, component-type inference, graph-state attachment, generic
-  `solve(network)`, or arbitrary-topology physical simulation.
+- existing 15D-A hydraulic and 15D-B thermal closure residual sets are wrapped,
+  not duplicated or bypassed;
+- evaluation accepts an explicit unknown-value mapping and preserves
+  hydraulic-first, thermal-second residual ordering;
+- diagnostics aggregate category presence only and expose missing categories
+  and deterministic messages;
+- report generation returns plain serializable data and writes no files;
+- 15C-B parallel-topology residuals and 15D closure residuals remain separate
+  evaluated subsystems;
+- no combined physical residual assembly or solve is performed.
 
-Block 15B is complete only within the planned Minimal Physical Single-Loop
-Network MVP scope. It is an algebraic fixed-loop MVP, not an arbitrary-topology
-physical simulator. The absolute common mass-flow level is not determined by
-the solve. Block 15A remains complete within its planned Production Component
-Bridge MVP scope.
+Block 15D-C is complete only within the planned closure
+integration/diagnostics MVP scope. It is not property-backed, correlation-backed,
+HX-model-backed, or physically predictive.
 
 Phase boundaries to preserve:
 
@@ -1106,7 +1103,7 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Begin Block 15C only through an explicitly reviewed topology-extension scope.
+1. Plan the next post-15D-C slice through an explicitly reviewed scope.
 2. Keep production-component execution, `SystemState` assembly, `FluidState`
    construction, property/correlation/HX-model calls, arbitrary topology, and
    generic `solve(network)` / `NetworkGraph.solve()` deferred unless separately
@@ -1261,8 +1258,8 @@ Rules for the next implementation session:
 
 | Field | Value |
 |---|---|
-| **Date** | 2026-06-24 |
+| **Date** | 2026-06-25 |
 | **Updated by** | Codex |
-| **Status note** | Block 15B.4 fixed-loop MVP closeout independently audited on `phase-15b4-fixed-loop-closeout`; 5612 full-suite tests, 1751 network tests, 47 focused Block 15B.4 tests, 100 Block 15B.3 runner tests, 102 Block 15B.2 residual tests, 84 Block 15B.1 scenario tests, and 38 Block 15A.4 closeout regression tests passed with no skips, xfails, or deselections; all six example programs, Ruff, Black, and diff checks passed; all six known production classes still return `NO_CONTRIBUTE_METHOD`; Block 15B is complete only within the planned fixed-loop MVP scope. |
+| **Status note** | Block 15D-C closure integration and diagnostics independently audited on `phase-15d-c-closure-integration-diagnostics`; approved with a minor constructor-invariant fix. 69 focused closure-integration tests, 35 parallel-context tests, 203 thermal regressions, 205 hydraulic regressions, 152 parallel-topology regressions, 2559 network tests, and 6420 full-suite tests passed with no skips, xfails, or deselections. Fresh repository-local pytest temp roots with cache disabled produced no permission errors. All six examples, Ruff, Black, and diff checks passed; all six known production classes remain `NO_CONTRIBUTE_METHOD`. |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*

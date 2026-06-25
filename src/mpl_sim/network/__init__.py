@@ -2,7 +2,8 @@
 Block 15A.1 + Block 15A.2 + Block 15A.3 + Block 15B.1 + Block 15B.2 + Block 15B.3 +
 Block 15C-A (15C.1 + 15C.2 + 15C.3) + Block 15C-B (15C.4 + 15C.5) +
 Block 15D-A (hydraulic closure primitives) +
-Block 15D-B (thermal closure primitives).
+Block 15D-B (thermal closure primitives) +
+Block 15D-C (closure integration and sufficiency diagnostics).
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -448,10 +449,57 @@ Block 15D-B exports (thermal closure primitives MVP):
   generic solve(network) or NetworkGraph.solve().  Real LMTD/NTU/UA, HTC,
   phase, quality, saturation, and HX-backed closures remain deferred.
 
+Block 15D-C exports (closure integration and sufficiency diagnostics MVP):
+
+  Domain label enum:
+    ClosureDomain
+
+  Combined residual set:
+    CombinedClosureResidualSet
+
+  Evaluation result:
+    CombinedClosureEvaluationResult
+
+  Diagnostic result:
+    CombinedClosureDiagnosticResult
+
+  Factory function:
+    build_combined_closure_residuals
+
+  Evaluation functions:
+    evaluate_combined_closure_residuals
+    evaluate_combined_closure_sufficiency
+
+  Report function:
+    build_combined_closure_report
+
+  Note: Block 15D-C combines hydraulic (15D-A) and thermal (15D-B) closure
+  residual sets into a unified combined layer.  It provides combined residual
+  evaluation, combined category-presence diagnostics, and plain report
+  generation.  It is evaluation/reporting only; it does NOT solve the combined
+  system.  Category sufficiency does NOT imply equation rank, DAE solvability,
+  or physical predictiveness.  Block 15D-C is not property-backed, not
+  correlation-backed, and not HX-backed.  It does not execute production
+  components, does not assemble SystemState, does not construct FluidState,
+  and does not add generic solve(network) or NetworkGraph.solve().  Later
+  blocks remain responsible for configurable scenarios, production component
+  adapters, property/correlation/HX-backed closures, combined physical residual
+  assembly, and physically predictive solves.
+
 MUST NOT import from solvers/.
 """
 
 from mpl_sim.network.assembly import NetworkAssembly, assemble_network
+from mpl_sim.network.closure_integration import (
+    ClosureDomain,
+    CombinedClosureDiagnosticResult,
+    CombinedClosureEvaluationResult,
+    CombinedClosureResidualSet,
+    build_combined_closure_report,
+    build_combined_closure_residuals,
+    evaluate_combined_closure_residuals,
+    evaluate_combined_closure_sufficiency,
+)
 from mpl_sim.network.component_binding import (
     ComponentBinding,
     ComponentBindingSet,
@@ -914,4 +962,19 @@ __all__ = [
     "evaluate_thermal_closure_sufficiency",
     "make_basic_thermal_loop_diagnostic",
     "make_recuperator_thermal_diagnostic",
+    # Block 15D-C domain label enum
+    "ClosureDomain",
+    # Block 15D-C combined residual set
+    "CombinedClosureResidualSet",
+    # Block 15D-C evaluation result
+    "CombinedClosureEvaluationResult",
+    # Block 15D-C diagnostic result
+    "CombinedClosureDiagnosticResult",
+    # Block 15D-C factory function
+    "build_combined_closure_residuals",
+    # Block 15D-C evaluation functions
+    "evaluate_combined_closure_residuals",
+    "evaluate_combined_closure_sufficiency",
+    # Block 15D-C report function
+    "build_combined_closure_report",
 ]
