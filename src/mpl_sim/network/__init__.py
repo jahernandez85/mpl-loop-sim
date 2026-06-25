@@ -1,7 +1,8 @@
 """Network package — Phase 7A/7B/7C/10I + Phase 13E–13H + Phase 14A–14G +
 Block 15A.1 + Block 15A.2 + Block 15A.3 + Block 15B.1 + Block 15B.2 + Block 15B.3 +
 Block 15C-A (15C.1 + 15C.2 + 15C.3) + Block 15C-B (15C.4 + 15C.5) +
-Block 15D-A (hydraulic closure primitives).
+Block 15D-A (hydraulic closure primitives) +
+Block 15D-B (thermal closure primitives).
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -399,6 +400,54 @@ Block 15D-A exports (hydraulic closure primitives MVP):
   NetworkGraph.solve().  Imposed split closures are user-imposed constraints,
   not predicted branch distribution.
 
+Block 15D-B exports (thermal closure primitives MVP):
+
+  Closure kind enum:
+    ThermalClosureKind
+
+  Closure union type alias:
+    ThermalClosureDeclaration
+
+  Concrete closure types:
+    FixedHeatRateClosure
+    ImposedEnthalpyClosure
+    ImposedTemperatureLikeClosure
+    SensibleHeatRateClosure
+    EnthalpyFlowHeatRateClosure
+    EffectivenessHeatRateClosure
+    RecuperatorEnergyBalanceClosure
+
+  Closure residual set:
+    ThermalClosureResidualSet
+
+  Closure residual set factory:
+    build_thermal_closure_residuals
+
+  Diagnostics category enum:
+    ThermalClosureCategory
+
+  Diagnostics declaration:
+    ThermalClosureDiagnostic
+
+  Diagnostics result:
+    ThermalClosureDiagnosticResult
+
+  Diagnostics functions:
+    evaluate_thermal_closure_sufficiency
+    make_basic_thermal_loop_diagnostic
+    make_recuperator_thermal_diagnostic
+
+  Note: Block 15D-B introduces explicit algebraic thermal closure primitives
+  only.  It is not property-backed, not correlation-backed, not HX-backed.
+  Imposed enthalpy and temperature-like closures are user-imposed scalar
+  constraints, not thermodynamic property calculations.  Sensible heat and
+  enthalpy-flow closures are explicit algebraic relations with caller-supplied
+  values.  Effectiveness and recuperator closures do not represent real HX
+  models.  Block 15D-B does not execute production components, does not
+  assemble SystemState, does not construct FluidState, and does not add
+  generic solve(network) or NetworkGraph.solve().  Real LMTD/NTU/UA, HTC,
+  phase, quality, saturation, and HX-backed closures remain deferred.
+
 MUST NOT import from solvers/.
 """
 
@@ -550,6 +599,27 @@ from mpl_sim.network.solver import (
     NetworkSolveConfig,
     NetworkSolveResult,
     solve_network_residual_problem,
+)
+from mpl_sim.network.thermal_closure_diagnostics import (
+    ThermalClosureCategory,
+    ThermalClosureDiagnostic,
+    ThermalClosureDiagnosticResult,
+    evaluate_thermal_closure_sufficiency,
+    make_basic_thermal_loop_diagnostic,
+    make_recuperator_thermal_diagnostic,
+)
+from mpl_sim.network.thermal_closures import (
+    EffectivenessHeatRateClosure,
+    EnthalpyFlowHeatRateClosure,
+    FixedHeatRateClosure,
+    ImposedEnthalpyClosure,
+    ImposedTemperatureLikeClosure,
+    RecuperatorEnergyBalanceClosure,
+    SensibleHeatRateClosure,
+    ThermalClosureDeclaration,
+    ThermalClosureKind,
+    ThermalClosureResidualSet,
+    build_thermal_closure_residuals,
 )
 from mpl_sim.network.topology import (
     ConnectionId,
@@ -818,4 +888,30 @@ __all__ = [
     # Block 15D-A diagnostics functions
     "evaluate_hydraulic_closure_sufficiency",
     "make_two_branch_parallel_diagnostic",
+    # Block 15D-B closure kind enum
+    "ThermalClosureKind",
+    # Block 15D-B closure union type alias
+    "ThermalClosureDeclaration",
+    # Block 15D-B concrete closure types
+    "FixedHeatRateClosure",
+    "ImposedEnthalpyClosure",
+    "ImposedTemperatureLikeClosure",
+    "SensibleHeatRateClosure",
+    "EnthalpyFlowHeatRateClosure",
+    "EffectivenessHeatRateClosure",
+    "RecuperatorEnergyBalanceClosure",
+    # Block 15D-B closure residual set
+    "ThermalClosureResidualSet",
+    # Block 15D-B closure residual set factory
+    "build_thermal_closure_residuals",
+    # Block 15D-B diagnostics category enum
+    "ThermalClosureCategory",
+    # Block 15D-B diagnostics declaration
+    "ThermalClosureDiagnostic",
+    # Block 15D-B diagnostics result
+    "ThermalClosureDiagnosticResult",
+    # Block 15D-B diagnostics functions
+    "evaluate_thermal_closure_sufficiency",
+    "make_basic_thermal_loop_diagnostic",
+    "make_recuperator_thermal_diagnostic",
 ]
