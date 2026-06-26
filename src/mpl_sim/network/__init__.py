@@ -6,7 +6,8 @@ Block 15D-B (thermal closure primitives) +
 Block 15D-C (closure integration and sufficiency diagnostics) +
 Block 15E-A (configurable scenario builder foundation MVP) +
 Block 15E-B (configurable physical residual selection MVP) +
-Block 15F-A (configurable algebraic residual assembly foundation MVP).
+Block 15F-A (configurable algebraic residual assembly foundation MVP) +
+Block 15F-B (configurable algebraic residual selection integration MVP).
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -599,6 +600,40 @@ Block 15F-A exports (configurable algebraic residual assembly foundation MVP):
   blocks remain responsible for: richer configurable physical residual assembly;
   production component adapters; property/correlation/HX-backed closures;
   rank/solvability analysis; physically predictive solves.
+
+Block 15F-B exports (configurable algebraic residual selection integration MVP):
+
+  The Block 15F-B exports are integrated into the existing Block 15E-B symbols.
+  No new runtime modules are added.
+
+  New residual-selection mode:
+    ConfigurableResidualMode.CONFIGURABLE_ALGEBRAIC
+
+  Extended request field:
+    ConfigurableResidualSelectionRequest.algebraic_residual_set
+    ConfigurableResidualSelectionRequest.algebraic_unknown_values
+
+  Extended result evaluation type:
+    ConfigurableResidualSelectionResult.evaluation_result may now also be a
+    ConfigurableAlgebraicResidualEvaluationResult (in addition to existing types).
+
+  Extended report flags:
+    build_configurable_residual_selection_report now includes:
+      residuals_inferred_from_roles: False
+      residuals_inferred_from_topology: False
+
+  Note: Block 15F-B integrates the 15F-A algebraic residual foundation into the
+  15E-B residual-selection layer.  It adds one explicit user-requested algebraic
+  residual selection mode (CONFIGURABLE_ALGEBRAIC).  Algebraic residuals must be
+  supplied explicitly via ConfigurableAlgebraicResidualSet.  They are validated
+  against scenario unknown names only.  No residuals are inferred from roles.
+  No residuals are inferred from topology.  No closures are inferred from roles.
+  No solve is added.  No property/correlation/HX-backed execution is added.
+  No production component execution is added.  No SystemState is assembled.
+  No FluidState is constructed.  Later blocks remain responsible for: richer
+  physical residual assembly; production component adapters;
+  property/correlation/HX-backed closures; rank/solvability analysis;
+  physically predictive solves.
 
 MUST NOT import from solvers/.
 """

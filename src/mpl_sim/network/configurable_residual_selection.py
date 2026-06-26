@@ -1,4 +1,4 @@
-"""Configurable physical residual selection — Block 15E-B.
+"""Configurable physical residual selection — Block 15E-B / 15F-B.
 
 Provides an explicit, user-controlled residual-selection layer for configurable
 scenario declarations.  Allows a configurable scenario to request a known
@@ -26,6 +26,12 @@ CLOSURE_ONLY
     only the provided closures over explicit unknown values.  Does not infer
     closures from roles.  No solve.
 
+CONFIGURABLE_ALGEBRAIC
+    Allowed when an explicit ConfigurableAlgebraicResidualSet is provided and all
+    required unknown names exist in the configurable scenario build result.
+    Evaluates the user-declared algebraic residuals over explicit unknown values.
+    Does not infer residuals from roles or topology.  No solve.
+
 Architecture constraints
 ------------------------
 MUST NOT import mpl_sim.components, mpl_sim.properties, mpl_sim.correlations,
@@ -41,13 +47,14 @@ MUST NOT call solve_fixed_single_loop_residuals or any solver.
 MUST NOT execute production component physics.
 MUST NOT infer physics from component_type.
 MUST NOT infer closures from component roles.
+MUST NOT infer residuals from component roles or topology.
 MUST NOT dispatch physics from role values.
 MUST NOT write files or depend on pandas, matplotlib, or numpy.
 MUST NOT perform least-squares, root-finding, or optimization.
 
 Exported names
 --------------
-ConfigurableResidualMode               — explicit residual strategy enum (4 modes)
+ConfigurableResidualMode               — explicit residual strategy enum (5 modes)
 ConfigurableResidualSelectionRequest   — frozen selection request
 ConfigurableResidualCompatibilityResult — structured compatibility check result
 ConfigurableResidualSelectionResult    — frozen selection (+ optional evaluation) result
@@ -68,6 +75,12 @@ from mpl_sim.network.closure_integration import (
     CombinedClosureEvaluationResult,
     CombinedClosureResidualSet,
     evaluate_combined_closure_residuals,
+)
+from mpl_sim.network.configurable_algebraic_residuals import (
+    ConfigurableAlgebraicResidualEvaluationResult,
+    ConfigurableAlgebraicResidualSet,
+    evaluate_configurable_algebraic_residuals,
+    validate_algebraic_residuals_against_scenario,
 )
 from mpl_sim.network.configurable_scenarios import ConfigurableScenarioBuildResult
 from mpl_sim.network.fixed_single_loop_residuals import FixedSingleLoopResidualParameters
@@ -127,6 +140,7 @@ _LIMITATIONS: tuple[str, ...] = (
     "residual mode must be user-requested explicitly; no automatic mode selection",
     "roles are declaration metadata only; roles did not select physics here",
     "closures not inferred automatically from component roles",
+    "residuals not inferred from component roles or topology",
     "production component execution not performed",
     "SystemState not assembled; FluidState not constructed",
     "solve(network) and NetworkGraph.solve() not implemented",
@@ -134,6 +148,8 @@ _LIMITATIONS: tuple[str, ...] = (
     "fixed single-loop algebraic mode: no solve; evaluation-only path used",
     "fixed two-branch parallel algebraic mode: no solve; evaluation-only path used",
     "closure-only mode: closures must be explicitly supplied; none inferred from roles",
+    "configurable-algebraic mode: residuals must be explicitly declared; "
+    "none inferred from roles or topology",
     "compatibility requires conventional component/node IDs in declaration order",
 )
 
@@ -184,7 +200,7 @@ def _fixed_two_branch_edge_signature() -> tuple[tuple[str, str, str], ...]:
 class ConfigurableResidualMode(enum.Enum):
     """Explicit residual strategy mode for configurable scenarios.
 
-    All four modes must be user-requested.  No mode is chosen automatically
+    All five modes must be user-requested.  No mode is chosen automatically
     from component roles or from component_type.  Roles are declaration
     metadata only and do not trigger physics dispatch.
 
@@ -211,12 +227,20 @@ class ConfigurableResidualMode(enum.Enum):
         Closure residual evaluation only.
         Requires an explicit CombinedClosureResidualSet supplied by the caller.
         Does not infer closures from roles.  No solve.
+
+    CONFIGURABLE_ALGEBRAIC
+        User-declared configurable algebraic residual evaluation.
+        Requires an explicit ConfigurableAlgebraicResidualSet supplied by the caller.
+        Compatible only when all required unknown names exist in the scenario
+        build result's unknown_names.  Does not infer residuals from roles or
+        topology.  No solve.
     """
 
     DECLARATION_ONLY = "declaration_only"
     FIXED_SINGLE_LOOP_ALGEBRAIC = "fixed_single_loop_algebraic"
     FIXED_TWO_BRANCH_PARALLEL_ALGEBRAIC = "fixed_two_branch_parallel_algebraic"
     CLOSURE_ONLY = "closure_only"
+    CONFIGURABLE_ALGEBRAIC = "configurable_algebraic"
 
 
 # ---------------------------------------------------------------------------
@@ -244,6 +268,10 @@ class ConfigurableResidualSelectionRequest:
       CLOSURE_ONLY:
         closure_residual_set required for compatibility.
         closure_unknown_values additionally required when evaluate=True.
+      CONFIGURABLE_ALGEBRAIC:
+        algebraic_residual_set required for compatibility.
+        All required unknown names must exist in build_result.unknown_names.
+        algebraic_unknown_values additionally required when evaluate=True.
 
     Fields
     ------
@@ -255,6 +283,8 @@ class ConfigurableResidualSelectionRequest:
     two_branch_unknown_values : Mapping[str, float] | None
     closure_residual_set      : CombinedClosureResidualSet | None
     closure_unknown_values    : Mapping[str, float] | None
+    algebraic_residual_set    : ConfigurableAlgebraicResidualSet | None
+    algebraic_unknown_values  : Mapping[str, float] | None
     evaluate                  : bool — perform evaluation only when True
     metadata                  : Mapping[str, object] | None
     """
@@ -267,6 +297,8 @@ class ConfigurableResidualSelectionRequest:
     two_branch_unknown_values: Mapping[str, float] | None = None
     closure_residual_set: CombinedClosureResidualSet | None = None
     closure_unknown_values: Mapping[str, float] | None = None
+    algebraic_residual_set: ConfigurableAlgebraicResidualSet | None = None
+    algebraic_unknown_values: Mapping[str, float] | None = None
     evaluate: bool = False
     metadata: Mapping[str, object] | None = None
 
@@ -349,6 +381,28 @@ class ConfigurableResidualSelectionRequest:
                 "closure_unknown_values",
                 MappingProxyType(dict(self.closure_unknown_values)),
             )
+        if self.algebraic_residual_set is not None and not isinstance(
+            self.algebraic_residual_set, ConfigurableAlgebraicResidualSet
+        ):
+            raise TypeError(
+                "ConfigurableResidualSelectionRequest.algebraic_residual_set must be "
+                "a ConfigurableAlgebraicResidualSet or None; "
+                f"got {type(self.algebraic_residual_set).__name__!r}"
+            )
+        if self.algebraic_unknown_values is not None and not isinstance(
+            self.algebraic_unknown_values, Mapping
+        ):
+            raise TypeError(
+                "ConfigurableResidualSelectionRequest.algebraic_unknown_values must "
+                "be a Mapping or None; "
+                f"got {type(self.algebraic_unknown_values).__name__!r}"
+            )
+        if self.algebraic_unknown_values is not None:
+            object.__setattr__(
+                self,
+                "algebraic_unknown_values",
+                MappingProxyType(dict(self.algebraic_unknown_values)),
+            )
         if not isinstance(self.evaluate, bool):
             raise TypeError(
                 "ConfigurableResidualSelectionRequest.evaluate must be bool; "
@@ -424,6 +478,7 @@ class ConfigurableResidualSelectionResult:
     evaluation_result    : FixedSingleLoopEvaluationResult
                            | ParallelTopologyEvaluationResult
                            | CombinedClosureEvaluationResult
+                           | ConfigurableAlgebraicResidualEvaluationResult
                            | None
     evaluation_deferred  : bool — True if evaluation was not performed
     evaluation_deferred_reason : str — reason evaluation was deferred (or "")
@@ -440,6 +495,7 @@ class ConfigurableResidualSelectionResult:
         FixedSingleLoopEvaluationResult
         | ParallelTopologyEvaluationResult
         | CombinedClosureEvaluationResult
+        | ConfigurableAlgebraicResidualEvaluationResult
         | None
     )
     evaluation_deferred: bool
@@ -472,6 +528,8 @@ class ConfigurableResidualSelectionResult:
                 "ConfigurableResidualSelectionResult.no_solve must be bool; "
                 f"got {type(self.no_solve).__name__!r}"
             )
+        if not self.no_solve:
+            raise ValueError("ConfigurableResidualSelectionResult.no_solve must be True")
         limitations = self.limitations
         if not isinstance(limitations, tuple):
             object.__setattr__(self, "limitations", tuple(limitations))
@@ -702,6 +760,49 @@ def _check_closure_only_compatibility(
     )
 
 
+def _check_configurable_algebraic_compatibility(
+    algebraic_residual_set: ConfigurableAlgebraicResidualSet | None,
+    build_result: ConfigurableScenarioBuildResult,
+) -> ConfigurableResidualCompatibilityResult:
+    """CONFIGURABLE_ALGEBRAIC is compatible iff an explicit set is provided and all
+    required unknown names exist in the scenario build result's unknown_names."""
+    if algebraic_residual_set is None:
+        return ConfigurableResidualCompatibilityResult(
+            is_compatible=False,
+            mode=ConfigurableResidualMode.CONFIGURABLE_ALGEBRAIC,
+            reasons=(
+                "algebraic_residual_set is None; CONFIGURABLE_ALGEBRAIC mode requires "
+                "an explicit ConfigurableAlgebraicResidualSet supplied by the caller",
+                "algebraic residuals are not inferred automatically from roles or topology",
+            ),
+        )
+    if not isinstance(algebraic_residual_set, ConfigurableAlgebraicResidualSet):
+        return ConfigurableResidualCompatibilityResult(
+            is_compatible=False,
+            mode=ConfigurableResidualMode.CONFIGURABLE_ALGEBRAIC,
+            reasons=(
+                f"algebraic_residual_set must be a ConfigurableAlgebraicResidualSet; "
+                f"got {type(algebraic_residual_set).__name__!r}",
+            ),
+        )
+    compat_report = validate_algebraic_residuals_against_scenario(
+        algebraic_residual_set, build_result
+    )
+    is_compatible = bool(compat_report["is_compatible"])
+    base_reasons: tuple[str, ...] = tuple(str(r) for r in compat_report["reasons"])
+    extra_reasons: tuple[str, ...] = (
+        f"scenario_id={build_result.spec.scenario_id!r}",
+        f"algebraic residual count: {algebraic_residual_set.count}",
+        f"required unknown names: {list(algebraic_residual_set.required_unknown_names)!r}",
+        "algebraic residuals are user-declared; none inferred from roles or topology",
+    )
+    return ConfigurableResidualCompatibilityResult(
+        is_compatible=is_compatible,
+        mode=ConfigurableResidualMode.CONFIGURABLE_ALGEBRAIC,
+        reasons=base_reasons + extra_reasons,
+    )
+
+
 def _check_compatibility(
     request: ConfigurableResidualSelectionRequest,
 ) -> ConfigurableResidualCompatibilityResult:
@@ -717,6 +818,10 @@ def _check_compatibility(
         return _check_two_branch_compatibility(build_result)
     elif mode is ConfigurableResidualMode.CLOSURE_ONLY:
         return _check_closure_only_compatibility(request.closure_residual_set)
+    elif mode is ConfigurableResidualMode.CONFIGURABLE_ALGEBRAIC:
+        return _check_configurable_algebraic_compatibility(
+            request.algebraic_residual_set, build_result
+        )
     else:
         return ConfigurableResidualCompatibilityResult(
             is_compatible=False,
@@ -771,6 +876,31 @@ def _evaluate_two_branch(
         return False, None, True, reason
     scenario = build_parallel_topology_scenario()
     result = evaluate_parallel_topology_residuals(scenario, params, uvs)
+    return True, result, False, ""
+
+
+def _evaluate_configurable_algebraic(
+    request: ConfigurableResidualSelectionRequest,
+) -> tuple[bool, ConfigurableAlgebraicResidualEvaluationResult | None, bool, str]:
+    """Attempt configurable algebraic evaluation; return (performed, result, deferred, reason)."""
+    residual_set = request.algebraic_residual_set
+    uvs = request.algebraic_unknown_values
+    if residual_set is None:
+        return (
+            False,
+            None,
+            True,
+            "evaluation deferred: algebraic_residual_set not provided",
+        )
+    if uvs is None:
+        return (
+            False,
+            None,
+            True,
+            "evaluation deferred: algebraic_unknown_values not provided; "
+            "provide algebraic_unknown_values to evaluate configurable algebraic residuals",
+        )
+    result = evaluate_configurable_algebraic_residuals(residual_set, uvs)
     return True, result, False, ""
 
 
@@ -852,6 +982,7 @@ def select_configurable_residual_strategy(
         FixedSingleLoopEvaluationResult
         | ParallelTopologyEvaluationResult
         | CombinedClosureEvaluationResult
+        | ConfigurableAlgebraicResidualEvaluationResult
         | None
     ) = None
     evaluation_deferred = False
@@ -893,6 +1024,14 @@ def select_configurable_residual_strategy(
                 evaluation_deferred,
                 evaluation_deferred_reason,
             ) = _evaluate_closure_only(request)
+
+        elif mode is ConfigurableResidualMode.CONFIGURABLE_ALGEBRAIC:
+            (
+                evaluation_performed,
+                evaluation_result,
+                evaluation_deferred,
+                evaluation_deferred_reason,
+            ) = _evaluate_configurable_algebraic(request)
     else:
         evaluation_deferred = True
         evaluation_deferred_reason = (
@@ -1040,6 +1179,13 @@ def build_configurable_residual_selection_report(
             eval_report["combined_residuals"] = dict(eval_r.combined_residuals)
             eval_report["max_abs_residual"] = eval_r.max_absolute_residual
             eval_report["l2_residual_norm"] = eval_r.l2_residual_norm
+        elif isinstance(eval_r, ConfigurableAlgebraicResidualEvaluationResult):
+            eval_report["backend"] = "configurable_algebraic"
+            eval_report["residual_names"] = list(eval_r.residual_names)
+            eval_report["residual_values"] = dict(eval_r.residual_values)
+            eval_report["max_abs_residual"] = eval_r.max_abs_residual
+            eval_report["l2_norm"] = eval_r.l2_norm
+            eval_report["unknown_names_used"] = list(eval_r.unknown_names_used)
 
     report: dict[str, object] = {
         "scenario_id": spec.scenario_id,
@@ -1047,6 +1193,8 @@ def build_configurable_residual_selection_report(
         "no_solve": True,
         "roles_selected_physics": False,
         "closures_inferred_from_roles": False,
+        "residuals_inferred_from_roles": False,
+        "residuals_inferred_from_topology": False,
         "compatibility": compatibility_report,
         "evaluation": eval_report,
         "component_count": len(spec.components),
