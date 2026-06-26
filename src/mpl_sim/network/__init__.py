@@ -4,7 +4,8 @@ Block 15C-A (15C.1 + 15C.2 + 15C.3) + Block 15C-B (15C.4 + 15C.5) +
 Block 15D-A (hydraulic closure primitives) +
 Block 15D-B (thermal closure primitives) +
 Block 15D-C (closure integration and sufficiency diagnostics) +
-Block 15E-A (configurable scenario builder foundation MVP).
+Block 15E-A (configurable scenario builder foundation MVP) +
+Block 15E-B (configurable physical residual selection MVP).
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -521,6 +522,44 @@ Block 15E-A exports (configurable scenario builder foundation MVP):
   production component adapters, property/correlation/HX-backed closures,
   combined physical residual assembly, and physically predictive solves.
 
+Block 15E-B exports (configurable physical residual selection MVP):
+
+  Mode enum:
+    ConfigurableResidualMode
+
+  Request:
+    ConfigurableResidualSelectionRequest
+
+  Compatibility result:
+    ConfigurableResidualCompatibilityResult
+
+  Selection result:
+    ConfigurableResidualSelectionResult
+
+  Functions:
+    select_configurable_residual_strategy
+    evaluate_selected_configurable_residuals
+    build_configurable_residual_selection_report
+
+  Note: Block 15E-B adds an explicit, user-controlled residual-selection layer
+  for configurable scenario declarations.  Residual modes (DECLARATION_ONLY,
+  FIXED_SINGLE_LOOP_ALGEBRAIC, FIXED_TWO_BRANCH_PARALLEL_ALGEBRAIC,
+  CLOSURE_ONLY) must be explicitly requested by the caller; no mode is chosen
+  automatically from component roles or component_type.  Roles remain
+  declaration metadata only and do not trigger physics dispatch.  Block 15E-B
+  does not infer closures from roles.  It does not infer physical equations
+  from roles.  It can reuse existing fixed single-loop and fixed two-branch
+  evaluation-only residual layers only when structurally compatible and
+  explicitly selected.  It can evaluate closure-only residuals only when
+  closure sets are explicitly supplied.  Block 15E-B does not solve.  It is
+  not property-backed, not correlation-backed, not HX-backed.  It does not
+  execute production components, does not assemble SystemState, does not
+  construct FluidState, and does not add generic solve(network) or
+  NetworkGraph.solve().  Later blocks remain responsible for: configurable
+  physical residual assembly beyond known fixed MVPs; production component
+  adapters; property/correlation/HX-backed closures; rank/solvability analysis;
+  physically predictive solves.
+
 MUST NOT import from solvers/.
 """
 
@@ -549,6 +588,15 @@ from mpl_sim.network.component_provider_adapters import (
     ComponentProviderExecutionContext,
     build_component_contribution_from_provider_execution,
     execute_component_provider_contributions,
+)
+from mpl_sim.network.configurable_residual_selection import (
+    ConfigurableResidualCompatibilityResult,
+    ConfigurableResidualMode,
+    ConfigurableResidualSelectionRequest,
+    ConfigurableResidualSelectionResult,
+    build_configurable_residual_selection_report,
+    evaluate_selected_configurable_residuals,
+    select_configurable_residual_strategy,
 )
 from mpl_sim.network.configurable_scenarios import (
     ConfigurableScenarioBuildResult,
@@ -1036,4 +1084,16 @@ __all__ = [
     # Block 15E-A factory functions
     "build_configurable_scenario",
     "build_configurable_scenario_report",
+    # Block 15E-B mode enum
+    "ConfigurableResidualMode",
+    # Block 15E-B request
+    "ConfigurableResidualSelectionRequest",
+    # Block 15E-B compatibility result
+    "ConfigurableResidualCompatibilityResult",
+    # Block 15E-B selection result
+    "ConfigurableResidualSelectionResult",
+    # Block 15E-B functions
+    "select_configurable_residual_strategy",
+    "evaluate_selected_configurable_residuals",
+    "build_configurable_residual_selection_report",
 ]
