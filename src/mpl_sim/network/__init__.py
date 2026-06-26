@@ -7,7 +7,8 @@ Block 15D-C (closure integration and sufficiency diagnostics) +
 Block 15E-A (configurable scenario builder foundation MVP) +
 Block 15E-B (configurable physical residual selection MVP) +
 Block 15F-A (configurable algebraic residual assembly foundation MVP) +
-Block 15F-B (configurable algebraic residual selection integration MVP).
+Block 15F-B (configurable algebraic residual selection integration MVP) +
+Block 15G-A (explicit configurable residual blueprint assembly foundation MVP).
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -635,6 +636,51 @@ Block 15F-B exports (configurable algebraic residual selection integration MVP):
   property/correlation/HX-backed closures; rank/solvability analysis;
   physically predictive solves.
 
+Block 15G-A exports (explicit configurable residual blueprint assembly foundation MVP):
+
+  Blueprint kind enum:
+    ConfigurableResidualBlueprintKind
+
+  Blueprint union type alias:
+    ConfigurableResidualBlueprintDeclaration
+
+  Concrete blueprint types:
+    MassBalanceResidualBlueprint
+    PressureDifferenceResidualBlueprint
+    ImposedPressureResidualBlueprint
+    ImposedMassFlowResidualBlueprint
+    EnthalpyFlowResidualBlueprint
+
+  Blueprint set:
+    ConfigurableResidualBlueprintSet
+
+  Blueprint set factory:
+    build_configurable_residual_blueprint_set
+
+  Build result:
+    ConfigurableResidualBlueprintBuildResult
+
+  Builder function:
+    build_configurable_algebraic_residuals_from_blueprints
+
+  Report function:
+    build_configurable_residual_blueprint_report
+
+  Note: Block 15G-A adds an explicit configurable residual blueprint layer that
+  translates scenario-level IDs (component IDs, node IDs) into 15F-A algebraic
+  residual declarations.  Blueprints are user-declared; none are inferred from
+  component roles or graph topology.  Translation uses deterministic naming
+  conventions: mdot:<component_id> and P:<node_id>.  Translated blueprints
+  produce a ConfigurableAlgebraicResidualSet that is directly usable with the
+  existing 15F-B CONFIGURABLE_ALGEBRAIC selection mode.  Scenario unknown-name
+  validation is identifier-level only.  Block 15G-A does not solve.  It does not
+  add property/correlation/HX-backed execution.  It does not execute production
+  components.  It does not assemble SystemState.  It does not construct FluidState.
+  It does not add generic solve(network) or NetworkGraph.solve().  Later blocks
+  remain responsible for: richer physical residual assembly; production component
+  adapters; property/correlation/HX-backed closures; rank/solvability analysis;
+  physically predictive solves.
+
 MUST NOT import from solvers/.
 """
 
@@ -678,6 +724,20 @@ from mpl_sim.network.configurable_algebraic_residuals import (
     build_configurable_algebraic_residual_set,
     evaluate_configurable_algebraic_residuals,
     validate_algebraic_residuals_against_scenario,
+)
+from mpl_sim.network.configurable_residual_blueprints import (
+    ConfigurableResidualBlueprintBuildResult,
+    ConfigurableResidualBlueprintDeclaration,
+    ConfigurableResidualBlueprintKind,
+    ConfigurableResidualBlueprintSet,
+    EnthalpyFlowResidualBlueprint,
+    ImposedMassFlowResidualBlueprint,
+    ImposedPressureResidualBlueprint,
+    MassBalanceResidualBlueprint,
+    PressureDifferenceResidualBlueprint,
+    build_configurable_algebraic_residuals_from_blueprints,
+    build_configurable_residual_blueprint_report,
+    build_configurable_residual_blueprint_set,
 )
 from mpl_sim.network.configurable_residual_selection import (
     ConfigurableResidualCompatibilityResult,
@@ -1205,4 +1265,24 @@ __all__ = [
     "evaluate_configurable_algebraic_residuals",
     "validate_algebraic_residuals_against_scenario",
     "build_configurable_algebraic_residual_report",
+    # Block 15G-A blueprint kind enum
+    "ConfigurableResidualBlueprintKind",
+    # Block 15G-A blueprint union type alias
+    "ConfigurableResidualBlueprintDeclaration",
+    # Block 15G-A concrete blueprint types
+    "MassBalanceResidualBlueprint",
+    "PressureDifferenceResidualBlueprint",
+    "ImposedPressureResidualBlueprint",
+    "ImposedMassFlowResidualBlueprint",
+    "EnthalpyFlowResidualBlueprint",
+    # Block 15G-A blueprint set
+    "ConfigurableResidualBlueprintSet",
+    # Block 15G-A blueprint set factory
+    "build_configurable_residual_blueprint_set",
+    # Block 15G-A build result
+    "ConfigurableResidualBlueprintBuildResult",
+    # Block 15G-A builder function
+    "build_configurable_algebraic_residuals_from_blueprints",
+    # Block 15G-A report function
+    "build_configurable_residual_blueprint_report",
 ]
