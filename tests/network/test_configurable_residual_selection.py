@@ -245,9 +245,10 @@ def _simple_closure_set():
 
 
 class TestConfigurableResidualMode:
-    def test_enum_has_exactly_four_modes(self):
+    def test_enum_has_exactly_five_modes(self):
+        # Block 15F-B adds CONFIGURABLE_ALGEBRAIC as the fifth mode.
         modes = list(ConfigurableResidualMode)
-        assert len(modes) == 4
+        assert len(modes) == 5
 
     def test_declaration_only_member(self):
         assert ConfigurableResidualMode.DECLARATION_ONLY in ConfigurableResidualMode

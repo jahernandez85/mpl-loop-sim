@@ -11,10 +11,10 @@ This document is not architecture. It does not redesign anything. It tracks wher
 |---|---|
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
-| **Branch** | `phase-15f-a-configurable-algebraic-residual-assembly` |
-| **Stage** | Block 15F-A - Configurable Algebraic Residual Assembly Foundation MVP: explicit user-declared algebraic residual declarations and evaluation for configurable scenarios |
-| **Completed phase** | **Block 15F-A - Configurable Algebraic Residual Assembly Foundation MVP** |
-| **Previous completed phase** | Block 15E-C - Configurable Residual Selection Closeout / Acceptance Integration MVP |
+| **Branch** | `phase-15f-b-algebraic-residual-selection-integration` |
+| **Stage** | Block 15F-B - Configurable Algebraic Residual Selection Integration MVP: integrates 15F-A algebraic residual sets into the 15E-B residual-selection layer via explicit CONFIGURABLE_ALGEBRAIC mode |
+| **Completed phase** | **Block 15F-B - Configurable Algebraic Residual Selection Integration MVP** |
+| **Previous completed phase** | Block 15F-A - Configurable Algebraic Residual Assembly Foundation MVP |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
 | **Phase 5A audit verdict** | **APPROVED FOR NEXT PHASE** |
@@ -108,13 +108,14 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Block 15E-B status** | **Checkpoint complete. Block 15E-B — Configurable Physical Residual Selection MVP — adds an explicit user-controlled residual-selection layer for configurable scenario declarations. New module `src/mpl_sim/network/configurable_residual_selection.py`. 115 tests (83 unit + 32 integration). Verified 2026-06-26.** |
 | **Block 15E-C status** | **Checkpoint complete and independently audited. Block 15E-C — Configurable Residual Selection Closeout / Acceptance Integration MVP — closes the Block 15E configurable MVP by proving the full declaration + residual-selection stack works coherently end-to-end. New test file `tests/network/test_configurable_residual_selection_closeout.py` (65 acceptance tests). No new runtime modules. Covers 7 acceptance stories (declaration-only; fixed single-loop algebraic evaluation; fixed two-branch parallel algebraic evaluation; closure-only evaluation; role changes do not select physics; incompatible scenario rejection; combined report JSON serializability), 6 boundary story classes (no_solve always True; solve_fixed_single_loop_residuals not imported; no CoolProp/PropertyBackend/SystemState/FluidState; no generic solve; no contribute; no role-based physics), and 2 regression tests (production contracts, inspection count). Modes remain explicit and user-requested. Roles remain metadata only. No closures inferred from roles. No physical equations inferred from roles. No solve added. No property/correlation/HX-backed execution added. No production component execution. No SystemState assembled. No FluidState constructed. No generic solve(network) or NetworkGraph.solve() added. 15E is now complete within configurable MVP scope. See `docs/validation/audits/BLOCK_15E_C_CONFIGURABLE_SELECTION_CLOSEOUT_AUDIT.md`. Verified 2026-06-26.** |
 | **Block 15F-A status** | **Checkpoint complete and independently audited with minor fixes. Block 15F-A — Configurable Algebraic Residual Assembly Foundation MVP — adds explicit user-declared algebraic residual declarations for configurable scenarios. New module `src/mpl_sim/network/configurable_algebraic_residuals.py`. Public API: `ConfigurableAlgebraicResidualKind` (5-value enum: MASS_BALANCE, PRESSURE_DIFFERENCE, IMPOSED_PRESSURE, IMPOSED_MASS_FLOW, ENTHALPY_FLOW); `ConfigurableAlgebraicResidualDeclaration` (union type alias); `MassBalanceResidualDeclaration` (r = sum(incoming) - sum(outgoing)); `PressureDifferenceResidualDeclaration` (r = P_out - P_in + delta_p; positive delta_p = drop, negative = rise); `ImposedPressureResidualDeclaration` (r = P_unknown - P_imposed); `ImposedMassFlowResidualDeclaration` (r = mdot_unknown - mdot_imposed); `EnthalpyFlowResidualDeclaration` (r = q - mdot*(h_out - h_in)); `ConfigurableAlgebraicResidualSet` (ordered, duplicate-name-rejecting, frozen); `ConfigurableAlgebraicResidualEvaluationResult` (frozen with read-only residual map, max_abs_residual, l2_norm); `build_configurable_algebraic_residual_set`; `evaluate_configurable_algebraic_residuals`; `validate_algebraic_residuals_against_scenario`; `build_configurable_algebraic_residual_report`. Residuals are explicitly user-declared; none are inferred from component roles, graph topology, or component_type. Evaluation requires an explicit call over an explicit unknown-value mapping. Extra unknowns are silently ignored; missing, bool, NaN, or infinite values raise errors. Block 15F-A is property-free, correlation-free, and HX-model-free. It does not execute production components, does not assemble SystemState, does not construct FluidState, does not call CoolProp or PropertyBackend, and does not solve. No generic solve(network) or NetworkGraph.solve() added. All six production classes remain NO_CONTRIBUTE_METHOD. 152 core tests (`test_configurable_algebraic_residuals.py`); 28 integration tests (`test_configurable_algebraic_residuals_integration.py`); 180 new tests total. Network suite: 3093 passed. Full suite: 6954 passed. Ruff and Black clean. Later blocks remain responsible for: richer configurable physical residual assembly; production component adapters; property/correlation/HX-backed closures; rank/solvability analysis; physically predictive solves. See `docs/validation/audits/BLOCK_15F_A_CONFIGURABLE_ALGEBRAIC_RESIDUAL_ASSEMBLY_AUDIT.md`. Verified 2026-06-26.** |
-| **Branch status** | **Block 15F-A on `phase-15f-a-configurable-algebraic-residual-assembly`, based on merged Block 15E-C.** |
-| **Current active phase** | **Block 15F-A — Configurable Algebraic Residual Assembly Foundation MVP** |
-| **Next immediate slice** | Post-15F-A: richer configurable physical residual assembly; production component adapters; property/correlation/HX-backed closures; rank/solvability analysis; physically predictive solves — all deferred to future blocks |
-| **Baseline before this block** | Block 15E-C: 6774 tests. |
-| **Test status** | **6954 tests passed (180 Block 15F-A tests). Baseline Block 15E-C: 6774. Network suite: 3093 passed. Full suite: 6954 passed. No failures, errors, skips, or deselections.** |
+| **Block 15F-B status** | **Checkpoint complete. Block 15F-B — Configurable Algebraic Residual Selection Integration MVP — integrates the 15F-A algebraic residual foundation into the 15E-B residual-selection layer. No new runtime modules added. Modified: `src/mpl_sim/network/configurable_residual_selection.py` (adds `ConfigurableResidualMode.CONFIGURABLE_ALGEBRAIC`, extends `ConfigurableResidualSelectionRequest` with `algebraic_residual_set` and `algebraic_unknown_values`, extends `ConfigurableResidualSelectionResult` evaluation_result union, adds `_check_configurable_algebraic_compatibility` using `validate_algebraic_residuals_against_scenario`, adds `_evaluate_configurable_algebraic` using `evaluate_configurable_algebraic_residuals`, adds `residuals_inferred_from_roles: False` and `residuals_inferred_from_topology: False` to report). New test file `tests/network/test_configurable_algebraic_residual_selection_integration.py` (53 tests covering 11 acceptance stories, 8 validation stories, 2 regression stories, 6 boundary checks, and direct `validate_algebraic_residuals_against_scenario` integration tests). Also updated existing `tests/network/test_configurable_residual_selection.py` mode count assertion from 4 to 5. CONFIGURABLE_ALGEBRAIC mode: requires explicit `ConfigurableAlgebraicResidualSet`; validates declared unknown names against `build_result.unknown_names` (no topology or role inference); compatible only when all required unknowns exist in scenario; evaluates only when `evaluate=True` and `algebraic_unknown_values` explicitly supplied; no solve, no root-finding, no automatic residual generation, no closure inference from roles. Algebraic residuals must be supplied explicitly. No residuals inferred from roles. No residuals inferred from topology. No closures inferred from roles. No solve added. No property/correlation/HX-backed execution added. No production component execution added. No SystemState assembled. No FluidState constructed. All six production classes remain NO_CONTRIBUTE_METHOD. Baseline Block 15F-A: 6954 tests. New test total: 7007 tests (53 Block 15F-B tests). Network suite: 3146 passed. Full suite: 7007 passed. Ruff and Black clean. Later blocks remain responsible for: richer physical residual assembly; production component adapters; property/correlation/HX-backed closures; rank/solvability analysis; physically predictive solves. Verified 2026-06-26.** |
+| **Branch status** | **Block 15F-B on `phase-15f-b-algebraic-residual-selection-integration`, based on merged Block 15F-A.** |
+| **Current active phase** | **Block 15F-B — Configurable Algebraic Residual Selection Integration MVP** |
+| **Next immediate slice** | Post-15F-B: richer configurable physical residual assembly; production component adapters; property/correlation/HX-backed closures; rank/solvability analysis; physically predictive solves — all deferred to future blocks |
+| **Baseline before this block** | Block 15F-A: 6954 tests. |
+| **Test status** | **7007 tests passed (53 Block 15F-B tests). Baseline Block 15F-A: 6954. Network suite: 3146 passed. Full suite: 7007 passed. No failures, errors, skips, or deselections.** |
 | **Lint status** | **Clean. `ruff check src tests examples` → All checks passed.** |
-| **Format status** | **Clean. `black --check --no-cache src tests examples` → 225 files unchanged.** |
+| **Format status** | **Clean. `black --check --no-cache src tests examples` → 226 files unchanged.** |
 
 ## Post-14G block strategy
 
@@ -1173,33 +1174,35 @@ Closeout artifacts:
 - `docs/validation/audits/BLOCK_15D_C_CLOSURE_INTEGRATION_DIAGNOSTICS_AUDIT.md`
 - `docs/validation/audits/BLOCK_15E_A_CONFIGURABLE_SCENARIO_BUILDER_AUDIT.md`
 - `docs/validation/audits/BLOCK_15E_B_CONFIGURABLE_RESIDUAL_SELECTION_AUDIT.md`
+- `docs/validation/audits/BLOCK_15F_A_CONFIGURABLE_ALGEBRAIC_RESIDUAL_ASSEMBLY_AUDIT.md`
+- `docs/validation/audits/BLOCK_15F_B_ALGEBRAIC_RESIDUAL_SELECTION_INTEGRATION_AUDIT.md`
 
 ---
 
 ## 4. Current Active Phase
 
-**Block 15F-A - Configurable Algebraic Residual Assembly Foundation MVP**
-is implemented on `phase-15f-a-configurable-algebraic-residual-assembly`, based on
-merged Block 15E-C.
+**Block 15F-B - Configurable Algebraic Residual Selection Integration MVP**
+is implemented and independently audited on
+`phase-15f-b-algebraic-residual-selection-integration`, based on merged Block
+15F-A.
 
-The implemented capability is an explicit algebraic residual declaration and
-evaluation foundation for configurable scenarios:
+The implemented capability integrates explicit 15F-A configurable algebraic
+residual sets into the existing 15E-B residual-selection layer:
 
-- callers explicitly declare residuals with explicit unknown names and scalar
-  parameters;
-- supported declarations are mass balance, pressure difference, imposed
-  pressure, imposed mass flow, and enthalpy flow;
-- evaluation occurs only through explicit calls over explicit unknown-value
-  mappings;
-- scenario compatibility validates declared unknown names against a configurable
-  scenario build result and does not generate residuals;
-- reports are JSON-serializable and state no solve, no properties, no
-  correlations, no HX models, no production components, no role-based physics,
-  no topology-based residual inference, and no closure inference.
+- callers must explicitly request `ConfigurableResidualMode.CONFIGURABLE_ALGEBRAIC`;
+- callers must explicitly supply a `ConfigurableAlgebraicResidualSet`;
+- declared algebraic unknown names are validated against
+  `ConfigurableScenarioBuildResult.unknown_names`;
+- evaluation occurs only when `evaluate=True` and explicit
+  `algebraic_unknown_values` are supplied;
+- reports are JSON-serializable and state no solve, no property backend, no
+  correlations, no HX models, no production components, no role-based residual
+  inference, no topology-based residual inference, and no closure inference.
 
-Block 15F-A is complete within the explicit configurable algebraic residual MVP
-scope. The stack is not property-backed, correlation-backed, HX-model-backed, or
-physically predictive.
+Block 15F-B is complete within the explicit configurable algebraic residual
+selection MVP scope. The stack remains evaluation-only, property-free,
+correlation-free, HX-model-free, production-component-free, and not physically
+predictive.
 
 Phase boundaries to preserve:
 
@@ -1217,7 +1220,7 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Plan the next post-15F-A slice through an explicitly reviewed scope.
+1. Plan the next post-15F-B slice through an explicitly reviewed scope.
 2. Keep production-component execution, `SystemState` assembly, `FluidState`
    construction, property/correlation/HX-model calls, arbitrary topology, and
    generic `solve(network)` / `NetworkGraph.solve()` deferred unless separately
@@ -1374,6 +1377,6 @@ Rules for the next implementation session:
 |---|---|
 | **Date** | 2026-06-26 |
 | **Updated by** | Codex |
-| **Status note** | Block 15F-A configurable algebraic residual assembly independently audited on `phase-15f-a-configurable-algebraic-residual-assembly`; approved with minor fixes. The audit confirmed explicit user-declared algebraic residual declarations and evaluation only: no residual inference from roles/topology, no closure inference, no properties, no correlations, no HX models, no production component execution, no `SystemState`, no `FluidState`, and no solve. Corrective fixes added explicit report flags for no automatic residual/topology inference, hardened scenario unknown-name duck typing, fixed one error-message f-string, and aligned roadmap wording. Verified counts: 152 Block 15F-A core tests, 28 Block 15F-A integration tests, 65 Block 15E-C regressions, 115 Block 15E-B regressions, 174 Block 15E-A regressions, 104 Block 15D-C regressions, 203 Block 15D-B regressions, 205 Block 15D-A regressions, 152 Block 15C-B regressions, 249 Block 15B regressions, 60 production-contract tests, 3093 network tests, and 6954 full-suite tests passed in successful fresh cache-disabled validation runs. Initial requested base-temp runs reproduced Windows `PermissionError` cleanup issues in `tmp_path` setup; fresh alternate repo-local base-temp reruns passed. All six examples, Ruff, Black, and diff checks passed; all six known production classes remain `NO_CONTRIBUTE_METHOD`. See `BLOCK_15F_A_CONFIGURABLE_ALGEBRAIC_RESIDUAL_ASSEMBLY_AUDIT.md`. |
+| **Status note** | Block 15F-B configurable algebraic residual selection integration independently audited on `phase-15f-b-algebraic-residual-selection-integration`; approved with minor fixes. The audit confirmed explicit user-requested `CONFIGURABLE_ALGEBRAIC` mode only, explicit `ConfigurableAlgebraicResidualSet` input, scenario unknown-name compatibility validation only, and evaluation only through `evaluate_configurable_algebraic_residuals` when `evaluate=True` with explicit `algebraic_unknown_values`. No residual inference from roles/topology, no closure inference from roles, no property/correlation/HX-backed execution, no production component execution, no `SystemState`, no `FluidState`, and no solve was added. Corrective fixes enforced `ConfigurableResidualSelectionResult.no_solve=True` on direct construction, created the final audit document, and aligned this status text. Verified counts: 53 Block 15F-B tests, 115 15E-B selection regressions, 180 15F-A regressions, 65 15E-C regressions, 174 15E-A regressions, 104 15D-C regressions, 203 15D-B regressions, 205 15D-A regressions, 152 15C-B regressions, 249 15B regressions, 60 production-contract tests, 3146 network tests, and 7007 full-suite tests passed in successful fresh cache-disabled validation runs. Requested `.pytest_15fb_network` and `.pytest_15fb_full` base-temp runs reproduced Windows `PermissionError` cleanup issues in `tmp_path` setup; fresh alternate repo-local base-temp reruns passed. All six examples, Ruff, Black, and diff checks passed; all six known production classes remain `NO_CONTRIBUTE_METHOD`. See `BLOCK_15F_B_ALGEBRAIC_RESIDUAL_SELECTION_INTEGRATION_AUDIT.md`. |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
