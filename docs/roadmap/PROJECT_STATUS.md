@@ -12,8 +12,8 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Project name** | MPL Loop Simulation Library |
 | **Repository** | `mpl-loop-sim` |
 | **Branch** | `phase-15e-a-configurable-scenario-builder` |
-| **Stage** | Block 15E-A — Configurable Scenario Builder Foundation MVP: explicit scenario specs, deterministic declaration building, single-loop and two-branch structural equivalence |
-| **Completed phase** | **Block 15E-A — Configurable Scenario Builder Foundation MVP** |
+| **Stage** | Block 15E-B — Configurable Physical Residual Selection MVP: explicit user-controlled residual-selection layer for configurable scenario declarations (declaration-only, single-loop algebraic, two-branch parallel algebraic, closure-only) |
+| **Completed phase** | **Block 15E-B — Configurable Physical Residual Selection MVP** |
 | **Previous completed phase** | Block 15D-C — Closure Integration and Sufficiency Diagnostics MVP |
 | **Phase 3 audit verdict** | **APPROVED FOR PHASE 4** |
 | **Phase 4 audit verdict** | **APPROVED FOR PHASE 5** |
@@ -105,11 +105,12 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Block 15D-C status** | **Checkpoint complete and independently audited with one minor corrective fix. Block 15D-C combines hydraulic (15D-A) and thermal (15D-B) closure residual sets into a unified evaluation/reporting layer. `CombinedClosureResidualSet` now enforces its non-empty, domain-type, and cross-domain residual-name uniqueness invariants both through the factory and through direct construction, preventing silent residual overwrite. Hydraulic-only and thermal-only sets remain supported. Combined evaluation preserves hydraulic-first deterministic ordering, returns read-only residual mappings, and reports max-absolute and L2 norms. Combined diagnostics aggregate existing category-presence diagnostics only; `is_sufficient` does not imply equation count, rank, DAE solvability, uniqueness, or physical predictiveness. Reports are plain serializable dictionaries with `status: "evaluation_only"` and `no_solve: true`. No property, correlation, HX-model, production-component, `SystemState`, `FluidState`, generic `solve(network)`, or `NetworkGraph.solve()` path was added. See `docs/validation/audits/BLOCK_15D_C_CLOSURE_INTEGRATION_DIAGNOSTICS_AUDIT.md`. Verified 2026-06-25.** |
 | **Block 15D-C audit** | **Approved with minor fixes.** |
 | **Block 15E-A status** | **Checkpoint complete and independently audited with minor validation/test hardening. Block 15E-A — Configurable Scenario Builder Foundation MVP — introduces explicit configurable scenario declarations for simple loop and two-branch MPL-like network scenarios. New module `src/mpl_sim/network/configurable_scenarios.py`. Public API: `ScenarioComponentRole`; `ScenarioComponentSpec`; `ScenarioNodeSpec`; `ScenarioConnectionSpec`; `ScenarioBranchSpec`; `ConfigurableScenarioSpec`; `ConfigurableScenarioBuildResult`; `build_configurable_scenario`; `build_configurable_scenario_report`. Roles remain declaration metadata only. The builder produces a `NetworkGraph`, declaration-only `NetworkResidualAssembly`, and `NetworkBindingContext` with deterministic names. Audit fixes moved exact connection coverage into scenario validation, rejected connection/branch self-loops and duplicate branch component IDs, validated branch component paths against declared connectivity, validated tags, and added direct graph-edge equivalence tests. Block 15E-A does not infer closures, evaluate physical residuals, execute production components, assemble `SystemState`, construct `FluidState`, or add generic `solve(network)` / `NetworkGraph.solve()`. It is not property-, correlation-, or HX-backed. All six production classes remain `NO_CONTRIBUTE_METHOD`. See `docs/validation/audits/BLOCK_15E_A_CONFIGURABLE_SCENARIO_BUILDER_AUDIT.md`. Verified 2026-06-25.** |
-| **Branch status** | **Block 15E-A on `phase-15e-a-configurable-scenario-builder`, based on merged Block 15D-C.** |
-| **Current active phase** | **Block 15E-A — Configurable Scenario Builder Foundation MVP** |
-| **Next immediate slice** | Post-15E-A: configurable physical residual selection, production component adapters, property/correlation/HX-backed closures, combined physical residual assembly, and physically predictive solves remain future work |
-| **Baseline before this block** | Block 15D-C: 6420 tests. |
-| **Test status** | **6594 tests passed (174 Block 15E-A tests: 125 configurable-scenario tests + 49 fixed-equivalence tests). Baseline Block 15D-C: 6420. Network suite: 2733 passed. No failures, errors, skips, xfails, or deselections.** |
+| **Block 15E-B status** | **Checkpoint complete and independently audited with minor corrective fixes. Block 15E-B — Configurable Physical Residual Selection MVP — adds an explicit user-controlled residual-selection layer for configurable scenario declarations. New module `src/mpl_sim/network/configurable_residual_selection.py`. Public API: `ConfigurableResidualMode` (enum, 4 modes); `ConfigurableResidualSelectionRequest` (frozen dataclass with explicit `evaluate: bool = False`); `ConfigurableResidualCompatibilityResult` (structured compatibility check); `ConfigurableResidualSelectionResult` (frozen result, always `no_solve=True`); `select_configurable_residual_strategy`; `evaluate_selected_configurable_residuals`; `build_configurable_residual_selection_report`. Compatibility checking is based on conventional component/node/branch ID ordering, graph edge signatures, and unknown/residual names — not roles. DECLARATION_ONLY accepts any valid `ConfigurableScenarioBuildResult`. FIXED_SINGLE_LOOP_ALGEBRAIC reuses `evaluate_fixed_single_loop_residuals` only when explicitly evaluated and structurally compatible (evaluation-only, no solve). FIXED_TWO_BRANCH_PARALLEL_ALGEBRAIC reuses `evaluate_parallel_topology_residuals` only when explicitly evaluated and structurally compatible (no solve). CLOSURE_ONLY requires an explicit `CombinedClosureResidualSet` and does not infer closures from roles. All modes must be explicitly requested; no automatic mode selection from roles or component_type. Reports carry `no_solve: True`, `roles_selected_physics: False`, `closures_inferred_from_roles: False`. Does not call CoolProp, PropertyBackend, CorrelationRegistry, SystemState, FluidState, contribute(), solve(network), or NetworkGraph.solve(). Does not execute production components. 115 tests (83 unit + 32 integration). See `docs/validation/audits/BLOCK_15E_B_CONFIGURABLE_RESIDUAL_SELECTION_AUDIT.md`. Verified 2026-06-26.** |
+| **Branch status** | **Block 15E-B on `phase-15e-b-configurable-residual-selection`, based on merged Block 15E-A.** |
+| **Current active phase** | **Block 15E-B — Configurable Physical Residual Selection MVP** |
+| **Next immediate slice** | Post-15E-B: production component adapters, property/correlation/HX-backed closures, combined physical residual assembly, and physically predictive solves remain future work |
+| **Baseline before this block** | Block 15E-A: 6594 tests. |
+| **Test status** | **6709 tests passed (115 Block 15E-B tests: 83 unit + 32 integration). Baseline Block 15E-A: 6594. Network suite: 2848 passed. No failures, errors, skips, xfails, or deselections in the fresh cache-disabled validation runs. A stale pre-audit `.pytest_15eb_network` temp root reproduced the known Windows cleanup permission error; rerunning with a genuinely fresh repo-local temp root passed cleanly.** |
 | **Lint status** | **Clean. `ruff check src tests examples` → All checks passed.** |
 | **Format status** | **Clean. `black --check --no-cache src tests examples` → all files pass.** |
 
@@ -196,8 +197,43 @@ Block 15E-A does NOT:
 - add generic `solve(network)` or `NetworkGraph.solve()`;
 - back any physics with properties, correlations, or HX models.
 
+### Block 15E-B — Configurable Physical Residual Selection MVP (**COMPLETE**)
+
+Block 15E-B adds an explicit, user-controlled residual-selection layer on top of
+the 15E-A configurable scenario declarations.
+
+Key properties:
+- `ConfigurableResidualMode` enum with four modes: DECLARATION_ONLY,
+  FIXED_SINGLE_LOOP_ALGEBRAIC, FIXED_TWO_BRANCH_PARALLEL_ALGEBRAIC, CLOSURE_ONLY.
+- All modes must be explicitly requested; no automatic selection from roles or
+  component_type; roles are declaration metadata and do not trigger physics.
+- Compatibility checking uses conventional component/node/branch ID ordering,
+  graph edge signatures, branch IDs where applicable, and unknown/residual names
+  (not roles).
+- FIXED_SINGLE_LOOP_ALGEBRAIC reuses `evaluate_fixed_single_loop_residuals`
+  only when `evaluate=True`, explicit parameters/unknowns are supplied, and the
+  scenario is structurally compatible (evaluation-only path;
+  `solve_fixed_single_loop_residuals` is never called).
+- FIXED_TWO_BRANCH_PARALLEL_ALGEBRAIC reuses `evaluate_parallel_topology_residuals`
+  only when `evaluate=True`, explicit parameters/unknowns are supplied, and the
+  scenario is structurally compatible.
+- CLOSURE_ONLY requires an explicit `CombinedClosureResidualSet`; closures are not
+  inferred from roles; closure evaluation also requires `evaluate=True` and
+  explicit closure unknown values.
+- Results always carry `no_solve=True`; reports carry `no_solve: True`,
+  `roles_selected_physics: False`, `closures_inferred_from_roles: False`.
+- `evaluate_selected_configurable_residuals` raises `ValueError` if evaluation was
+  not performed (deferred or incompatible), distinguishing deferred from missing params.
+
+Block 15E-B does NOT:
+- select a mode automatically from roles;
+- infer closures from component roles;
+- call CoolProp, PropertyBackend, CorrelationRegistry, SystemState, or FluidState;
+- execute production components;
+- add generic `solve(network)` or `NetworkGraph.solve()`;
+- call `solve_fixed_single_loop_residuals` or any root-finding / optimization solver.
+
 Later blocks remain responsible for:
-- configurable physical residual selection;
 - production component adapters;
 - property/correlation/HX-backed closures;
 - combined physical residual assembly;
@@ -1098,28 +1134,31 @@ Closeout artifacts:
 - `docs/validation/audits/BLOCK_15B4_FIXED_LOOP_CLOSEOUT_AUDIT.md`
 - `docs/validation/audits/BLOCK_15D_C_CLOSURE_INTEGRATION_DIAGNOSTICS_AUDIT.md`
 - `docs/validation/audits/BLOCK_15E_A_CONFIGURABLE_SCENARIO_BUILDER_AUDIT.md`
+- `docs/validation/audits/BLOCK_15E_B_CONFIGURABLE_RESIDUAL_SELECTION_AUDIT.md`
 
 ---
 
 ## 4. Current Active Phase
 
-**Block 15E-A — Configurable Scenario Builder Foundation MVP** is implemented
-and independently audited on `phase-15e-a-configurable-scenario-builder`.
+**Block 15E-B — Configurable Physical Residual Selection MVP** is implemented
+on `phase-15e-b-configurable-residual-selection`, based on merged Block 15E-A.
 
 The implemented capability is intentionally narrow:
 
-- explicit components, nodes, connections, branches, IDs, metadata, and tags
-  are validated as declarations;
-- graph, unknown/residual, and binding declarations are generated
-  deterministically;
-- fixed 15B single-loop and fixed 15C two-branch graph edges, IDs, names, and
-  binding shapes are reproduced structurally;
-- roles remain metadata and trigger no physical dispatch;
-- reports are plain JSON-serializable dictionaries and write no files;
-- no closure inference, physical residual evaluation, component execution,
-  state assembly, or solve is performed.
+- configurable scenario declarations (from 15E-A) may be paired with an
+  explicit residual-selection mode requested by the caller;
+- compatibility checking uses conventional ID ordering only — roles are ignored;
+- DECLARATION_ONLY accepts any valid `ConfigurableScenarioBuildResult` without
+  performing residual evaluation;
+- FIXED_SINGLE_LOOP_ALGEBRAIC and FIXED_TWO_BRANCH_PARALLEL_ALGEBRAIC reuse
+  existing evaluation-only APIs from Blocks 15B and 15C — no solve is performed;
+- CLOSURE_ONLY evaluates explicitly supplied `CombinedClosureResidualSet` — no
+  closure is inferred from roles;
+- all results carry `no_solve=True`; reports carry `roles_selected_physics: False`
+  and `closures_inferred_from_roles: False`;
+- no property, correlation, HX-model, component execution, or state assembly.
 
-Block 15E-A is complete only within the configurable declaration/assembly MVP
+Block 15E-B is complete only within the configurable residual-selection MVP
 scope. It is not property-backed, correlation-backed, HX-model-backed, or
 physically predictive.
 
@@ -1139,7 +1178,7 @@ Phase boundaries to preserve:
 
 ## 5. Next Immediate Actions
 
-1. Plan the next post-15E-A slice through an explicitly reviewed scope.
+1. Plan the next post-15E-B slice through an explicitly reviewed scope.
 2. Keep production-component execution, `SystemState` assembly, `FluidState`
    construction, property/correlation/HX-model calls, arbitrary topology, and
    generic `solve(network)` / `NetworkGraph.solve()` deferred unless separately
@@ -1294,8 +1333,8 @@ Rules for the next implementation session:
 
 | Field | Value |
 |---|---|
-| **Date** | 2026-06-25 |
+| **Date** | 2026-06-26 |
 | **Updated by** | Codex |
-| **Status note** | Block 15E-A configurable scenario builder independently audited on `phase-15e-a-configurable-scenario-builder`; approved with minor validation and structural-equivalence test fixes. 125 configurable-scenario tests, 49 fixed-equivalence tests, 104 Block 15D-C regressions, 203 Block 15D-B regressions, 205 Block 15D-A regressions, 152 Block 15C-B regressions, 2733 network tests, and 6594 full-suite tests passed with no skips, xfails, or deselections. Fresh cache-disabled audit temp roots passed. Two stale pre-audit temp roots and transient Windows post-test cleanup locks required verified elevated deletion; pytest itself had no permission, cache, collection, or execution error. All six examples, Ruff, Black, and diff checks passed; all six known production classes remain `NO_CONTRIBUTE_METHOD`. See `BLOCK_15E_A_CONFIGURABLE_SCENARIO_BUILDER_AUDIT.md`. |
+| **Status note** | Block 15E-B configurable residual selection independently audited on `phase-15e-b-configurable-residual-selection`; approved with minor corrective fixes. The audit added explicit `evaluate: bool = False` gating so pure selection never evaluates merely because parameters are present, defensive copies for unknown-value mappings, and graph-edge/name compatibility checks for fixed MVP modes. 83 residual-selection unit tests, 32 residual-selection integration tests, 174 Block 15E-A regressions, 104 Block 15D-C regressions, 203 Block 15D-B regressions, 205 Block 15D-A regressions, 152 Block 15C-B regressions, 333 fixed-loop regressions, 60 production-contract tests, 2848 network tests, and 6709 full-suite tests passed with no skips, xfails, deselections, failures, or unresolved errors. Fresh cache-disabled audit temp roots passed. One stale pre-audit `.pytest_15eb_network` root reproduced a Windows cleanup permission error; rerun with a genuinely fresh temp root passed, and stale roots were removed. All six examples, Ruff, Black, and diff checks passed; all six known production classes remain `NO_CONTRIBUTE_METHOD`. See `BLOCK_15E_B_CONFIGURABLE_RESIDUAL_SELECTION_AUDIT.md`. |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*
