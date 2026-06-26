@@ -5,7 +5,8 @@ Block 15D-A (hydraulic closure primitives) +
 Block 15D-B (thermal closure primitives) +
 Block 15D-C (closure integration and sufficiency diagnostics) +
 Block 15E-A (configurable scenario builder foundation MVP) +
-Block 15E-B (configurable physical residual selection MVP).
+Block 15E-B (configurable physical residual selection MVP) +
+Block 15F-A (configurable algebraic residual assembly foundation MVP).
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -560,6 +561,45 @@ Block 15E-B exports (configurable physical residual selection MVP):
   adapters; property/correlation/HX-backed closures; rank/solvability analysis;
   physically predictive solves.
 
+Block 15F-A exports (configurable algebraic residual assembly foundation MVP):
+
+  Kind enum:
+    ConfigurableAlgebraicResidualKind
+
+  Declaration union type alias:
+    ConfigurableAlgebraicResidualDeclaration
+
+  Concrete declaration types:
+    MassBalanceResidualDeclaration
+    PressureDifferenceResidualDeclaration
+    ImposedPressureResidualDeclaration
+    ImposedMassFlowResidualDeclaration
+    EnthalpyFlowResidualDeclaration
+
+  Residual set:
+    ConfigurableAlgebraicResidualSet
+
+  Evaluation result:
+    ConfigurableAlgebraicResidualEvaluationResult
+
+  Functions:
+    build_configurable_algebraic_residual_set
+    evaluate_configurable_algebraic_residuals
+    validate_algebraic_residuals_against_scenario
+    build_configurable_algebraic_residual_report
+
+  Note: Block 15F-A adds explicit user-declared algebraic residual declarations
+  for configurable scenarios.  Residuals are declared with explicit unknown names
+  and scalar parameters; none are inferred from component roles or graph topology.
+  Evaluation requires an explicit call over an explicit unknown-value mapping.
+  Block 15F-A is property-free, correlation-free, and HX-model-free.  It does
+  not execute production components, does not assemble SystemState, does not
+  construct FluidState, does not call CoolProp or PropertyBackend, and does not
+  solve.  No generic solve(network) or NetworkGraph.solve() is added.  Later
+  blocks remain responsible for: richer configurable physical residual assembly;
+  production component adapters; property/correlation/HX-backed closures;
+  rank/solvability analysis; physically predictive solves.
+
 MUST NOT import from solvers/.
 """
 
@@ -588,6 +628,21 @@ from mpl_sim.network.component_provider_adapters import (
     ComponentProviderExecutionContext,
     build_component_contribution_from_provider_execution,
     execute_component_provider_contributions,
+)
+from mpl_sim.network.configurable_algebraic_residuals import (
+    ConfigurableAlgebraicResidualDeclaration,
+    ConfigurableAlgebraicResidualEvaluationResult,
+    ConfigurableAlgebraicResidualKind,
+    ConfigurableAlgebraicResidualSet,
+    EnthalpyFlowResidualDeclaration,
+    ImposedMassFlowResidualDeclaration,
+    ImposedPressureResidualDeclaration,
+    MassBalanceResidualDeclaration,
+    PressureDifferenceResidualDeclaration,
+    build_configurable_algebraic_residual_report,
+    build_configurable_algebraic_residual_set,
+    evaluate_configurable_algebraic_residuals,
+    validate_algebraic_residuals_against_scenario,
 )
 from mpl_sim.network.configurable_residual_selection import (
     ConfigurableResidualCompatibilityResult,
@@ -1096,4 +1151,23 @@ __all__ = [
     "select_configurable_residual_strategy",
     "evaluate_selected_configurable_residuals",
     "build_configurable_residual_selection_report",
+    # Block 15F-A kind enum
+    "ConfigurableAlgebraicResidualKind",
+    # Block 15F-A declaration union type alias
+    "ConfigurableAlgebraicResidualDeclaration",
+    # Block 15F-A concrete declaration types
+    "MassBalanceResidualDeclaration",
+    "PressureDifferenceResidualDeclaration",
+    "ImposedPressureResidualDeclaration",
+    "ImposedMassFlowResidualDeclaration",
+    "EnthalpyFlowResidualDeclaration",
+    # Block 15F-A residual set
+    "ConfigurableAlgebraicResidualSet",
+    # Block 15F-A evaluation result
+    "ConfigurableAlgebraicResidualEvaluationResult",
+    # Block 15F-A functions
+    "build_configurable_algebraic_residual_set",
+    "evaluate_configurable_algebraic_residuals",
+    "validate_algebraic_residuals_against_scenario",
+    "build_configurable_algebraic_residual_report",
 ]
