@@ -112,11 +112,12 @@ This document is not architecture. It does not redesign anything. It tracks wher
 | **Block 15F-C status** | **Checkpoint complete and independently audited. Block 15F-C — Configurable Algebraic Residual Closeout / Acceptance MVP — closes Block 15F by proving the full configurable algebraic residual stack works coherently end-to-end across 15F-A, 15F-B, 15E-A, 15E-B, 15E-C, and the existing 15D closure integration and fixed MVP layers. New test file `tests/network/test_configurable_algebraic_residual_closeout.py` (90 acceptance and boundary tests). No new runtime modules. No new runtime architecture. Covers 10 acceptance stories: (1) end-to-end configurable algebraic evaluation path with report-flag verification (no_solve, roles_selected_physics, closures_inferred_from_roles, residuals_inferred_from_roles, residuals_inferred_from_topology all correct); (2) perturbed unknowns produce nonzero residuals proving real evaluation; (3) pure selection with evaluate=False suppresses evaluation and evaluate_selected raises; (4) missing scenario unknowns reject compatibility with deterministic reasons; (5) missing algebraic unknown values defer evaluation while compatibility remains True; (6) role changes do not alter algebraic residual compatibility or evaluation behavior; (7) topology alone does not generate algebraic residuals — missing set is rejected cleanly; (8) existing DECLARATION_ONLY, CLOSURE_ONLY, and fixed-loop modes remain independent of algebraic residual fields; (9) reports from all stack layers compose into a single JSON-serializable dict with no_solve=True throughout; (10) all six production classes still report NO_CONTRIBUTE_METHOD. Boundary / negative acceptance tests (B1–B11) prove via import-line scanning and hasattr checks: no solve_fixed_single_loop_residuals in algebraic path; no generic solve(network) or NetworkGraph.solve; no SystemState or FluidState imports; no CoolProp, PropertyBackend, or CorrelationRegistry imports; no HX-model imports; no mpl_sim.components imports; no def contribute or contribute attribute; no role-based physics dispatch in the algebraic evaluation path; no topology-based residual inference; no automatic closure inference; no root/least-squares/minimize imports; evaluation results carry no solver fields. Algebraic residuals remain user-declared. Algebraic residuals are not inferred from roles. Algebraic residuals are not inferred from topology. Closures are not inferred from roles. No solve added. No property/correlation/HX-backed execution added. No production component execution added. No SystemState assembled. No FluidState constructed. No generic solve(network) or NetworkGraph.solve() added. 15F is now complete within configurable algebraic residual MVP scope. Baseline Block 15F-B: 7007 tests. New test total: 7097 tests (90 Block 15F-C tests). Network suite: 3236 passed. Full suite: 7097 passed. All six examples passed. Ruff and Black clean. Later blocks remain responsible for: richer physical residual assembly; production component adapters; property/correlation/HX-backed closures; rank/solvability analysis; physically predictive solves. See `docs/validation/audits/BLOCK_15F_C_ALGEBRAIC_RESIDUAL_CLOSEOUT_AUDIT.md`. Verified 2026-06-26.** |
 | **Block 15F-C status** | **Checkpoint complete and independently audited. Block 15F-C closes Block 15F. 7097 tests total. See entry above.** |
 | **Block 15G-A status** | **Checkpoint complete and independently audited with minor documentation finalization. Block 15G-A - Explicit Configurable Residual Blueprint Assembly Foundation MVP - adds an explicit user-declared blueprint layer that translates scenario-level IDs into 15F-A algebraic residual declarations. New module `src/mpl_sim/network/configurable_residual_blueprints.py`. 12 exported symbols: `ConfigurableResidualBlueprintKind`, `ConfigurableResidualBlueprintDeclaration`, `MassBalanceResidualBlueprint`, `PressureDifferenceResidualBlueprint`, `ImposedPressureResidualBlueprint`, `ImposedMassFlowResidualBlueprint`, `EnthalpyFlowResidualBlueprint`, `ConfigurableResidualBlueprintSet`, `ConfigurableResidualBlueprintBuildResult`, `build_configurable_residual_blueprint_set`, `build_configurable_algebraic_residuals_from_blueprints`, `build_configurable_residual_blueprint_report`. Blueprints are user-declared; none are inferred from roles, component types, graph topology, or graph edges. Mass-balance blueprints use explicit incoming/outgoing component IDs and translate only to `mdot:<component_id>` unknowns; `anchor_node_id` is metadata only. Pressure and imposed-pressure blueprints translate explicit node IDs only to `P:<node_id>` unknowns. Enthalpy-flow blueprints remain scalar algebra only with explicit heat-rate and enthalpy unknown names. The builder preserves order, rejects duplicates and empty sets, builds a 15F-A `ConfigurableAlgebraicResidualSet`, optionally validates required unknown names against `ConfigurableScenarioBuildResult.unknown_names`, and reports deterministic missing unknowns. Build/report flags state `no_solve=True`, `residuals_inferred_from_roles=False`, `residuals_inferred_from_topology=False`, `closures_inferred_from_roles=False`, and `production_components_executed=False`. Block 15G-A does not evaluate residuals during build, solve, infer closures, execute production components, assemble `SystemState`, construct `FluidState`, call CoolProp/PropertyBackend/correlations/HX models, or add generic `solve(network)` / `NetworkGraph.solve()`. Tests: 133 unit tests and 47 integration tests (180 new tests total). Baseline Block 15F-C: 7097 tests. New full-suite total: 7277 tests. Network suite: 3416 passed. Full suite: 7277 passed. All six examples passed. Ruff, Black, and diff checks clean. All six production classes remain `NO_CONTRIBUTE_METHOD`. Later blocks remain responsible for richer physical residual assembly, production component adapters, property/correlation/HX-backed closures, rank/solvability analysis, and physically predictive solves. See `docs/validation/audits/BLOCK_15G_A_EXPLICIT_RESIDUAL_BLUEPRINTS_AUDIT.md`. Verified 2026-06-27.** |
-| **Branch status** | **Block 15G-A on `phase-15g-a-explicit-residual-blueprints`, based on merged Block 15F-C.** |
-| **Current active phase** | **Block 15G-A — Explicit Configurable Residual Blueprint Assembly Foundation MVP** |
-| **Next immediate slice** | Post-15G-A: richer configurable physical residual assembly; production component adapters; property/correlation/HX-backed closures; rank/solvability analysis; physically predictive solves — all deferred to future blocks |
-| **Baseline before this block** | Block 15F-C: 7097 tests. |
-| **Test status** | **7277 tests passed (180 Block 15G-A tests). Baseline Block 15F-C: 7097. Network suite: 3416 passed. Full suite: 7277 passed. No failures, errors, skips, or deselections reported in the executed quiet runs.** |
+| **Block 15G-B status** | **Checkpoint complete and independently audited with minor hardening. Block 15G-B — Explicit Residual Blueprint Selection Workflow Integration MVP — adds a small workflow orchestration layer wiring Block 15G-A explicit residual blueprints into the Block 15F-B `CONFIGURABLE_ALGEBRAIC` residual selection mode. New module `src/mpl_sim/network/configurable_residual_blueprint_workflows.py`. 4 exported symbols: `ConfigurableResidualBlueprintWorkflowRequest`, `ConfigurableResidualBlueprintWorkflowResult`, `build_configurable_residual_selection_from_blueprints`, `build_configurable_residual_blueprint_workflow_report`. Workflow input remains user-declared: explicit `ConfigurableScenarioBuildResult`, explicit blueprints, and optional explicit unknown values. The helper builds the 15G-A blueprint result, and only when the translated unknowns are compatible with the scenario does it create a 15F-B `ConfigurableResidualSelectionRequest(mode=CONFIGURABLE_ALGEBRAIC)` and call `select_configurable_residual_strategy`; incompatible blueprint sets produce no selection request and no evaluation. Evaluation occurs only when `evaluate=True` and explicit unknown values are supplied. Result and report carry `no_solve=True` and explicit `blueprints_inferred_from_roles=False`, `blueprints_inferred_from_topology=False`, `residuals_inferred_from_roles=False`, `residuals_inferred_from_topology=False`, `closures_inferred_from_roles=False`, `production_components_executed=False` flags. Block 15G-B does not infer blueprints or residuals from roles or topology, does not create closures automatically, does not execute production components, does not assemble `SystemState`, does not construct `FluidState`, and adds no solve. Tests: 48 unit tests and 9 integration tests (57 new tests total). Baseline Block 15G-A: 7277 tests. New full-suite total: 7334 tests. Network suite: 3473 passed. Full suite: 7334 passed. All six examples passed. Ruff, Black, and diff checks clean. All six production classes remain `NO_CONTRIBUTE_METHOD`. Later blocks remain responsible for richer physical residual assembly, production component adapters, property/correlation/HX-backed closures, rank/solvability analysis, and physically predictive solves. See `docs/validation/audits/BLOCK_15G_B_BLUEPRINT_SELECTION_WORKFLOW_AUDIT.md`. Verified 2026-06-30.** |
+| **Branch status** | **Block 15G-B on `phase-15g-b-blueprint-selection-workflow`, based on merged Block 15G-A.** |
+| **Current active phase** | **Block 15G-B — Explicit Residual Blueprint Selection Workflow Integration MVP** |
+| **Next immediate slice** | Post-15G-B: richer configurable physical residual assembly; production component adapters; property/correlation/HX-backed closures; rank/solvability analysis; physically predictive solves — all deferred to future blocks |
+| **Baseline before this block** | Block 15G-A: 7277 tests. |
+| **Test status** | **7334 tests passed (57 Block 15G-B tests). Baseline Block 15G-A: 7277. Network suite: 3473 passed. Full suite: 7334 passed. No failures, errors, skips, or deselections reported in the executed quiet runs.** |
 | **Lint status** | **Clean. `ruff check src tests examples` -> All checks passed.** |
 | **Format status** | **Clean. `black --check --no-cache --verbose src tests examples` -> 230 files unchanged.** |
 
@@ -351,6 +352,89 @@ Validation and audit:
 
 Later blocks remain responsible for:
 - richer configurable physical residual assembly;
+- production component adapters;
+- property/correlation/HX-backed closures;
+- rank/solvability analysis;
+- physically predictive solves.
+
+### Block 15G-B — Explicit Residual Blueprint Selection Workflow Integration MVP (**COMPLETE**)
+
+Block 15G-B adds a small workflow integration layer that wires Block 15G-A
+explicit residual blueprints into the Block 15F-B `CONFIGURABLE_ALGEBRAIC`
+residual selection mode. Workflow input remains user-declared: an explicit
+`ConfigurableScenarioBuildResult`, explicit residual blueprints, and optional
+explicit unknown values.
+
+```text
+explicit scenario
++ explicit residual blueprints
++ optional explicit unknown values
+-> blueprint build result (15G-A)
+-> ConfigurableResidualSelectionRequest(mode=CONFIGURABLE_ALGEBRAIC) (15F-B)
+-> explicit selection/evaluation result
+-> JSON-serializable workflow report
+```
+
+Key properties:
+- New module `src/mpl_sim/network/configurable_residual_blueprint_workflows.py`.
+- `ConfigurableResidualBlueprintWorkflowRequest` — frozen request holding
+  `scenario_build_result`, `blueprints` (a `ConfigurableResidualBlueprintSet`
+  or sequence of blueprint declarations), optional `algebraic_unknown_values`,
+  and `evaluate` (defaults to `False`). Mappings are defensively copied.
+  Blueprint order is preserved. No evaluation, scenario scanning, or
+  role/topology inference occurs during request construction.
+- `build_configurable_residual_selection_from_blueprints` — builds the 15G-A
+  blueprint result via `build_configurable_algebraic_residuals_from_blueprints`,
+  then, only if the translated unknowns are compatible with the scenario,
+  creates a `ConfigurableResidualSelectionRequest(mode=CONFIGURABLE_ALGEBRAIC,
+  algebraic_residual_set=blueprint_result.algebraic_residual_set,
+  algebraic_unknown_values=request.algebraic_unknown_values,
+  evaluate=request.evaluate)` and calls `select_configurable_residual_strategy`.
+  When incompatible, no selection request is created and no evaluation is
+  attempted. Evaluation occurs only when `evaluate=True` and explicit unknown
+  values are supplied; otherwise the 15F-B path defers evaluation with a
+  deterministic reason.
+- `ConfigurableResidualBlueprintWorkflowResult` — frozen result carrying the
+  15G-A blueprint build result, the 15F-B selection result (or `None` when
+  incompatible), the selected mode (or `None`), evaluation-performed flag,
+  a deferred/incompatibility reason, required unknown names, missing
+  unknowns, `no_solve=True`, and the no-inference flags
+  `blueprints_inferred_from_roles=False`, `blueprints_inferred_from_topology=False`,
+  `residuals_inferred_from_roles=False`, `residuals_inferred_from_topology=False`,
+  `closures_inferred_from_roles=False`, `production_components_executed=False`.
+- `build_configurable_residual_blueprint_workflow_report` — plain
+  JSON-serializable dict composing the 15G-A blueprint report with the 15F-B
+  selection report (when created; otherwise `selection_report: null`), plus
+  required unknown names, missing unknowns, evaluation-performed flag,
+  deferred/incompatibility reason, `no_solve: true`, all no-inference flags,
+  and limitations. No file writes.
+
+Block 15G-B does NOT:
+- infer blueprints from component roles;
+- infer blueprints from network topology;
+- infer residuals from component roles or topology;
+- infer closures from component roles;
+- create closures, blueprints, or residuals automatically;
+- execute production components;
+- assemble `SystemState` or construct `FluidState`;
+- call CoolProp, PropertyBackend, CorrelationRegistry, or HX models;
+- add `solve(network)`, `NetworkGraph.solve()`, `solve_fixed_single_loop_residuals`,
+  or `solve_network_residual_problem`;
+- add new residual kinds or physics beyond orchestrating existing 15G-A and
+  15F-B pieces.
+
+Validation and audit:
+- Unit tests: 48 passed (`tests/network/test_configurable_residual_blueprint_workflows.py`).
+- Integration tests: 9 passed (`tests/network/test_configurable_residual_blueprint_workflows_integration.py`).
+- Network suite: 3473 passed.
+- Full suite: 7334 passed (`7277` Block 15G-A baseline + `57` Block 15G-B tests).
+- Six examples passed.
+- Ruff, Black, and diff checks passed.
+- All six production classes remain `NO_CONTRIBUTE_METHOD`.
+- Audit: `docs/validation/audits/BLOCK_15G_B_BLUEPRINT_SELECTION_WORKFLOW_AUDIT.md`.
+
+Later blocks remain responsible for:
+- richer physical residual assembly;
 - production component adapters;
 - property/correlation/HX-backed closures;
 - rank/solvability analysis;
@@ -1450,8 +1534,8 @@ Rules for the next implementation session:
 
 | Field | Value |
 |---|---|
-| **Date** | 2026-06-27 |
+| **Date** | 2026-06-30 |
 | **Updated by** | Codex |
-| **Status note** | Block 15G-A explicit configurable residual blueprints independently audited on `phase-15g-a-explicit-residual-blueprints`; approved with no critical or major findings and minor documentation finalization only. The audit confirmed 15G-A adds explicit user-declared blueprint dataclasses and builders that translate scenario-level IDs to already approved 15F-A algebraic residual declarations, optionally validate generated unknown names against `ConfigurableScenarioBuildResult.unknown_names`, and integrate with the 15F-B `CONFIGURABLE_ALGEBRAIC` path. No residual inference from roles/topology/component types/graph edges, no automatic residual generation, no closure inference from roles, no property/correlation/HX-backed execution, no production component execution, no `SystemState`, no `FluidState`, and no solve was added. Verified counts: 133 Block 15G-A unit tests, 47 Block 15G-A integration tests, 90 15F-C regressions, 53 15F-B regressions, 180 15F-A regressions, 65 15E-C regressions, 115 15E-B regressions, 174 15E-A regressions, 104 15D-C regressions, 203 15D-B regressions, 205 15D-A regressions, 152 15C-B regressions, 249 15B regressions, 60 production-contract tests, 3416 network tests, and 7277 full-suite tests passed in successful fresh cache-disabled validation runs. Full-suite arithmetic matched `7097 + 180 = 7277`. No pytest basetemp/cache issue recurred. All six examples, Ruff, Black, and diff checks passed; all six known production classes remain `NO_CONTRIBUTE_METHOD`. See `BLOCK_15G_A_EXPLICIT_RESIDUAL_BLUEPRINTS_AUDIT.md`. |
+| **Status note** | Block 15G-B explicit residual blueprint selection workflow independently audited on `phase-15g-b-blueprint-selection-workflow`; approved with no critical or major findings and one minor hardening fix to avoid runtime validation against the blueprint union alias. The audit confirmed 15G-B adds an explicit user-declared workflow helper that builds a 15G-A blueprint result, short-circuits incompatible blueprint translations without creating a selection request, and otherwise passes the generated algebraic residual set into the existing 15F-B `CONFIGURABLE_ALGEBRAIC` selection path. Evaluation remains optional and occurs only through 15F-B when `evaluate=True` and explicit unknown values are supplied. No blueprint, residual, or closure inference from roles/topology/component types/graph edges, no automatic generation, no property/correlation/HX-backed execution, no production component execution, no `SystemState`, no `FluidState`, and no solve was added. Verified counts: 48 Block 15G-B unit tests, 9 Block 15G-B integration tests, 180 Block 15G-A regressions, 90 15F-C regressions, 53 15F-B regressions, 180 15F-A regressions, 65 15E-C regressions, 115 15E-B regressions, 174 15E-A regressions, 104 15D-C regressions, 203 15D-B regressions, 205 15D-A regressions, 152 15C-B regressions, 249 15B regressions, 60 production-contract tests, 3473 network tests, and 7334 full-suite tests passed in successful fresh cache-disabled validation runs. Full-suite arithmetic matched `7277 + 57 = 7334`; network-suite arithmetic matched `3416 + 57 = 3473`. No pytest basetemp/cache issue recurred. All six examples, Ruff, Black, and diff checks passed; all six known production classes remain `NO_CONTRIBUTE_METHOD`. See `BLOCK_15G_B_BLUEPRINT_SELECTION_WORKFLOW_AUDIT.md`. |
 
 *This document must be updated at the start of each new phase and whenever a milestone is completed. It is not a source of truth for architecture; for that, always go to `ARCHITECTURE_MASTER.md`.*

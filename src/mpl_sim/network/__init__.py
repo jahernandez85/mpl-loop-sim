@@ -8,7 +8,8 @@ Block 15E-A (configurable scenario builder foundation MVP) +
 Block 15E-B (configurable physical residual selection MVP) +
 Block 15F-A (configurable algebraic residual assembly foundation MVP) +
 Block 15F-B (configurable algebraic residual selection integration MVP) +
-Block 15G-A (explicit configurable residual blueprint assembly foundation MVP).
+Block 15G-A (explicit configurable residual blueprint assembly foundation MVP) +
+Block 15G-B (explicit residual blueprint selection workflow integration MVP).
 
 Phase 7A/7B/7C/10I exports (component-coupled topology):
 
@@ -681,6 +682,38 @@ Block 15G-A exports (explicit configurable residual blueprint assembly foundatio
   adapters; property/correlation/HX-backed closures; rank/solvability analysis;
   physically predictive solves.
 
+Block 15G-B exports (explicit residual blueprint selection workflow integration MVP):
+
+  Workflow request:
+    ConfigurableResidualBlueprintWorkflowRequest
+
+  Workflow result:
+    ConfigurableResidualBlueprintWorkflowResult
+
+  Workflow helper:
+    build_configurable_residual_selection_from_blueprints
+
+  Workflow report function:
+    build_configurable_residual_blueprint_workflow_report
+
+  Note: Block 15G-B adds a small workflow integration layer that wires
+  Block 15G-A explicit residual blueprints into the Block 15F-B
+  CONFIGURABLE_ALGEBRAIC residual selection mode.  Workflow input remains
+  user-declared: an explicit ConfigurableScenarioBuildResult, explicit
+  blueprints, and optional explicit unknown values.  The workflow builds the
+  15G-A blueprint result and passes the generated algebraic residual set into
+  the 15F-B CONFIGURABLE_ALGEBRAIC selection request.  Evaluation remains
+  optional and requires evaluate=True plus explicit unknown values.  No
+  blueprints are inferred from roles.  No blueprints are inferred from
+  topology.  No residuals are inferred from roles.  No residuals are inferred
+  from topology.  No closures are inferred from roles.  No solve is added.
+  No property/correlation/HX-backed execution is added.  No production
+  component execution is added.  No SystemState is assembled.  No FluidState
+  is constructed.  No generic solve(network) or NetworkGraph.solve() is
+  added.  Later blocks remain responsible for: richer physical residual
+  assembly; production component adapters; property/correlation/HX-backed
+  closures; rank/solvability analysis; physically predictive solves.
+
 MUST NOT import from solvers/.
 """
 
@@ -724,6 +757,12 @@ from mpl_sim.network.configurable_algebraic_residuals import (
     build_configurable_algebraic_residual_set,
     evaluate_configurable_algebraic_residuals,
     validate_algebraic_residuals_against_scenario,
+)
+from mpl_sim.network.configurable_residual_blueprint_workflows import (
+    ConfigurableResidualBlueprintWorkflowRequest,
+    ConfigurableResidualBlueprintWorkflowResult,
+    build_configurable_residual_blueprint_workflow_report,
+    build_configurable_residual_selection_from_blueprints,
 )
 from mpl_sim.network.configurable_residual_blueprints import (
     ConfigurableResidualBlueprintBuildResult,
@@ -1285,4 +1324,12 @@ __all__ = [
     "build_configurable_algebraic_residuals_from_blueprints",
     # Block 15G-A report function
     "build_configurable_residual_blueprint_report",
+    # Block 15G-B workflow request
+    "ConfigurableResidualBlueprintWorkflowRequest",
+    # Block 15G-B workflow result
+    "ConfigurableResidualBlueprintWorkflowResult",
+    # Block 15G-B workflow helper
+    "build_configurable_residual_selection_from_blueprints",
+    # Block 15G-B workflow report function
+    "build_configurable_residual_blueprint_workflow_report",
 ]
