@@ -742,6 +742,40 @@ Block 15H-A exports (explicit residual/unknown structural diagnostics MVP):
   property/correlation/HX-backed closures; rank/Jacobian diagnostics if
   explicitly approved; physically predictive solves.
 
+Block 15H-B exports (structural diagnostics workflow integration MVP):
+
+  Workflow request:
+    ConfigurableResidualDiagnosticWorkflowRequest
+
+  Workflow result:
+    ConfigurableResidualDiagnosticWorkflowResult
+
+  Workflow helper:
+    build_configurable_residual_diagnostic_workflow
+
+  Workflow report function:
+    build_configurable_residual_diagnostic_workflow_report
+
+  Note: Block 15H-B adds a diagnostic-aware workflow integration layer that
+  composes the explicit Block 15G-A blueprint translation, the Block 15H-A
+  structural diagnostics, and the optional Block 15G-B selection/evaluation
+  workflow.  Structural diagnostics are used as a conservative gate before
+  optional evaluation: evaluation is attempted only when request.evaluate is
+  True, the blueprint translation is scenario-compatible, and the structural
+  diagnostic reports evaluation_ready=True.  Otherwise selection/evaluation is
+  deferred with a deterministic reason.  Block 15H-B does not solve, does not
+  evaluate residuals directly, and does not call Block 15F-A/15F-B evaluation
+  functions directly — evaluation, when attempted, is delegated to the
+  existing Block 15G-B workflow helper.  It does not build a Jacobian, does
+  not compute rank, and does not infer residuals, blueprints, or closures
+  from roles or topology.  Structurally square does not mean numerically
+  solvable.  It does not add property/correlation/HX-backed execution, does
+  not execute production components, does not assemble SystemState, and does
+  not construct FluidState.  Later blocks remain responsible for: richer
+  physical residual assembly; production component adapters;
+  property/correlation/HX-backed closures; explicitly approved rank/Jacobian
+  diagnostics; physically predictive solves.
+
 MUST NOT import from solvers/.
 """
 
@@ -805,6 +839,12 @@ from mpl_sim.network.configurable_residual_blueprints import (
     build_configurable_algebraic_residuals_from_blueprints,
     build_configurable_residual_blueprint_report,
     build_configurable_residual_blueprint_set,
+)
+from mpl_sim.network.configurable_residual_diagnostic_workflows import (
+    ConfigurableResidualDiagnosticWorkflowRequest,
+    ConfigurableResidualDiagnosticWorkflowResult,
+    build_configurable_residual_diagnostic_workflow,
+    build_configurable_residual_diagnostic_workflow_report,
 )
 from mpl_sim.network.configurable_residual_diagnostics import (
     ConfigurableResidualStructuralDiagnostic,
@@ -1374,4 +1414,12 @@ __all__ = [
     "evaluate_configurable_residual_structure",
     # Block 15H-A report function
     "build_configurable_residual_diagnostic_report",
+    # Block 15H-B workflow request
+    "ConfigurableResidualDiagnosticWorkflowRequest",
+    # Block 15H-B workflow result
+    "ConfigurableResidualDiagnosticWorkflowResult",
+    # Block 15H-B workflow helper
+    "build_configurable_residual_diagnostic_workflow",
+    # Block 15H-B workflow report function
+    "build_configurable_residual_diagnostic_workflow_report",
 ]
