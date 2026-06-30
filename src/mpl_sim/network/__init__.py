@@ -714,6 +714,34 @@ Block 15G-B exports (explicit residual blueprint selection workflow integration 
   assembly; production component adapters; property/correlation/HX-backed
   closures; rank/solvability analysis; physically predictive solves.
 
+Block 15H-A exports (explicit residual/unknown structural diagnostics MVP):
+
+  Determination status enum:
+    ResidualDeterminationStatus
+
+  Diagnostic result:
+    ConfigurableResidualStructuralDiagnostic
+
+  Functions:
+    evaluate_configurable_residual_structure
+    build_configurable_residual_diagnostic_report
+
+  Note: Block 15H-A adds explicit structural diagnostics for Block 15F-A
+  algebraic residual sets, with optional Block 15E-A scenario build results
+  and optional explicit unknown-value mappings.  Diagnostics are count/name
+  based only: required unknown names come directly from the existing
+  ConfigurableAlgebraicResidualSet.required_unknown_names API.  Diagnostics
+  do not evaluate residual values, do not solve, do not build or rank a
+  Jacobian, and do not infer residuals, blueprints, or closures from roles
+  or topology.  Structurally square is a count diagnostic only — it does not
+  imply numerical rank, solvability, or physical predictiveness.  Block 15H-A
+  does not add property/correlation/HX-backed execution, does not execute
+  production components, does not assemble SystemState, and does not
+  construct FluidState.  Later blocks remain responsible for: richer
+  physical residual assembly; production component adapters;
+  property/correlation/HX-backed closures; rank/Jacobian diagnostics if
+  explicitly approved; physically predictive solves.
+
 MUST NOT import from solvers/.
 """
 
@@ -777,6 +805,12 @@ from mpl_sim.network.configurable_residual_blueprints import (
     build_configurable_algebraic_residuals_from_blueprints,
     build_configurable_residual_blueprint_report,
     build_configurable_residual_blueprint_set,
+)
+from mpl_sim.network.configurable_residual_diagnostics import (
+    ConfigurableResidualStructuralDiagnostic,
+    ResidualDeterminationStatus,
+    build_configurable_residual_diagnostic_report,
+    evaluate_configurable_residual_structure,
 )
 from mpl_sim.network.configurable_residual_selection import (
     ConfigurableResidualCompatibilityResult,
@@ -1332,4 +1366,12 @@ __all__ = [
     "build_configurable_residual_selection_from_blueprints",
     # Block 15G-B workflow report function
     "build_configurable_residual_blueprint_workflow_report",
+    # Block 15H-A determination status enum
+    "ResidualDeterminationStatus",
+    # Block 15H-A diagnostic result
+    "ConfigurableResidualStructuralDiagnostic",
+    # Block 15H-A diagnostic function
+    "evaluate_configurable_residual_structure",
+    # Block 15H-A report function
+    "build_configurable_residual_diagnostic_report",
 ]
